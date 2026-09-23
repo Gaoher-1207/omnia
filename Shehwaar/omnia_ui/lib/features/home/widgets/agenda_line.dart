@@ -29,7 +29,7 @@ class AgendaLine extends StatelessWidget {
           CircleAvatar(
             radius: 14,
             backgroundColor: context.cardColor(color),
-            child: Icon(icon, size: 16, color: context.foreground),
+            child: Icon(icon, size: 16, color: context.cardForeground(color)),
           ),
           const SizedBox(width: 8),
           Expanded(

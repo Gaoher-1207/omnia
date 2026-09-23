@@ -59,6 +59,7 @@ class HomePage extends StatelessWidget {
       const SizedBox(height: 18),
       HardCard(
         color: lilac,
+        prominent: true,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -102,7 +103,10 @@ class HomePage extends StatelessWidget {
                     'This sample plan includes 45 minutes of revision for the DBMS exam in 8 days. Personalized recommendations are coming soon.',
                   ),
                   style: OutlinedButton.styleFrom(
-                    foregroundColor: context.foreground,
+                    foregroundColor: context.cardForeground(
+                      lilac,
+                      prominent: true,
+                    ),
                     side: BorderSide(color: context.foreground, width: 1.5),
                   ),
                   child: Text('Why?'),

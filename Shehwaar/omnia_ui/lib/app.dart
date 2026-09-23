@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:omnia_ui/core/app_dependencies.dart';
+import 'package:omnia_ui/features/onboarding/onboarding_page.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/core/theme/theme_controller.dart';
@@ -9,14 +11,24 @@ import 'package:omnia_ui/features/plan/plan_page.dart';
 import 'package:omnia_ui/features/track/track_page.dart';
 
 class OmniaApp extends StatefulWidget {
-  const OmniaApp({super.key});
+  const OmniaApp({super.key, this.dependencies});
+
+  /// Defaults to in-memory mocks; inject API-backed repositories here later.
+  final AppDependencies? dependencies;
   @override
   State<OmniaApp> createState() => _OmniaAppState();
 }
 
 class _OmniaAppState extends State<OmniaApp> {
+  // In-memory first-run gate. Load/save a local preference here when persistent
+  // onboarding completion is introduced; no feature page needs to know about it.
+  bool _onboardingComplete = false;
   final theme = ThemeController();
-  final revision = RevisionController();
+  late final dependencies = widget.dependencies ?? AppDependencies.mock();
+  late final revision = RevisionController(
+    session: dependencies.initialRevisionSession,
+    repository: dependencies.study,
+  );
 
   @override
   void dispose() {
@@ -26,19 +38,26 @@ class _OmniaAppState extends State<OmniaApp> {
   }
 
   @override
-  Widget build(BuildContext context) => ThemeScope(
-    controller: theme,
-    child: RevisionScope(
-      controller: revision,
-      child: ValueListenableBuilder<ThemeMode>(
-        valueListenable: theme,
-        builder: (context, mode, _) => MaterialApp(
-          title: 'Omnia',
-          debugShowCheckedModeBanner: false,
-          theme: buildAppTheme(),
-          darkTheme: buildAppTheme(brightness: Brightness.dark),
-          themeMode: mode,
-          home: const OmniaHome(),
+  Widget build(BuildContext context) => AppDependenciesScope(
+    dependencies: dependencies,
+    child: ThemeScope(
+      controller: theme,
+      child: RevisionScope(
+        controller: revision,
+        child: ValueListenableBuilder<ThemeMode>(
+          valueListenable: theme,
+          builder: (context, mode, _) => MaterialApp(
+            title: 'Omnia',
+            debugShowCheckedModeBanner: false,
+            theme: buildAppTheme(),
+            darkTheme: buildAppTheme(brightness: Brightness.dark),
+            themeMode: mode,
+            home: _onboardingComplete
+                ? const OmniaHome()
+                : OnboardingPage(
+                    onSkip: () => setState(() => _onboardingComplete = true),
+                  ),
+          ),
         ),
       ),
     ),
@@ -72,7 +91,7 @@ class _OmniaHomeState extends State<OmniaHome> {
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: context.colors.surface,
+          color: context.navigationSurface,
           border: Border(top: BorderSide(color: context.outline, width: 1.5)),
         ),
         child: SafeArea(
@@ -115,7 +134,9 @@ class _OmniaHomeState extends State<OmniaHome> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: active ? (dark ? lilac : blue) : Colors.transparent,
+                    color: active
+                        ? (dark ? darkNavigationAccent : blue)
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Icon(

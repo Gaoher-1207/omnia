@@ -18,6 +18,8 @@ Future<void> startApp(WidgetTester tester) async {
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
   await tester.pumpWidget(const OmniaApp());
+  await tester.tap(find.text('SKIP \u2192'));
+  await tester.pumpAndSettle();
 }
 
 Future<void> tapText(WidgetTester tester, String text) async {
@@ -63,12 +65,29 @@ void expectTheme(WidgetTester tester, Type page, Brightness brightness) {
           .descendant(of: find.byWidget(card), matching: find.byType(Material))
           .first,
     );
-    expect(material.color, element.cardColor(card.color));
+    expect(
+      material.color,
+      element.cardColor(card.color, prominent: card.prominent),
+    );
   }
   expect(tester.takeException(), isNull);
 }
 
 void main() {
+  test('Dark accent text maintains normal-text contrast', () {
+    for (final background in [studyDark, tasksDark, activityDark, sleepDark]) {
+      final ratio =
+          (background.computeLuminance() + .05) /
+          (ink.computeLuminance() + .05);
+      expect(ratio, greaterThanOrEqualTo(4.5));
+    }
+  });
+  test('Dark hero text maintains normal-text contrast', () {
+    final ratio =
+        (darkTextPrimary.computeLuminance() + .05) /
+        (darkPrimary.computeLuminance() + .05);
+    expect(ratio, greaterThanOrEqualTo(4.5));
+  });
   for (final brightness in Brightness.values) {
     testWidgets(
       'All screens and revision tasks work in ${brightness.name} mode',

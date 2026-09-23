@@ -40,8 +40,8 @@ class CategoryCard extends StatelessWidget {
           child: LinearProgressIndicator(
             value: progress,
             minHeight: 7,
-            backgroundColor: context.colors.surfaceContainerHighest,
-            color: context.foreground,
+            backgroundColor: context.progressTrack(color),
+            color: context.cardForeground(color),
           ),
         ),
       ],

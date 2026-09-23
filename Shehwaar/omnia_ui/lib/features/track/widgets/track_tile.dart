@@ -48,8 +48,8 @@ class TrackTile extends StatelessWidget {
             child: LinearProgressIndicator(
               value: progress,
               minHeight: 8,
-              backgroundColor: context.colors.surfaceContainerHighest,
-              color: context.foreground,
+              backgroundColor: context.progressTrack(color),
+              color: context.cardForeground(color),
             ),
           ),
         ],

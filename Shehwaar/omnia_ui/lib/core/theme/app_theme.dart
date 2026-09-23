@@ -4,12 +4,31 @@ import 'package:omnia_ui/core/theme/app_colors.dart';
 
 ThemeData buildAppTheme({Brightness brightness = Brightness.light}) {
   final dark = brightness == Brightness.dark;
-  final scheme = ColorScheme.fromSeed(
+  final baseScheme = ColorScheme.fromSeed(
     seedColor: purple,
     brightness: brightness,
     surface: dark ? night : paper,
-    onSurface: dark ? const Color(0xFFF1EDF7) : ink,
+    onSurface: dark ? darkTextPrimary : ink,
   );
+  final scheme = dark
+      ? baseScheme.copyWith(
+          surface: darkBackground,
+          surfaceDim: darkBackground,
+          surfaceBright: darkSurfaceElevated,
+          surfaceContainerLowest: darkBackground,
+          surfaceContainerLow: darkSurface,
+          surfaceContainer: darkSurface,
+          surfaceContainerHigh: darkSurfaceElevated,
+          surfaceContainerHighest: darkSurfaceElevated,
+          onSurfaceVariant: darkTextSecondary,
+          primary: sleepDark,
+          onPrimary: ink,
+          primaryContainer: darkPrimary,
+          onPrimaryContainer: darkTextPrimary,
+          secondaryContainer: darkSurfaceElevated,
+          onSecondaryContainer: darkTextPrimary,
+        )
+      : baseScheme;
   final surface = SurfaceStyle(brightness);
   final buttonStyle = ButtonStyle(
     elevation: const WidgetStatePropertyAll(0),
@@ -24,7 +43,7 @@ ThemeData buildAppTheme({Brightness brightness = Brightness.light}) {
     segmentedButtonTheme: SegmentedButtonThemeData(style: buttonStyle),
     dialogTheme: DialogThemeData(
       elevation: 0,
-      backgroundColor: scheme.surface,
+      backgroundColor: dark ? darkSurface : scheme.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(28),
         side: surface.side,
@@ -47,7 +66,7 @@ ThemeData buildAppTheme({Brightness brightness = Brightness.light}) {
       ),
     ),
     appBarTheme: AppBarTheme(
-      backgroundColor: scheme.surface,
+      backgroundColor: dark ? darkSurface : scheme.surface,
       foregroundColor: scheme.onSurface,
     ),
   );
@@ -56,21 +75,37 @@ ThemeData buildAppTheme({Brightness brightness = Brightness.light}) {
 /// Semantic surfaces retain the original pastel families in both themes.
 extension OmniaTheme on BuildContext {
   ColorScheme get colors => Theme.of(this).colorScheme;
+  bool get isDark => Theme.of(this).brightness == Brightness.dark;
+  Color get navigationSurface => isDark ? darkSurface : colors.surface;
+  Color cardForeground(Color accent, {bool prominent = false}) =>
+      isDark && prominent
+      ? darkTextPrimary
+      : isDark &&
+            (accent == blue ||
+                accent == yellow ||
+                accent == mint ||
+                accent == lilac)
+      ? ink
+      : foreground;
+  Color progressTrack(Color accent) => isDark
+      ? Color.alphaBlend(ink.withValues(alpha: .18), cardColor(accent))
+      : colors.surfaceContainerHighest;
   Color get foreground => colors.onSurface;
   Color get mutedForeground => colors.onSurfaceVariant;
   Color get outline => SurfaceStyle.of(this).outline;
   Color get actionBackground =>
-      Theme.of(this).brightness == Brightness.dark ? lilac : ink;
+      Theme.of(this).brightness == Brightness.dark ? sleepDark : ink;
   Color get actionForeground =>
       Theme.of(this).brightness == Brightness.dark ? ink : Colors.white;
 
-  Color cardColor(Color accent) {
+  Color cardColor(Color accent, {bool prominent = false}) {
     if (Theme.of(this).brightness != Brightness.dark) return accent;
+    if (prominent) return darkPrimary;
     if (accent == paper) return colors.surfaceContainer;
-    if (accent == lilac) return const Color(0xFF40334F);
-    if (accent == blue) return const Color(0xFF293E58);
-    if (accent == yellow) return const Color(0xFF4B4027);
-    if (accent == mint) return const Color(0xFF25473D);
+    if (accent == lilac) return sleepDark;
+    if (accent == blue) return studyDark;
+    if (accent == yellow) return tasksDark;
+    if (accent == mint) return activityDark;
     return accent;
   }
 }

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:omnia_ui/features/onboarding/onboarding_page.dart';
 import 'package:omnia_ui/core/theme/theme_controller.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -41,6 +43,21 @@ class SettingsPage extends StatelessWidget {
             onSelectionChanged: (selection) =>
                 controller.value = selection.single,
           ),
+          if (kDebugMode) ...[
+            const SizedBox(height: 24),
+            TextButton.icon(
+              onPressed: () => Navigator.push<void>(
+                context,
+                MaterialPageRoute(
+                  builder: (previewContext) => OnboardingPage(
+                    onSkip: () => Navigator.pop(previewContext),
+                  ),
+                ),
+              ),
+              icon: const Icon(Icons.replay),
+              label: const Text('Preview onboarding'),
+            ),
+          ],
         ],
       ),
     );

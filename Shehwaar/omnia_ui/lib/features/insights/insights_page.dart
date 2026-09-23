@@ -18,6 +18,7 @@ class InsightsPage extends StatelessWidget {
       SizedBox(height: 24),
       HardCard(
         color: lilac,
+        prominent: true,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

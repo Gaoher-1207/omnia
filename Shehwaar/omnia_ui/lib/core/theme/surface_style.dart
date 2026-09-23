@@ -11,7 +11,7 @@ class SurfaceStyle {
   final Brightness brightness;
   bool get _dark => brightness == Brightness.dark;
   Color get outline => _dark ? const Color(0xFFAAA1BC) : ink;
-  Color get shadow => _dark ? const Color(0xFF76639C) : ink;
+  Color get shadow => _dark ? darkOffsetShadow : ink;
   BorderSide get side => BorderSide(color: outline, width: 1.6);
 
   BoxDecoration decoration({

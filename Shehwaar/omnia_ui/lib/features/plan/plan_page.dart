@@ -92,6 +92,7 @@ class _PlanPageState extends State<PlanPage> {
       const SizedBox(height: 18),
       HardCard(
         color: lilac,
+        prominent: true,
         onTap: () => showInfoDialog(
           context,
           'Adaptive planning',
@@ -139,7 +140,7 @@ class _PlanPageState extends State<PlanPage> {
                 name,
                 style: TextStyle(
                   color: selected
-                      ? context.foreground
+                      ? context.cardForeground(lilac)
                       : context.mutedForeground,
                   fontWeight: FontWeight.w700,
                 ),

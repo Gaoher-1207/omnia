@@ -104,6 +104,7 @@ class RevisionDetailPage extends StatelessWidget {
             const SizedBox(height: 20),
             HardCard(
               color: lilac,
+              prominent: true,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -135,19 +136,24 @@ class RevisionDetailPage extends StatelessWidget {
                       border: Border.all(color: context.outline),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'What changed?',
-                          style: TextStyle(fontWeight: FontWeight.w900),
-                        ),
-                        SizedBox(height: 5),
-                        Text(
-                          'This is sample copy. The AI explanation will be '
-                          'connected when that service is ready.',
-                        ),
-                      ],
+                    child: DefaultTextStyle.merge(
+                      style: TextStyle(
+                        color: context.isDark ? context.foreground : null,
+                      ),
+                      child: const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'What changed?',
+                            style: TextStyle(fontWeight: FontWeight.w900),
+                          ),
+                          SizedBox(height: 5),
+                          Text(
+                            'This is sample copy. The AI explanation will be '
+                            'connected when that service is ready.',
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],

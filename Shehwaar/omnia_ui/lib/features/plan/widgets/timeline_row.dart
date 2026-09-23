@@ -66,7 +66,11 @@ class TimelineRow extends StatelessWidget {
                   ),
                   child: Row(
                     children: [
-                      Icon(icon, color: context.foreground, size: 21),
+                      Icon(
+                        icon,
+                        color: context.cardForeground(color),
+                        size: 21,
+                      ),
                       const SizedBox(width: 9),
                       Expanded(
                         child: Text(
@@ -74,7 +78,7 @@ class TimelineRow extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            color: context.foreground,
+                            color: context.cardForeground(color),
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
                           ),
@@ -83,7 +87,7 @@ class TimelineRow extends StatelessWidget {
                       Text(
                         showTimeline ? duration : "$time \u00b7 $duration",
                         style: TextStyle(
-                          color: context.foreground,
+                          color: context.cardForeground(color),
                           fontSize: 12,
                         ),
                       ),
@@ -93,7 +97,7 @@ class TimelineRow extends StatelessWidget {
                           child: Icon(
                             Icons.chevron_right,
                             size: 16,
-                            color: context.foreground,
+                            color: context.cardForeground(color),
                           ),
                         ),
                     ],

@@ -1,32 +1,63 @@
 import 'package:flutter/material.dart';
+import 'package:omnia_ui/features/study/domain/study_repository.dart';
+import 'package:omnia_ui/features/study/domain/study_session.dart';
 
-/// Local prototype state, owned by the app and retained across route changes.
+/// App-owned state for one study session, retained across route changes.
+/// Updates are applied locally first, then persisted; a failed save reverts.
 class RevisionController extends ChangeNotifier {
-  String _title = 'DBMS Revision';
-  String get title => _title;
-  final tasks = const [
-    'Revise normalization',
-    'Practice SQL questions',
-    'Go through past papers',
+  RevisionController({
+    required this._session,
+    required this._repository,
+  });
+
+  StudySession _session;
+  final StudyRepository _repository;
+
+  StudySession get session => _session;
+  String get title => _session.title;
+  List<String> get tasks => [
+    for (final item in _session.revisionItems) item.title,
   ];
-  final List<bool> _checked = [false, false, false];
-  bool isChecked(int index) => _checked[index];
-  int get done => _checked.where((value) => value).length;
+  bool isChecked(int index) => _session.revisionItems[index].completed;
+  int get done => _session.revisionItems.where((item) => item.completed).length;
 
-  void setChecked(int index, bool value) {
-    _checked[index] = value;
-    notifyListeners();
-  }
+  void setChecked(int index, bool value) => _save(
+    _session.copyWith(
+      revisionItems: [
+        for (final (i, item) in _session.revisionItems.indexed)
+          i == index ? item.copyWith(completed: value) : item,
+      ],
+    ),
+  );
 
-  void markAll(bool value) {
-    _checked.fillRange(0, _checked.length, value);
-    notifyListeners();
-  }
+  void markAll(bool value) => _save(
+    _session.copyWith(
+      revisionItems: [
+        for (final item in _session.revisionItems)
+          item.copyWith(completed: value),
+      ],
+    ),
+  );
 
   void rename(String value) {
     if (value.trim().isEmpty) return;
-    _title = value.trim();
+    _save(_session.copyWith(title: value.trim()));
+  }
+
+  Future<void> _save(StudySession next) async {
+    final previous = _session;
+    _session = next;
     notifyListeners();
+    // Only apply the result if no newer edit replaced this one meanwhile.
+    try {
+      final saved = await _repository.updateSession(next);
+      if (identical(_session, next)) _session = saved;
+    } catch (_) {
+      if (identical(_session, next)) _session = previous;
+      rethrow;
+    } finally {
+      notifyListeners();
+    }
   }
 }
 
