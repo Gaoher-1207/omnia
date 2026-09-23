@@ -20,6 +20,7 @@ class CategoryCard extends StatelessWidget {
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => HardCard(
+    shadowOffset: const Offset(2, 3),
     onTap: onTap,
     color: color,
     child: Column(

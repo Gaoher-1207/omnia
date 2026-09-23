@@ -9,6 +9,7 @@ class LabelTag extends StatelessWidget {
     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
     decoration: BoxDecoration(
       color: context.actionBackground,
+      border: Border.all(color: context.outline),
       borderRadius: BorderRadius.circular(7),
     ),
     child: Text(

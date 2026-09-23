@@ -18,6 +18,13 @@ class SettingsPage extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           SegmentedButton<ThemeMode>(
+            style: ButtonStyle(
+              backgroundColor: WidgetStateProperty.resolveWith(
+                (states) => states.contains(WidgetState.selected)
+                    ? Theme.of(context).colorScheme.secondaryContainer
+                    : Theme.of(context).colorScheme.surface,
+              ),
+            ),
             segments: const [
               ButtonSegment(
                 value: ThemeMode.light,

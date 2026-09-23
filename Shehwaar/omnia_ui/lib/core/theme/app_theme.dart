@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:omnia_ui/core/theme/surface_style.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
 
 ThemeData buildAppTheme({Brightness brightness = Brightness.light}) {
@@ -9,10 +10,42 @@ ThemeData buildAppTheme({Brightness brightness = Brightness.light}) {
     surface: dark ? night : paper,
     onSurface: dark ? const Color(0xFFF1EDF7) : ink,
   );
+  final surface = SurfaceStyle(brightness);
+  final buttonStyle = ButtonStyle(
+    elevation: const WidgetStatePropertyAll(0),
+    side: WidgetStatePropertyAll(surface.side),
+  );
   return ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
     scaffoldBackgroundColor: scheme.surface,
+    filledButtonTheme: FilledButtonThemeData(style: buttonStyle),
+    outlinedButtonTheme: OutlinedButtonThemeData(style: buttonStyle),
+    segmentedButtonTheme: SegmentedButtonThemeData(style: buttonStyle),
+    dialogTheme: DialogThemeData(
+      elevation: 0,
+      backgroundColor: scheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+        side: surface.side,
+      ),
+    ),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true,
+      fillColor: scheme.surfaceContainerLow,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(9),
+        borderSide: surface.side,
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(9),
+        borderSide: surface.side,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(9),
+        borderSide: BorderSide(color: scheme.primary, width: 2),
+      ),
+    ),
     appBarTheme: AppBarTheme(
       backgroundColor: scheme.surface,
       foregroundColor: scheme.onSurface,
@@ -25,9 +58,7 @@ extension OmniaTheme on BuildContext {
   ColorScheme get colors => Theme.of(this).colorScheme;
   Color get foreground => colors.onSurface;
   Color get mutedForeground => colors.onSurfaceVariant;
-  Color get outline => Theme.of(this).brightness == Brightness.dark
-      ? const Color(0xFFAAA1BC)
-      : ink;
+  Color get outline => SurfaceStyle.of(this).outline;
   Color get actionBackground =>
       Theme.of(this).brightness == Brightness.dark ? lilac : ink;
   Color get actionForeground =>

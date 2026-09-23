@@ -31,6 +31,7 @@ class RevisionDetailPage extends StatelessWidget {
             Row(
               children: [
                 const HardCard(
+                  shadowOffset: Offset(1, 1),
                   color: blue,
                   child: Icon(Icons.menu_book_outlined, size: 32),
                 ),

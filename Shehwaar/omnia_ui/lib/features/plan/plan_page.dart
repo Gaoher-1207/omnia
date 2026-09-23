@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:omnia_ui/core/theme/surface_style.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/core/widgets/hard_card.dart';
@@ -39,9 +40,10 @@ class _PlanPageState extends State<PlanPage> {
       const SizedBox(height: 22),
       Container(
         padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
+        decoration: SurfaceStyle.of(context).decoration(
           color: context.colors.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(12),
+          radius: 12,
+          offset: const Offset(2, 2),
         ),
         child: Row(
           children: [

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:omnia_ui/core/widgets/surface_shadow.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
 
 class TimelineRow extends StatelessWidget {
@@ -43,50 +44,60 @@ class TimelineRow extends StatelessWidget {
           ),
         if (showTimeline) const SizedBox(width: 9),
         Expanded(
-          child: Material(
-            color: context.cardColor(color),
-            borderRadius: BorderRadius.circular(10),
-            child: InkWell(
-              onTap: onTap,
-              borderRadius: BorderRadius.circular(10),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 11,
-                  vertical: 14,
-                ),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  children: [
-                    Icon(icon, color: context.foreground, size: 21),
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+          child: SurfaceShadow(
+            radius: 10,
+            offset: const Offset(2, 3),
+            child: Material(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: BorderSide(color: context.outline, width: 1.6),
+              ),
+              color: context.cardColor(color),
+              child: InkWell(
+                onTap: onTap,
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 11,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(icon, color: context.foreground, size: 21),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: context.foreground,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        showTimeline ? duration : "$time \u00b7 $duration",
                         style: TextStyle(
                           color: context.foreground,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
                         ),
                       ),
-                    ),
-                    Text(
-                      showTimeline ? duration : "$time \u00b7 $duration",
-                      style: TextStyle(color: context.foreground, fontSize: 12),
-                    ),
-                    if (showChevron)
-                      Padding(
-                        padding: EdgeInsets.only(left: 6),
-                        child: Icon(
-                          Icons.chevron_right,
-                          size: 16,
-                          color: context.foreground,
+                      if (showChevron)
+                        Padding(
+                          padding: EdgeInsets.only(left: 6),
+                          child: Icon(
+                            Icons.chevron_right,
+                            size: 16,
+                            color: context.foreground,
+                          ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

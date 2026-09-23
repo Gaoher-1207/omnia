@@ -101,19 +101,28 @@ class _OmniaHomeState extends State<OmniaHome> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 4,
-                ),
+              DecoratedBox(
+                position: DecorationPosition.foreground,
                 decoration: BoxDecoration(
-                  color: active ? (dark ? lilac : blue) : Colors.transparent,
                   borderRadius: BorderRadius.circular(16),
+                  border: active
+                      ? Border.all(color: context.outline, width: 1.5)
+                      : null,
                 ),
-                child: Icon(
-                  icon,
-                  size: 23,
-                  color: active ? ink : color.withValues(alpha: .65),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: active ? (dark ? lilac : blue) : Colors.transparent,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Icon(
+                    icon,
+                    size: 23,
+                    color: active ? ink : color.withValues(alpha: .65),
+                  ),
                 ),
               ),
               const SizedBox(height: 3),
