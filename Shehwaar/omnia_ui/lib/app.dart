@@ -1,19 +1,47 @@
 import 'package:flutter/material.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
+import 'package:omnia_ui/core/theme/theme_controller.dart';
+import 'package:omnia_ui/features/plan/revision_controller.dart';
 import 'package:omnia_ui/features/home/home_page.dart';
 import 'package:omnia_ui/features/insights/insights_page.dart';
 import 'package:omnia_ui/features/plan/plan_page.dart';
 import 'package:omnia_ui/features/track/track_page.dart';
 
-class OmniaApp extends StatelessWidget {
+class OmniaApp extends StatefulWidget {
   const OmniaApp({super.key});
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'Omnia',
-    debugShowCheckedModeBanner: false,
-    theme: buildAppTheme(),
-    home: const OmniaHome(),
+  State<OmniaApp> createState() => _OmniaAppState();
+}
+
+class _OmniaAppState extends State<OmniaApp> {
+  final theme = ThemeController();
+  final revision = RevisionController();
+
+  @override
+  void dispose() {
+    theme.dispose();
+    revision.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => ThemeScope(
+    controller: theme,
+    child: RevisionScope(
+      controller: revision,
+      child: ValueListenableBuilder<ThemeMode>(
+        valueListenable: theme,
+        builder: (context, mode, _) => MaterialApp(
+          title: 'Omnia',
+          debugShowCheckedModeBanner: false,
+          theme: buildAppTheme(),
+          darkTheme: buildAppTheme(brightness: Brightness.dark),
+          themeMode: mode,
+          home: const OmniaHome(),
+        ),
+      ),
+    ),
   );
 }
 
@@ -28,21 +56,24 @@ class _OmniaHomeState extends State<OmniaHome> {
   @override
   Widget build(BuildContext context) {
     final pages = [
-      HomePage(openPlan: () => setState(() => tab = 1)),
+      HomePage(
+        openPlan: () => setState(() => tab = 1),
+        openTrack: () => setState(() => tab = 2),
+      ),
       const PlanPage(),
       const TrackPage(),
       const InsightsPage(),
     ];
-    final dark = tab == 1;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: dark ? night : paper,
-      body: SafeArea(child: pages[tab]),
+      backgroundColor: context.colors.surface,
+      body: SafeArea(
+        child: IndexedStack(index: tab, children: pages),
+      ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: dark ? night : paper,
-          border: Border(
-            top: BorderSide(color: dark ? Colors.white24 : ink, width: 1.5),
-          ),
+          color: context.colors.surface,
+          border: Border(top: BorderSide(color: context.outline, width: 1.5)),
         ),
         child: SafeArea(
           top: false,
@@ -61,7 +92,7 @@ class _OmniaHomeState extends State<OmniaHome> {
 
   Widget _nav(int index, IconData icon, String title, bool dark) {
     final active = tab == index;
-    final color = dark ? Colors.white : ink;
+    final color = context.foreground;
     return Expanded(
       child: InkWell(
         onTap: () => setState(() => tab = index),

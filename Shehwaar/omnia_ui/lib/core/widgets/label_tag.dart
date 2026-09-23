@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:omnia_ui/core/theme/app_colors.dart';
+import 'package:omnia_ui/core/theme/app_theme.dart';
 
 class LabelTag extends StatelessWidget {
   const LabelTag({super.key, required this.text});
@@ -8,13 +8,13 @@ class LabelTag extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
     decoration: BoxDecoration(
-      color: ink,
+      color: context.actionBackground,
       borderRadius: BorderRadius.circular(7),
     ),
     child: Text(
       text,
-      style: const TextStyle(
-        color: Colors.white,
+      style: TextStyle(
+        color: context.actionForeground,
         fontSize: 10,
         fontWeight: FontWeight.w900,
       ),

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:omnia_ui/core/theme/app_colors.dart';
+import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/core/widgets/hard_card.dart';
 
 class TrackTile extends StatelessWidget {
@@ -48,8 +48,8 @@ class TrackTile extends StatelessWidget {
             child: LinearProgressIndicator(
               value: progress,
               minHeight: 8,
-              backgroundColor: Colors.white70,
-              color: ink,
+              backgroundColor: context.colors.surfaceContainerHighest,
+              color: context.foreground,
             ),
           ),
         ],

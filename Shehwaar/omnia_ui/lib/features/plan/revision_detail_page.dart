@@ -1,31 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
+import 'package:omnia_ui/core/theme/app_theme.dart';
+import 'package:omnia_ui/core/widgets/info_dialog.dart';
+import 'package:omnia_ui/features/plan/revision_controller.dart';
+import 'package:omnia_ui/features/plan/revision_actions.dart';
 import 'package:omnia_ui/core/widgets/hard_card.dart';
 import 'package:omnia_ui/core/widgets/omnia_mark.dart';
 import 'package:omnia_ui/core/widgets/solid_action.dart';
 
-class RevisionDetailPage extends StatefulWidget {
+class RevisionDetailPage extends StatelessWidget {
   const RevisionDetailPage({super.key});
   @override
-  State<RevisionDetailPage> createState() => _RevisionDetailPageState();
-}
-
-class _RevisionDetailPageState extends State<RevisionDetailPage> {
-  final tasks = [
-    'Revise normalization',
-    'Practice SQL questions',
-    'Go through past papers',
-  ];
-  final checked = [false, false, false];
-  @override
   Widget build(BuildContext context) {
-    final done = checked.where((item) => item).length;
+    final revision = RevisionScope.of(context);
+    final tasks = revision.tasks;
+    final done = revision.done;
     return Scaffold(
-      backgroundColor: paper,
+      backgroundColor: context.colors.surface,
       appBar: AppBar(
-        backgroundColor: paper,
-        title: const Text(
-          'DBMS Revision',
+        backgroundColor: context.colors.surface,
+        title: Text(
+          revision.title,
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
       ),
@@ -40,12 +35,12 @@ class _RevisionDetailPageState extends State<RevisionDetailPage> {
                   child: Icon(Icons.menu_book_outlined, size: 32),
                 ),
                 const SizedBox(width: 13),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'DBMS Revision',
+                        revision.title,
                         style: TextStyle(
                           fontSize: 21,
                           fontWeight: FontWeight.w900,
@@ -67,17 +62,42 @@ class _RevisionDetailPageState extends State<RevisionDetailPage> {
                 Expanded(
                   child: SolidAction(
                     label: done == tasks.length ? 'Completed' : 'Mark done',
-                    onTap: () => setState(() {
-                      for (var i = 0; i < checked.length; i++) {
-                        checked[i] = true;
-                      }
-                    }),
+                    onTap: () => revision.markAll(done != tasks.length),
                   ),
                 ),
                 const SizedBox(width: 8),
-                _smallAction(context, Icons.edit_outlined, 'Edit'),
+                _smallAction(
+                  context,
+                  Icons.edit_outlined,
+                  'Edit',
+                  () => editRevision(context, revision),
+                ),
                 const SizedBox(width: 8),
-                _smallAction(context, Icons.more_horiz, 'More'),
+                _smallAction(
+                  context,
+                  Icons.more_horiz,
+                  'More',
+                  () => showDialog<void>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Revision actions'),
+                      content: const Text('Reset all sub-tasks to incomplete?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            revision.markAll(false);
+                            Navigator.pop(context);
+                          },
+                          child: const Text('Reset sub-tasks'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 20),
@@ -110,8 +130,8 @@ class _RevisionDetailPageState extends State<RevisionDetailPage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: paper,
-                      border: Border.all(color: ink),
+                      color: context.colors.surface,
+                      border: Border.all(color: context.outline),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Column(
@@ -138,7 +158,12 @@ class _RevisionDetailPageState extends State<RevisionDetailPage> {
               style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 9),
-            const HardCard(
+            HardCard(
+              onTap: () => showInfoDialog(
+                context,
+                'Sample material',
+                'Coming soon. DBMS Notes.pdf is sample text; no file is attached yet.',
+              ),
               color: paper,
               child: Row(
                 children: [
@@ -156,24 +181,27 @@ class _RevisionDetailPageState extends State<RevisionDetailPage> {
             ),
             for (var i = 0; i < tasks.length; i++)
               CheckboxListTile(
-                value: checked[i],
-                activeColor: ink,
+                value: revision.isChecked(i),
+                activeColor: context.colors.primary,
                 controlAffinity: ListTileControlAffinity.leading,
                 contentPadding: EdgeInsets.zero,
                 title: Text(
                   tasks[i],
                   style: TextStyle(
-                    decoration: checked[i] ? TextDecoration.lineThrough : null,
+                    decoration: revision.isChecked(i)
+                        ? TextDecoration.lineThrough
+                        : null,
                   ),
                 ),
-                onChanged: (value) =>
-                    setState(() => checked[i] = value ?? false),
+                onChanged: (value) => revision.setChecked(i, value ?? false),
               ),
             const SizedBox(height: 15),
             SolidAction(
               label: 'Start Focus Session',
-              onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Focus session is coming later.')),
+              onTap: () => showInfoDialog(
+                context,
+                'Focus sessions',
+                'Coming soon. A focus timer is not available in this prototype yet.',
               ),
             ),
           ],
@@ -182,18 +210,21 @@ class _RevisionDetailPageState extends State<RevisionDetailPage> {
     );
   }
 
-  Widget _smallAction(BuildContext context, IconData icon, String title) =>
-      Expanded(
-        child: OutlinedButton.icon(
-          onPressed: () => ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('$title is coming later.'))),
-          icon: Icon(icon, size: 18),
-          label: Text(title),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: ink,
-            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 15),
-            side: const BorderSide(color: ink, width: 1.5),
-          ),
-        ),
-      );
+  Widget _smallAction(
+    BuildContext context,
+    IconData icon,
+    String title,
+    VoidCallback onPressed,
+  ) => Expanded(
+    child: OutlinedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(title),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: context.foreground,
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 15),
+        side: BorderSide(color: context.outline, width: 1.5),
+      ),
+    ),
+  );
 }

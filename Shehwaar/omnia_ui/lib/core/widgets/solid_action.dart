@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:omnia_ui/core/theme/app_colors.dart';
+import 'package:omnia_ui/core/theme/app_theme.dart';
 
 class SolidAction extends StatelessWidget {
   const SolidAction({super.key, required this.label, required this.onTap});
@@ -9,8 +9,8 @@ class SolidAction extends StatelessWidget {
   Widget build(BuildContext context) => FilledButton(
     onPressed: onTap,
     style: FilledButton.styleFrom(
-      backgroundColor: ink,
-      foregroundColor: Colors.white,
+      backgroundColor: context.actionBackground,
+      foregroundColor: context.actionForeground,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
     ),
