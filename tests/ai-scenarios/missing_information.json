@@ -1,0 +1,6 @@
+{
+  "name": "ambiguous action asks for clarification",
+  "route": {"category": "action", "policy": "task_action"},
+  "response": {"kind": "clarification", "message": "Which task do you mean?", "action": null},
+  "context_fields": ["tasks", "goals", "preferences", "recent_plan"]
+}
