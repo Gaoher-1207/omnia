@@ -3,6 +3,8 @@ import 'package:omnia_ui/core/widgets/info_dialog.dart';
 import 'package:omnia_ui/features/settings/settings_page.dart';
 import 'package:omnia_ui/features/plan/plan_item.dart';
 import 'package:omnia_ui/features/plan/revision_controller.dart';
+import 'package:omnia_ui/features/tasks/task_controller.dart';
+import 'package:omnia_ui/features/tasks/tasks_page.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/core/widgets/hard_card.dart';
@@ -132,14 +134,24 @@ class HomePage extends StatelessWidget {
           ),
           SizedBox(width: 10),
           Expanded(
-            child: CategoryCard(
-              icon: Icons.task_alt,
-              title: 'Tasks',
-              amount: '4 / 6',
-              goal: 'completed',
-              progress: .67,
-              color: yellow,
-              onTap: openTrack,
+            child: Builder(
+              builder: (context) {
+                final tasks = TaskScope.of(context);
+                final total = tasks.tasks.length;
+                final done = tasks.completedCount;
+                return CategoryCard(
+                  icon: Icons.task_alt,
+                  title: 'Tasks',
+                  amount: '$done / $total',
+                  goal: 'completed',
+                  progress: total == 0 ? 0 : done / total,
+                  color: yellow,
+                  onTap: () => Navigator.push<void>(
+                    context,
+                    MaterialPageRoute(builder: (_) => const TasksPage()),
+                  ),
+                );
+              },
             ),
           ),
         ],
