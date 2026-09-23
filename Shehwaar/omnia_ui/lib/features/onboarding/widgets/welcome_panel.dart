@@ -12,8 +12,9 @@ class WelcomePanel extends StatelessWidget {
     // Read viewport width without introducing LayoutBuilder into an intrinsic
     // height layout. The same maximum width is used by the onboarding shell.
     final width = MediaQuery.sizeOf(context).width.clamp(0.0, 560.0) - 48;
-    final headlineSize = (width * .105).clamp(28.0, 46.0);
-    final markSize = (width * .42).clamp(112.0, 168.0);
+    final wordmarkSize = (width * .13).clamp(40.0, 60.0);
+    final headlineSize = (width * .108).clamp(30.0, 48.0);
+    final markSize = (width * .34).clamp(96.0, 150.0);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -25,26 +26,33 @@ class WelcomePanel extends StatelessWidget {
             image: true,
             child: SizedBox.square(
               dimension: markSize,
-              child: const FittedBox(child: OmniaMark()),
+              child: const FittedBox(child: OmniaMark(lifted: false)),
             ),
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 16),
         Text(
           'omnia',
           style: TextStyle(
             color: context.foreground,
-            fontSize: 34,
+            fontSize: wordmarkSize,
+            height: 1,
             fontWeight: FontWeight.w900,
-            letterSpacing: -1.2,
+            letterSpacing: -1.6,
           ),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 6),
         Text(
           'Everything. One plan.',
-          style: TextStyle(color: context.mutedForeground, fontSize: 16),
+          style: TextStyle(
+            color: context.mutedForeground,
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+          ),
         ),
-        const SizedBox(height: 28),
+        // Flexible gaps spread the groups on tall screens, collapse on short.
+        const Spacer(),
+        const SizedBox(height: 24),
         Text(
           'A MORE\nBALANCED\nYOU IS CLOSER\nTHAN YOU THINK.',
           style: TextStyle(
@@ -55,20 +63,18 @@ class WelcomePanel extends StatelessWidget {
             letterSpacing: -.8,
           ),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 16),
         Text(
-          'Bring your study, tasks, fitness,\n'
-          'nutrition, sleep and habits together\n'
-          '— and let Omnia create a plan\n'
-          'that adapts to you.',
+          'Bring your study, tasks, fitness, nutrition, sleep and habits '
+          'together — and let Omnia create a plan that adapts to you.',
           style: TextStyle(
             color: context.mutedForeground,
-            fontSize: 15,
+            fontSize: 17,
             height: 1.45,
           ),
         ),
         const SizedBox(height: 28),
-        const Spacer(),
+        const Spacer(flex: 2),
         SizedBox(
           width: double.infinity,
           child: SurfaceShadow(

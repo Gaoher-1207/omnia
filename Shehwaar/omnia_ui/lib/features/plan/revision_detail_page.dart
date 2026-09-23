@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:omnia_ui/features/focus/focus_timer_page.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/core/widgets/info_dialog.dart';
@@ -205,10 +206,9 @@ class RevisionDetailPage extends StatelessWidget {
             const SizedBox(height: 15),
             SolidAction(
               label: 'Start Focus Session',
-              onTap: () => showInfoDialog(
+              onTap: () => Navigator.push<void>(
                 context,
-                'Focus sessions',
-                'Coming soon. A focus timer is not available in this prototype yet.',
+                MaterialPageRoute(builder: (_) => const FocusTimerPage()),
               ),
             ),
           ],

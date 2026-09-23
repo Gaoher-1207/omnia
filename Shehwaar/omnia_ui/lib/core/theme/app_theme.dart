@@ -38,7 +38,12 @@ ThemeData buildAppTheme({Brightness brightness = Brightness.light}) {
     useMaterial3: true,
     colorScheme: scheme,
     scaffoldBackgroundColor: scheme.surface,
-    filledButtonTheme: FilledButtonThemeData(style: buttonStyle),
+    // Filled buttons are always bright fills, so they keep the ink outline.
+    filledButtonTheme: FilledButtonThemeData(
+      style: buttonStyle.copyWith(
+        side: WidgetStatePropertyAll(surface.side.copyWith(color: ink)),
+      ),
+    ),
     outlinedButtonTheme: OutlinedButtonThemeData(style: buttonStyle),
     segmentedButtonTheme: SegmentedButtonThemeData(style: buttonStyle),
     dialogTheme: DialogThemeData(
@@ -93,6 +98,7 @@ extension OmniaTheme on BuildContext {
   Color get foreground => colors.onSurface;
   Color get mutedForeground => colors.onSurfaceVariant;
   Color get outline => SurfaceStyle.of(this).outline;
+  Color outlineOn(Color fill) => SurfaceStyle.of(this).outlineOn(fill);
   Color get actionBackground =>
       Theme.of(this).brightness == Brightness.dark ? sleepDark : ink;
   Color get actionForeground =>

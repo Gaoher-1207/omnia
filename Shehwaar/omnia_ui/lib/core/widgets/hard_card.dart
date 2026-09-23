@@ -30,7 +30,12 @@ class HardCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: context.outline, width: 1.6),
+            border: Border.all(
+              color: context.outlineOn(
+                context.cardColor(color, prominent: prominent),
+              ),
+              width: 1.6,
+            ),
           ),
           child: context.isDark
               ? DefaultTextStyle.merge(

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:omnia_ui/core/theme/app_theme.dart';
+import 'package:omnia_ui/core/widgets/omnia_progress_bar.dart';
 import 'package:omnia_ui/core/widgets/hard_card.dart';
 
 class TrackTile extends StatelessWidget {
@@ -43,15 +43,7 @@ class TrackTile extends StatelessWidget {
             style: const TextStyle(fontSize: 23, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 8,
-              backgroundColor: context.progressTrack(color),
-              color: context.cardForeground(color),
-            ),
-          ),
+          OmniaProgressBar(value: progress, color: color, height: 8, radius: 8),
         ],
       ),
     ),

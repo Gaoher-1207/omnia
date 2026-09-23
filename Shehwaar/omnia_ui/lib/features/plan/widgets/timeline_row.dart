@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:omnia_ui/core/widgets/accent_circle.dart';
 import 'package:omnia_ui/core/widgets/surface_shadow.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
 
@@ -33,15 +34,7 @@ class TimelineRow extends StatelessWidget {
               style: TextStyle(color: context.mutedForeground, fontSize: 12),
             ),
           ),
-        if (showTimeline)
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              color: context.cardColor(color),
-              shape: BoxShape.circle,
-            ),
-          ),
+        if (showTimeline) AccentCircle(color: color, size: 9),
         if (showTimeline) const SizedBox(width: 9),
         Expanded(
           child: SurfaceShadow(
@@ -50,7 +43,10 @@ class TimelineRow extends StatelessWidget {
             child: Material(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
-                side: BorderSide(color: context.outline, width: 1.6),
+                side: BorderSide(
+                  color: context.outlineOn(context.cardColor(color)),
+                  width: 1.6,
+                ),
               ),
               color: context.cardColor(color),
               child: InkWell(

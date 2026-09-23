@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:omnia_ui/features/focus/focus_timer_controller.dart';
 import 'package:omnia_ui/core/app_dependencies.dart';
 import 'package:omnia_ui/features/onboarding/onboarding_page.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
@@ -31,12 +32,14 @@ class _OmniaAppState extends State<OmniaApp> {
     repository: dependencies.study,
   );
   late final tasks = TaskController(dependencies.tasks)..load();
+  final focusTimer = FocusTimerController();
 
   @override
   void dispose() {
     theme.dispose();
     revision.dispose();
     tasks.dispose();
+    focusTimer.dispose();
     super.dispose();
   }
 
@@ -49,19 +52,23 @@ class _OmniaAppState extends State<OmniaApp> {
         controller: revision,
         child: TaskScope(
           controller: tasks,
-          child: ValueListenableBuilder<ThemeMode>(
-            valueListenable: theme,
-            builder: (context, mode, _) => MaterialApp(
-              title: 'Omnia',
-              debugShowCheckedModeBanner: false,
-              theme: buildAppTheme(),
-              darkTheme: buildAppTheme(brightness: Brightness.dark),
-              themeMode: mode,
-              home: _onboardingComplete
-                  ? const OmniaHome()
-                  : OnboardingPage(
-                      onSkip: () => setState(() => _onboardingComplete = true),
-                    ),
+          child: FocusTimerScope(
+            controller: focusTimer,
+            child: ValueListenableBuilder<ThemeMode>(
+              valueListenable: theme,
+              builder: (context, mode, _) => MaterialApp(
+                title: 'Omnia',
+                debugShowCheckedModeBanner: false,
+                theme: buildAppTheme(),
+                darkTheme: buildAppTheme(brightness: Brightness.dark),
+                themeMode: mode,
+                home: _onboardingComplete
+                    ? const OmniaHome()
+                    : OnboardingPage(
+                        onSkip: () =>
+                            setState(() => _onboardingComplete = true),
+                      ),
+              ),
             ),
           ),
         ),
@@ -131,7 +138,12 @@ class _OmniaHomeState extends State<OmniaHome> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   border: active
-                      ? Border.all(color: context.outline, width: 1.5)
+                      ? Border.all(
+                          color: context.outlineOn(
+                            dark ? darkNavigationAccent : blue,
+                          ),
+                          width: 1.5,
+                        )
                       : null,
                 ),
                 child: Container(

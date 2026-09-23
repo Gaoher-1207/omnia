@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:omnia_ui/core/theme/app_theme.dart';
+import 'package:omnia_ui/core/widgets/omnia_progress_bar.dart';
 import 'package:omnia_ui/core/widgets/hard_card.dart';
 
 class CategoryCard extends StatelessWidget {
@@ -35,15 +35,7 @@ class CategoryCard extends StatelessWidget {
         ),
         Text(goal, style: const TextStyle(fontSize: 11)),
         const SizedBox(height: 8),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(9),
-          child: LinearProgressIndicator(
-            value: progress,
-            minHeight: 7,
-            backgroundColor: context.progressTrack(color),
-            color: context.cardForeground(color),
-          ),
-        ),
+        OmniaProgressBar(value: progress, color: color),
       ],
     ),
   );

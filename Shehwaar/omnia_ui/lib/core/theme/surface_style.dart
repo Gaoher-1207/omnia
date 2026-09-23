@@ -14,6 +14,10 @@ class SurfaceStyle {
   Color get shadow => _dark ? darkOffsetShadow : ink;
   BorderSide get side => BorderSide(color: outline, width: 1.6);
 
+  /// Bright fills keep the ink outline in both themes; only dark fills need
+  /// the lighter dark-mode outline to stay visible.
+  Color outlineOn(Color fill) => fill.computeLuminance() > .08 ? ink : outline;
+
   BoxDecoration decoration({
     required double radius,
     Color? color,

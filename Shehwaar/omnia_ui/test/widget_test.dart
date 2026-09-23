@@ -4,6 +4,7 @@ import 'package:omnia_ui/app.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/core/widgets/hard_card.dart';
+import 'package:omnia_ui/features/focus/focus_timer_page.dart';
 import 'package:omnia_ui/features/home/home_page.dart';
 import 'package:omnia_ui/features/insights/insights_page.dart';
 import 'package:omnia_ui/features/plan/plan_page.dart';
@@ -173,8 +174,9 @@ void main() {
     await tapText(tester, 'Open revision');
     await tester.scrollUntilVisible(find.text('Start Focus Session'), 200);
     await tapText(tester, 'Start Focus Session');
-    expect(find.text('Focus sessions'), findsOneWidget);
-    await tapText(tester, 'Close');
+    expect(find.byType(FocusTimerPage), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.text('DBMS Notes.pdf  ·  Sample'),
       -150,

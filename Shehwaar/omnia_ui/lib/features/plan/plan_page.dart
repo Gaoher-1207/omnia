@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:omnia_ui/features/focus/widgets/focus_timer_entry.dart';
 import 'package:omnia_ui/core/theme/surface_style.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
@@ -54,7 +55,7 @@ class _PlanPageState extends State<PlanPage> {
         ),
       ),
       const SizedBox(height: 21),
-      if (view == PlanView.focus)
+      if (view == PlanView.focus) ...[
         HardCard(
           color: blue,
           child: Column(
@@ -76,8 +77,10 @@ class _PlanPageState extends State<PlanPage> {
               ),
             ],
           ),
-        )
-      else
+        ),
+        const SizedBox(height: 12),
+        const FocusTimerEntry(),
+      ] else
         for (final item in samplePlan)
           TimelineRow(
             time: item.time,
