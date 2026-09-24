@@ -33,9 +33,13 @@ class CategoryCard extends StatelessWidget {
           amount,
           style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
         ),
-        Text(goal, style: const TextStyle(fontSize: 11)),
+        Text(goal, style: const TextStyle(fontSize: 12)),
         const SizedBox(height: 8),
-        OmniaProgressBar(value: progress, color: color),
+        OmniaProgressBar(
+          value: progress,
+          color: color,
+          semanticsLabel: '$title progress',
+        ),
       ],
     ),
   );

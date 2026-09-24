@@ -5,6 +5,7 @@ import 'package:omnia_ui/core/theme/app_colors.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/core/widgets/hard_card.dart';
 import 'package:omnia_ui/core/widgets/info_dialog.dart';
+import 'package:omnia_ui/core/widgets/label_tag.dart';
 import 'package:omnia_ui/core/widgets/omnia_mark.dart';
 import 'package:omnia_ui/core/widgets/solid_action.dart';
 import 'package:omnia_ui/features/plan/plan_item.dart';
@@ -25,10 +26,13 @@ class _PlanPageState extends State<PlanPage> {
   Widget build(BuildContext context) => ListView(
     padding: const EdgeInsets.all(18),
     children: [
-      const Center(
-        child: Text(
-          "Today's Plan",
-          style: TextStyle(fontSize: 25, fontWeight: FontWeight.w900),
+      Center(
+        child: Semantics(
+          header: true,
+          child: Text(
+            "Today's Plan",
+            style: TextStyle(fontSize: 25, fontWeight: FontWeight.w900),
+          ),
         ),
       ),
       const SizedBox(height: 4),
@@ -111,7 +115,8 @@ class _PlanPageState extends State<PlanPage> {
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
-            Icon(Icons.arrow_forward),
+            // Explains itself on tap, but does not navigate anywhere yet.
+            LabelTag(text: 'SOON'),
           ],
         ),
       ),
@@ -138,6 +143,7 @@ class _PlanPageState extends State<PlanPage> {
             onTap: () => setState(() => view = option),
             child: Container(
               alignment: Alignment.center,
+              constraints: const BoxConstraints(minHeight: 48),
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Text(
                 name,

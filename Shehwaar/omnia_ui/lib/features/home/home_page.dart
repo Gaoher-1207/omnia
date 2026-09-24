@@ -25,13 +25,16 @@ class HomePage extends StatelessWidget {
       Row(
         children: [
           Expanded(
-            child: Text(
-              'Good morning,\nShew.',
-              style: TextStyle(
-                fontSize: 29,
-                height: 1.04,
-                fontWeight: FontWeight.w900,
-                color: context.foreground,
+            child: Semantics(
+              header: true,
+              child: Text(
+                'Good morning,\nShew.',
+                style: TextStyle(
+                  fontSize: 29,
+                  height: 1.04,
+                  fontWeight: FontWeight.w900,
+                  color: context.foreground,
+                ),
               ),
             ),
           ),
@@ -41,7 +44,7 @@ class HomePage extends StatelessWidget {
               context,
               MaterialPageRoute(builder: (_) => const SettingsPage()),
             ),
-            icon: const Icon(Icons.person_outline),
+            icon: const Icon(Icons.settings_outlined),
             style: IconButton.styleFrom(
               backgroundColor: context.actionBackground,
               foregroundColor: context.actionForeground,
@@ -69,11 +72,22 @@ class HomePage extends StatelessWidget {
               children: [
                 OmniaMark(),
                 SizedBox(width: 9),
-                Text(
-                  'omnia',
-                  style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
+                // Unchanged at normal sizes; only shrinks to make room for
+                // the tag at large accessibility text sizes.
+                Expanded(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'omnia',
+                      style: TextStyle(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
                 ),
-                Spacer(),
+                SizedBox(width: 8),
                 LabelTag(text: 'SAMPLE'),
               ],
             ),
@@ -188,12 +202,18 @@ class HomePage extends StatelessWidget {
       Row(
         children: [
           Expanded(
-            child: Text(
-              'Next up',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+            child: Semantics(
+              header: true,
+              child: Text(
+                'Next up',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+              ),
             ),
           ),
-          TextButton(onPressed: openPlan, child: Text('See all →')),
+          TextButton(
+            onPressed: openPlan,
+            child: Text('See all →', semanticsLabel: 'See all'),
+          ),
         ],
       ),
       AgendaLine(

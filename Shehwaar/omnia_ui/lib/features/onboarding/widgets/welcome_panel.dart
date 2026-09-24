@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/core/widgets/omnia_mark.dart';
-import 'package:omnia_ui/core/widgets/surface_shadow.dart';
+import 'package:omnia_ui/features/onboarding/widgets/onboarding_action.dart';
 
 class WelcomePanel extends StatelessWidget {
   const WelcomePanel({super.key, required this.onNext});
@@ -53,14 +53,17 @@ class WelcomePanel extends StatelessWidget {
         // Flexible gaps spread the groups on tall screens, collapse on short.
         const Spacer(),
         const SizedBox(height: 24),
-        Text(
-          'A MORE\nBALANCED\nYOU IS CLOSER\nTHAN YOU THINK.',
-          style: TextStyle(
-            color: context.foreground,
-            fontSize: headlineSize,
-            fontWeight: FontWeight.w900,
-            height: 1.02,
-            letterSpacing: -.8,
+        Semantics(
+          header: true,
+          child: Text(
+            'A MORE\nBALANCED\nYOU IS CLOSER\nTHAN YOU THINK.',
+            style: TextStyle(
+              color: context.foreground,
+              fontSize: headlineSize,
+              fontWeight: FontWeight.w900,
+              height: 1.02,
+              letterSpacing: -.8,
+            ),
           ),
         ),
         const SizedBox(height: 16),
@@ -75,42 +78,7 @@ class WelcomePanel extends StatelessWidget {
         ),
         const SizedBox(height: 28),
         const Spacer(flex: 2),
-        SizedBox(
-          width: double.infinity,
-          child: SurfaceShadow(
-            radius: 9,
-            offset: const Offset(2, 2),
-            child: FilledButton(
-              onPressed: onNext,
-              style: FilledButton.styleFrom(
-                backgroundColor: context.actionBackground,
-                foregroundColor: context.actionForeground,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 18,
-                ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(9),
-                ),
-              ),
-              child: const Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'GET STARTED',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 16),
-                  Icon(Icons.arrow_forward),
-                ],
-              ),
-            ),
-          ),
-        ),
+        OnboardingAction(label: 'GET STARTED', onPressed: onNext),
       ],
     );
   }

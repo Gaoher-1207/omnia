@@ -14,9 +14,12 @@ class SettingsPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(18),
         children: [
-          const Text(
-            'Appearance',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+          Semantics(
+            header: true,
+            child: Text(
+              'Appearance',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+            ),
           ),
           const SizedBox(height: 12),
           SegmentedButton<ThemeMode>(

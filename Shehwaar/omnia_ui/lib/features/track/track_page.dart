@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
 import 'package:omnia_ui/core/widgets/hard_card.dart';
+import 'package:omnia_ui/features/tasks/task_controller.dart';
 import 'package:omnia_ui/features/track/widgets/activity_line.dart';
 import 'package:omnia_ui/features/track/widgets/track_tile.dart';
 
@@ -9,10 +10,13 @@ class TrackPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListView(
     padding: const EdgeInsets.all(18),
-    children: const [
-      Text(
-        'Track',
-        style: TextStyle(fontSize: 29, fontWeight: FontWeight.w900),
+    children: [
+      Semantics(
+        header: true,
+        child: Text(
+          'Track',
+          style: TextStyle(fontSize: 29, fontWeight: FontWeight.w900),
+        ),
       ),
       SizedBox(height: 4),
       Text('Your day at a glance  ·  SAMPLE DATA'),
@@ -25,14 +29,7 @@ class TrackPage extends StatelessWidget {
         progress: .56,
         color: blue,
       ),
-      TrackTile(
-        icon: Icons.task_alt,
-        name: 'Tasks',
-        amount: '4 of 6',
-        goal: 'tasks done',
-        progress: .67,
-        color: yellow,
-      ),
+      _TasksTile(),
       TrackTile(
         icon: Icons.directions_walk,
         name: 'Activity',
@@ -50,9 +47,12 @@ class TrackPage extends StatelessWidget {
         color: lilac,
       ),
       SizedBox(height: 15),
-      Text(
-        'Today’s activity',
-        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+      Semantics(
+        header: true,
+        child: Text(
+          'Today’s activity',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+        ),
       ),
       SizedBox(height: 9),
       HardCard(
@@ -82,4 +82,23 @@ class TrackPage extends StatelessWidget {
       SizedBox(height: 20),
     ],
   );
+}
+
+/// Live counts from the app-level TaskController, the same source as Home.
+class _TasksTile extends StatelessWidget {
+  const _TasksTile();
+  @override
+  Widget build(BuildContext context) {
+    final tasks = TaskScope.of(context);
+    final total = tasks.tasks.length;
+    final done = tasks.completedCount;
+    return TrackTile(
+      icon: Icons.task_alt,
+      name: 'Tasks',
+      amount: '$done of $total',
+      goal: 'tasks done',
+      progress: total == 0 ? 0 : done / total,
+      color: yellow,
+    );
+  }
 }

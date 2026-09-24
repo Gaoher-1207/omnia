@@ -11,7 +11,9 @@ class StudySession {
     if (id.trim().isEmpty || subjectId.trim().isEmpty || title.trim().isEmpty) {
       throw ArgumentError('Session id, subjectId and title must not be empty.');
     }
-    if (duration <= Duration.zero) throw ArgumentError.value(duration, 'duration');
+    if (duration <= Duration.zero) {
+      throw ArgumentError.value(duration, 'duration');
+    }
     if (this.revisionItems.map((item) => item.id).toSet().length != this.revisionItems.length) {
       throw ArgumentError('Revision item ids must be unique within a session.');
     }

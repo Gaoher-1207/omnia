@@ -10,10 +10,15 @@ class OmniaProgressBar extends StatelessWidget {
     required this.color,
     this.height = 7,
     this.radius = 9,
+    this.semanticsLabel,
   });
   final double value;
   final Color color;
   final double height, radius;
+
+  /// Names what is measured, e.g. "Study progress"; the indicator itself
+  /// reports the percentage value to screen readers.
+  final String? semanticsLabel;
 
   @override
   Widget build(BuildContext context) => DecoratedBox(
@@ -29,6 +34,7 @@ class OmniaProgressBar extends StatelessWidget {
       borderRadius: BorderRadius.circular(radius),
       child: LinearProgressIndicator(
         value: value,
+        semanticsLabel: semanticsLabel,
         minHeight: height,
         backgroundColor: context.progressTrack(color),
         color: context.cardForeground(color),

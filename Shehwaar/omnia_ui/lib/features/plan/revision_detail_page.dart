@@ -5,7 +5,9 @@ import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/core/widgets/info_dialog.dart';
 import 'package:omnia_ui/features/plan/revision_controller.dart';
 import 'package:omnia_ui/features/plan/revision_actions.dart';
+import 'package:omnia_ui/core/widgets/action_row.dart';
 import 'package:omnia_ui/core/widgets/hard_card.dart';
+import 'package:omnia_ui/core/widgets/label_tag.dart';
 import 'package:omnia_ui/core/widgets/omnia_mark.dart';
 import 'package:omnia_ui/core/widgets/solid_action.dart';
 
@@ -16,6 +18,7 @@ class RevisionDetailPage extends StatelessWidget {
     final revision = RevisionScope.of(context);
     final tasks = revision.tasks;
     final done = revision.done;
+    final allDone = done == tasks.length;
     return Scaffold(
       backgroundColor: context.colors.surface,
       appBar: AppBar(
@@ -59,45 +62,32 @@ class RevisionDetailPage extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 22),
-            Row(
-              children: [
-                Expanded(
-                  child: SolidAction(
-                    label: done == tasks.length ? 'Completed' : 'Mark done',
-                    onTap: () => revision.markAll(done != tasks.length),
-                  ),
+            ActionRow(
+              // The label always names what a tap will do.
+              primary: SolidAction(
+                label: allDone ? 'Mark not done' : 'Mark done',
+                onTap: () => revision.markAll(!allDone),
+              ),
+              secondary: [
+                OutlineAction(
+                  icon: Icons.edit_outlined,
+                  label: 'Edit',
+                  onPressed: () => editRevision(context, revision),
                 ),
-                const SizedBox(width: 8),
-                _smallAction(
-                  context,
-                  Icons.edit_outlined,
-                  'Edit',
-                  () => editRevision(context, revision),
-                ),
-                const SizedBox(width: 8),
-                _smallAction(
-                  context,
-                  Icons.more_horiz,
-                  'More',
-                  () => showDialog<void>(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text('Revision actions'),
-                      content: const Text('Reset all sub-tasks to incomplete?'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text('Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            revision.markAll(false);
-                            Navigator.pop(context);
-                          },
-                          child: const Text('Reset sub-tasks'),
-                        ),
-                      ],
+                MenuAnchor(
+                  menuChildren: [
+                    MenuItemButton(
+                      leadingIcon: const Icon(Icons.restart_alt),
+                      onPressed: done == 0
+                          ? null
+                          : () => _confirmReset(context, revision),
+                      child: const Text('Reset sub-tasks'),
                     ),
+                  ],
+                  builder: (context, menu, _) => OutlineAction(
+                    icon: Icons.more_horiz,
+                    label: 'More',
+                    onPressed: () => menu.isOpen ? menu.close() : menu.open(),
                   ),
                 ),
               ],
@@ -113,11 +103,13 @@ class RevisionDetailPage extends StatelessWidget {
                     children: [
                       OmniaMark(),
                       SizedBox(width: 8),
-                      Text(
-                        'omnia recommends',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w900,
-                          fontSize: 16,
+                      Expanded(
+                        child: Text(
+                          'omnia recommends',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                          ),
                         ),
                       ),
                     ],
@@ -161,9 +153,12 @@ class RevisionDetailPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
-            const Text(
-              'Materials',
-              style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
+            Semantics(
+              header: true,
+              child: Text(
+                'Materials',
+                style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
+              ),
             ),
             const SizedBox(height: 9),
             HardCard(
@@ -178,14 +173,21 @@ class RevisionDetailPage extends StatelessWidget {
                   Icon(Icons.description_outlined),
                   SizedBox(width: 10),
                   Expanded(child: Text('DBMS Notes.pdf  ·  Sample')),
-                  Icon(Icons.more_vert),
+                  // Not a menu yet: say so instead of showing a ⋮ affordance.
+                  LabelTag(text: 'SOON'),
                 ],
               ),
             ),
             const SizedBox(height: 19),
-            Text(
-              'Sub-tasks  $done/${tasks.length}',
-              style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
+            Semantics(
+              header: true,
+              child: Text(
+                'Sub-tasks  $done/${tasks.length}',
+                style: const TextStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
             ),
             for (var i = 0; i < tasks.length; i++)
               CheckboxListTile(
@@ -217,21 +219,27 @@ class RevisionDetailPage extends StatelessWidget {
     );
   }
 
-  Widget _smallAction(
+  static Future<void> _confirmReset(
     BuildContext context,
-    IconData icon,
-    String title,
-    VoidCallback onPressed,
-  ) => Expanded(
-    child: OutlinedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 18),
-      label: Text(title),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: context.foreground,
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 15),
-        side: BorderSide(color: context.outline, width: 1.5),
+    RevisionController revision,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reset sub-tasks?'),
+        content: const Text('All sub-tasks will be marked incomplete.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Reset'),
+          ),
+        ],
       ),
-    ),
-  );
+    );
+    if (confirmed == true) revision.markAll(false);
+  }
 }

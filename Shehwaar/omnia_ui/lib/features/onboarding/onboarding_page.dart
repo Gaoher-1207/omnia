@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
+import 'package:omnia_ui/features/onboarding/widgets/onboarding_action.dart';
 import 'package:omnia_ui/features/onboarding/widgets/onboarding_footer.dart';
 import 'package:omnia_ui/features/onboarding/widgets/welcome_panel.dart';
 
@@ -21,18 +22,20 @@ class _OnboardingPageState extends State<OnboardingPage> {
     super.dispose();
   }
 
-  void _goTo(int page) => _controller.animateToPage(
-    page,
-    duration: const Duration(milliseconds: 300),
-    curve: Curves.easeInOut,
-  );
+  void _goTo(int page) => MediaQuery.disableAnimationsOf(context)
+      ? _controller.jumpToPage(page)
+      : _controller.animateToPage(
+          page,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
 
   @override
   Widget build(BuildContext context) {
     // Add future page widgets here; indicator count follows this list.
     final pages = <Widget>[
       WelcomePanel(onNext: () => _goTo(1)),
-      _PendingPanel(onBack: () => _goTo(0)),
+      _PendingPanel(onBack: () => _goTo(0), onFinish: widget.onSkip),
     ];
     return Scaffold(
       backgroundColor: context.colors.surface,
@@ -55,7 +58,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           letterSpacing: 1,
                         ),
                       ),
-                      child: const Text('SKIP →'),
+                      child: const Text('SKIP →', semanticsLabel: 'Skip'),
                     ),
                   ),
                 ),
@@ -113,22 +116,26 @@ class _OnboardingLayout extends StatelessWidget {
   );
 }
 
-/// Deliberately no future onboarding content or completion CTA yet.
+/// Deliberately no future onboarding content yet, but never a dead end: the
+/// last page always offers a primary way into the app.
 class _PendingPanel extends StatelessWidget {
-  const _PendingPanel({required this.onBack});
-  final VoidCallback onBack;
+  const _PendingPanel({required this.onBack, required this.onFinish});
+  final VoidCallback onBack, onFinish;
 
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     mainAxisAlignment: MainAxisAlignment.center,
     children: [
-      Text(
-        'Next onboarding page',
-        style: TextStyle(
-          color: context.foreground,
-          fontSize: 28,
-          fontWeight: FontWeight.w900,
+      Semantics(
+        header: true,
+        child: Text(
+          'Next onboarding page',
+          style: TextStyle(
+            color: context.foreground,
+            fontSize: 28,
+            fontWeight: FontWeight.w900,
+          ),
         ),
       ),
       const SizedBox(height: 16),
@@ -136,7 +143,9 @@ class _PendingPanel extends StatelessWidget {
         'This space is reserved for the next onboarding step.',
         style: TextStyle(color: context.mutedForeground, height: 1.5),
       ),
-      const SizedBox(height: 24),
+      const SizedBox(height: 28),
+      OnboardingAction(label: 'ENTER OMNIA', onPressed: onFinish),
+      const SizedBox(height: 12),
       TextButton.icon(
         onPressed: onBack,
         icon: const Icon(Icons.arrow_back),

@@ -13,12 +13,17 @@ import 'package:omnia_ui/features/plan/widgets/timeline_row.dart';
 import 'package:omnia_ui/features/settings/settings_page.dart';
 import 'package:omnia_ui/features/track/track_page.dart';
 
-Future<void> startApp(WidgetTester tester) async {
-  tester.view.physicalSize = const Size(430, 932);
+Future<void> startApp(
+  WidgetTester tester, {
+  bool skipOnboarding = true,
+  Size size = const Size(430, 932),
+}) async {
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
   await tester.pumpWidget(const OmniaApp());
+  if (!skipOnboarding) return;
   await tester.tap(find.text('SKIP \u2192'));
   await tester.pumpAndSettle();
 }
@@ -130,7 +135,8 @@ void main() {
 
         await tab(tester, Icons.bar_chart_rounded);
         expectTheme(tester, TrackPage, brightness);
-        expect(find.text('4 of 6'), findsOneWidget);
+        // Live TaskController count (one seeded mock task), not sample text.
+        expect(find.text('0 of 1'), findsOneWidget);
         await tab(tester, Icons.pie_chart_outline);
         expectTheme(tester, InsightsPage, brightness);
         await tab(tester, Icons.home_rounded);
@@ -217,6 +223,7 @@ void main() {
       await tapText(tester, 'Mark done');
       await tapText(tester, 'More');
       await tapText(tester, 'Reset sub-tasks');
+      await tapText(tester, 'Reset');
       await tester.scrollUntilVisible(find.text('Sub-tasks  0/3'), 180);
       expect(find.text('Sub-tasks  0/3'), findsOneWidget);
       await tester.pageBack();

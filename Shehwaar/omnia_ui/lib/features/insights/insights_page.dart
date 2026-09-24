@@ -8,10 +8,13 @@ class InsightsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListView(
     padding: const EdgeInsets.all(18),
-    children: const [
-      Text(
-        'Insights',
-        style: TextStyle(fontSize: 29, fontWeight: FontWeight.w900),
+    children: [
+      Semantics(
+        header: true,
+        child: Text(
+          'Insights',
+          style: TextStyle(fontSize: 29, fontWeight: FontWeight.w900),
+        ),
       ),
       SizedBox(height: 5),
       Text('Patterns across your week  ·  SAMPLE DATA'),

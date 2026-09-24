@@ -16,7 +16,7 @@ class LabelTag extends StatelessWidget {
       text,
       style: TextStyle(
         color: context.actionForeground,
-        fontSize: 10,
+        fontSize: 11,
         fontWeight: FontWeight.w900,
       ),
     ),

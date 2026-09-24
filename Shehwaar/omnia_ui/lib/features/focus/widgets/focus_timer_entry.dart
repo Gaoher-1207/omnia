@@ -50,6 +50,7 @@ class FocusTimerEntry extends StatelessWidget {
               child: CircularProgressIndicator(
                 // Drains from full to empty as the phase runs out.
                 value: 1 - timer.progress,
+                semanticsLabel: '${focus ? 'Focus' : 'Break'} remaining',
                 strokeWidth: 6,
                 strokeCap: StrokeCap.round,
                 color: foreground,
@@ -61,26 +62,31 @@ class FocusTimerEntry extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       LabelTag(text: focus ? 'FOCUS' : 'BREAK'),
-                      if (timer.paused) ...[
-                        const SizedBox(width: 6),
+                      if (timer.paused)
                         const Text(
                           'Paused',
                           style: TextStyle(fontWeight: FontWeight.w700),
                         ),
-                      ],
                     ],
                   ),
                   const SizedBox(height: 6),
-                  Text(
-                    formatCountdown(timer.remaining),
-                    style: const TextStyle(
-                      fontSize: 30,
-                      height: 1,
-                      fontWeight: FontWeight.w900,
-                      fontFeatures: [FontFeature.tabularFigures()],
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      formatCountdown(timer.remaining),
+                      style: const TextStyle(
+                        fontSize: 30,
+                        height: 1,
+                        fontWeight: FontWeight.w900,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
                     ),
                   ),
                 ],

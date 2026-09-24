@@ -185,15 +185,20 @@ class _TaskCard extends StatelessWidget {
       if (task.estimatedDuration != null)
         formatDuration(task.estimatedDuration!),
     ];
+    final color = task.completed ? paper : yellow;
     return HardCard(
       shadowOffset: const Offset(2, 3),
-      color: task.completed ? paper : yellow,
+      color: color,
       onTap: onEdit,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Checkbox(
             value: task.completed,
+            semanticLabel: task.title,
+            // The default outline is a light grey that vanishes on dark-mode
+            // accent cards; the card's own foreground always contrasts.
+            side: BorderSide(color: context.cardForeground(color), width: 2),
             onChanged: busy ? null : (value) => onToggle(value ?? false),
           ),
           const SizedBox(width: 4),

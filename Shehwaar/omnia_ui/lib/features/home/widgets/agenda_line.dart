@@ -18,8 +18,9 @@ class AgendaLine extends StatelessWidget {
   @override
   Widget build(BuildContext context) => InkWell(
     onTap: onTap,
-    child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
+    // A 48dp minimum keeps each agenda item an easy tap target.
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 48),
       child: Row(
         children: [
           SizedBox(

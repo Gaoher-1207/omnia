@@ -39,7 +39,7 @@ class OnboardingFooter extends StatelessWidget {
           textAlign: TextAlign.right,
           style: TextStyle(
             color: context.mutedForeground,
-            fontSize: 9,
+            fontSize: 11,
             height: 1.4,
             fontWeight: FontWeight.w700,
             letterSpacing: .8,

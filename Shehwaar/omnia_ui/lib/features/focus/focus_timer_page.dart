@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
+import 'package:omnia_ui/core/widgets/action_row.dart';
 import 'package:omnia_ui/core/widgets/hard_card.dart';
 import 'package:omnia_ui/core/widgets/label_tag.dart';
 import 'package:omnia_ui/core/widgets/omnia_progress_bar.dart';
 import 'package:omnia_ui/core/widgets/solid_action.dart';
 import 'package:omnia_ui/features/focus/focus_preset.dart';
 import 'package:omnia_ui/features/focus/focus_timer_controller.dart';
+import 'package:omnia_ui/features/focus/widgets/focus_phase_feedback.dart';
 
 String formatCountdown(Duration remaining) {
   final seconds = (remaining.inMilliseconds / 1000).ceil();
@@ -106,21 +108,29 @@ class FocusTimerPage extends StatelessWidget {
                   Row(
                     children: [
                       LabelTag(text: focus ? 'FOCUS' : 'BREAK'),
-                      const Spacer(),
-                      Text(
-                        '${timer.preset.name} · ${timer.preset.label}',
-                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '${timer.preset.name} · ${timer.preset.label}',
+                          textAlign: TextAlign.end,
+                          style: const TextStyle(fontWeight: FontWeight.w700),
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 24),
-                  Text(
-                    formatCountdown(timer.remaining),
-                    style: const TextStyle(
-                      fontSize: 72,
-                      height: 1,
-                      fontWeight: FontWeight.w900,
-                      fontFeatures: [FontFeature.tabularFigures()],
+                  // Full size normally; only shrinks when large accessibility
+                  // text would push it past the card edge.
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      formatCountdown(timer.remaining),
+                      style: const TextStyle(
+                        fontSize: 72,
+                        height: 1,
+                        fontWeight: FontWeight.w900,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -128,6 +138,7 @@ class FocusTimerPage extends StatelessWidget {
                     value: timer.progress,
                     color: color,
                     height: 10,
+                    semanticsLabel: '${focus ? 'Focus' : 'Break'} elapsed',
                   ),
                 ],
               ),
@@ -140,9 +151,7 @@ class FocusTimerPage extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      finished == FocusPhase.focus
-                          ? 'Focus complete. Time for a break.'
-                          : 'Break over. Ready to focus?',
+                      phaseFinishedMessage(finished),
                       style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
                   ),
@@ -150,28 +159,32 @@ class FocusTimerPage extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(
-                  child: SolidAction(
-                    label: timer.running
-                        ? 'Pause'
-                        : timer.paused
-                        ? 'Resume'
-                        : focus
-                        ? 'Start focus'
-                        : 'Start break',
-                    onTap: timer.running
-                        ? timer.pause
-                        : timer.paused
-                        ? timer.resume
-                        : timer.start,
-                  ),
+            ActionRow(
+              primary: SolidAction(
+                label: timer.running
+                    ? 'Pause'
+                    : timer.paused
+                    ? 'Resume'
+                    : focus
+                    ? 'Start focus'
+                    : 'Start break',
+                onTap: timer.running
+                    ? timer.pause
+                    : timer.paused
+                    ? timer.resume
+                    : timer.start,
+              ),
+              secondary: [
+                OutlineAction(
+                  icon: Icons.replay,
+                  label: 'Reset',
+                  onPressed: timer.reset,
                 ),
-                const SizedBox(width: 8),
-                _smallAction(context, Icons.replay, 'Reset', timer.reset),
-                const SizedBox(width: 8),
-                _smallAction(context, Icons.skip_next, 'Skip', timer.skip),
+                OutlineAction(
+                  icon: Icons.skip_next,
+                  label: 'Skip',
+                  onPressed: timer.skip,
+                ),
               ],
             ),
             const SizedBox(height: 20),
@@ -186,24 +199,6 @@ class FocusTimerPage extends StatelessWidget {
       ),
     );
   }
-
-  Widget _smallAction(
-    BuildContext context,
-    IconData icon,
-    String title,
-    VoidCallback onPressed,
-  ) => Expanded(
-    child: OutlinedButton.icon(
-      onPressed: onPressed,
-      icon: Icon(icon, size: 18),
-      label: Text(title),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: context.foreground,
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 15),
-        side: BorderSide(color: context.outline, width: 1.5),
-      ),
-    ),
-  );
 }
 
 class _CustomPresetDialog extends StatefulWidget {
