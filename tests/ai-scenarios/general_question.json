@@ -1,6 +1,0 @@
-{
-  "name": "general question needs no OMNIA context",
-  "route": {"category": "general", "policy": "general"},
-  "response": {"kind": "answer", "message": "A concise general answer.", "action": null},
-  "context_fields": []
-}

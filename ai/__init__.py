@@ -1,1 +1,0 @@
-"""OMNIA AI assistant components."""
