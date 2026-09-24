@@ -22,15 +22,26 @@ abstract final class MockData {
         estimatedDuration: const Duration(hours: 1),
         createdAt: DateTime.utc(2025, 9, 23)),
   ];
+  // Goal deadlines are calendar dates, so they are local midnight rather than
+  // UTC: a UTC midnight would display as the previous day west of Greenwich.
   static List<Goal> get goals => [
-    Goal(id: 'goal-study', title: 'Study', currentValue: 135, targetValue: 240,
-        unit: 'minutes', category: OmniaCategory.study),
-    Goal(id: 'goal-tasks', title: 'Tasks', currentValue: 4, targetValue: 6,
-        unit: 'tasks', category: OmniaCategory.tasks),
-    Goal(id: 'goal-activity', title: 'Activity', currentValue: 6240, targetValue: 8000,
-        unit: 'steps', category: OmniaCategory.activity),
-    Goal(id: 'goal-sleep', title: 'Sleep', currentValue: 402, targetValue: 480,
-        unit: 'minutes', category: OmniaCategory.sleep),
+    Goal(id: 'goal-dbms-chapters', title: 'Finish DBMS chapters',
+        description: 'Cover every chapter before the DBMS exam.',
+        currentValue: 6, targetValue: 10, unit: 'chapters',
+        category: OmniaCategory.study, deadline: DateTime(2025, 9, 30)),
+    Goal(id: 'goal-incline-press', title: 'Incline Dumbbell Press',
+        currentValue: 22.5, targetValue: 30, unit: 'kg',
+        category: OmniaCategory.activity, deadline: DateTime(2025, 10, 30)),
+    Goal(id: 'goal-final-project', title: 'Submit final-year project',
+        category: OmniaCategory.tasks, deadline: DateTime(2025, 11, 10)),
+    Goal(id: 'goal-books', title: 'Read 12 books this year',
+        currentValue: 7, targetValue: 12, unit: 'books',
+        category: OmniaCategory.habits, deadline: DateTime(2025, 12, 31)),
+    Goal(id: 'goal-steps', title: 'Walk 10,000 steps a day',
+        currentValue: 8200, targetValue: 10000, unit: 'steps',
+        category: OmniaCategory.activity),
+    Goal(id: 'goal-timetable', title: 'Set up a weekly study timetable',
+        completed: true, category: OmniaCategory.study),
   ];
   static StudySession get revisionSession => StudySession(
     id: 'session-dbms-revision', subjectId: 'subject-dbms', examId: 'exam-dbms',

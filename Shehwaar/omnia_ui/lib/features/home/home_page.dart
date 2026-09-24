@@ -13,6 +13,7 @@ import 'package:omnia_ui/core/widgets/omnia_mark.dart';
 import 'package:omnia_ui/core/widgets/solid_action.dart';
 import 'package:omnia_ui/features/home/widgets/agenda_line.dart';
 import 'package:omnia_ui/features/home/widgets/category_card.dart';
+import 'package:omnia_ui/features/home/widgets/goals_preview.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key, required this.openPlan, required this.openTrack});
@@ -199,6 +200,8 @@ class HomePage extends StatelessWidget {
         ],
       ),
       const SizedBox(height: 20),
+      const GoalsPreview(),
+      const SizedBox(height: 10),
       Row(
         children: [
           Expanded(

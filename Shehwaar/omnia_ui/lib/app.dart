@@ -8,6 +8,7 @@ import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/core/theme/theme_controller.dart';
 import 'package:omnia_ui/features/plan/revision_controller.dart';
 import 'package:omnia_ui/features/tasks/task_controller.dart';
+import 'package:omnia_ui/features/goals/goal_controller.dart';
 import 'package:omnia_ui/features/home/home_page.dart';
 import 'package:omnia_ui/features/insights/insights_page.dart';
 import 'package:omnia_ui/features/plan/plan_page.dart';
@@ -33,6 +34,7 @@ class _OmniaAppState extends State<OmniaApp> {
     repository: dependencies.study,
   );
   late final tasks = TaskController(dependencies.tasks)..load();
+  late final goals = GoalController(dependencies.goals)..load();
   final focusTimer = FocusTimerController();
 
   @override
@@ -40,6 +42,7 @@ class _OmniaAppState extends State<OmniaApp> {
     theme.dispose();
     revision.dispose();
     tasks.dispose();
+    goals.dispose();
     focusTimer.dispose();
     super.dispose();
   }
@@ -53,24 +56,27 @@ class _OmniaAppState extends State<OmniaApp> {
         controller: revision,
         child: TaskScope(
           controller: tasks,
-          child: FocusTimerScope(
-            controller: focusTimer,
-            child: ValueListenableBuilder<ThemeMode>(
-              valueListenable: theme,
-              builder: (context, mode, _) => MaterialApp(
-                title: 'Omnia',
-                debugShowCheckedModeBanner: false,
-                theme: buildAppTheme(),
-                darkTheme: buildAppTheme(brightness: Brightness.dark),
-                themeMode: mode,
-                builder: (context, child) =>
-                    FocusPhaseFeedback(controller: focusTimer, child: child!),
-                home: _onboardingComplete
-                    ? const OmniaHome()
-                    : OnboardingPage(
-                        onSkip: () =>
-                            setState(() => _onboardingComplete = true),
-                      ),
+          child: GoalScope(
+            controller: goals,
+            child: FocusTimerScope(
+              controller: focusTimer,
+              child: ValueListenableBuilder<ThemeMode>(
+                valueListenable: theme,
+                builder: (context, mode, _) => MaterialApp(
+                  title: 'Omnia',
+                  debugShowCheckedModeBanner: false,
+                  theme: buildAppTheme(),
+                  darkTheme: buildAppTheme(brightness: Brightness.dark),
+                  themeMode: mode,
+                  builder: (context, child) =>
+                      FocusPhaseFeedback(controller: focusTimer, child: child!),
+                  home: _onboardingComplete
+                      ? const OmniaHome()
+                      : OnboardingPage(
+                          onSkip: () =>
+                              setState(() => _onboardingComplete = true),
+                        ),
+                ),
               ),
             ),
           ),

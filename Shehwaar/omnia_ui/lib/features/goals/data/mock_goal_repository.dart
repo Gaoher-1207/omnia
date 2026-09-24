@@ -11,5 +11,14 @@ class MockGoalRepository implements GoalRepository {
   @override
   Future<List<Goal>> getGoals() async => _source.getAll();
   @override
+  Future<Goal> getGoal(String id) async => _source.get(id);
+  @override
+  Future<Goal> createGoal(Goal goal) async => _source.create(goal);
+  @override
   Future<Goal> updateGoal(Goal goal) async => _source.update(goal);
+  @override
+  Future<Goal> setCompleted(String id, bool completed) async =>
+      _source.update(_source.get(id).copyWith(completed: completed));
+  @override
+  Future<void> deleteGoal(String id) async => _source.delete(id);
 }
