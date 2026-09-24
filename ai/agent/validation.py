@@ -1,6 +1,7 @@
 """Strict validation for untrusted model and backend context structures."""
 
 import json
+import re
 from datetime import datetime
 from types import MappingProxyType
 from typing import Any, Mapping
@@ -39,14 +40,46 @@ def _object(value: Any, expected: set[str], label: str, error_type=InvalidModelO
     return value
 
 
-def validate_route(value: Any) -> Mapping[str, str]:
-    route = _object(value, {"category", "policy"}, "route")
-    category, policy = route["category"], route["policy"]
+def validate_route(value: Any) -> Mapping[str, Any]:
+    # Accept the original route shape for injected/legacy adapters while the
+    # central route contract adds semantic intent and an explicit continuity bit.
+    if isinstance(value, dict) and set(value) == {"category", "policy"}:
+        route = dict(value)
+        category, policy = route["category"], route["policy"]
+        if not isinstance(category, str) or not isinstance(policy, str):
+            raise InvalidModelOutput("route category and policy must be strings")
+        intent = "general" if category == "general" else "action" if category == "action" else {
+            "food": "nutrition", "progress": "progress", "goals": "goals_streaks",
+        }.get(policy, "assistant")
+        route.update(intent=intent, use_memory=False)
+    else:
+        route = _object(value, {"category", "policy", "intent", "use_memory"}, "route")
+        category, policy, intent = route["category"], route["policy"], route["intent"]
     if not isinstance(category, str) or category not in ROUTE_POLICY_ALLOWLIST:
         raise InvalidModelOutput("unsupported route category")
     if not isinstance(policy, str) or policy not in ROUTE_POLICY_ALLOWLIST[category]:
         raise InvalidModelOutput("route policy is not permitted for category")
-    return {"category": category, "policy": policy}
+    if not isinstance(intent, str) or intent not in {"general", "planning", "recommendation", "progress", "goals_streaks", "nutrition", "coaching", "action", "clarification", "assistant"}:
+        raise InvalidModelOutput("unsupported semantic intent")
+    if not isinstance(route["use_memory"], bool):
+        raise InvalidModelOutput("use_memory must be boolean")
+    policy_by_intent = {
+        "general": {("general", "general")},
+        "clarification": {("general", "general")},
+        "action": {("action", "task_action")},
+        "planning": {("omnia", "study"), ("omnia", "productivity")},
+        "recommendation": {("omnia", p) for p in ("study", "productivity", "fitness", "food", "sleep", "goals", "progress")},
+        "progress": {("omnia", "progress")},
+        "goals_streaks": {("omnia", "goals")},
+        "nutrition": {("omnia", "food")},
+        "coaching": {("omnia", p) for p in ("study", "productivity", "fitness", "food", "sleep", "goals", "progress")},
+        "assistant": {("omnia", p) for p in ("study", "productivity", "fitness", "food", "sleep", "goals", "progress", "other")},
+    }
+    if (category, policy) not in policy_by_intent[intent]:
+        raise InvalidModelOutput("intent and context policy are inconsistent")
+    if intent in {"general", "clarification", "action"} and route["use_memory"]:
+        raise InvalidModelOutput("memory continuity is not permitted for this route")
+    return {"category": category, "policy": policy, "intent": intent, "use_memory": route["use_memory"]}
 
 
 def validate_assistant_result(
@@ -57,6 +90,12 @@ def validate_assistant_result(
         raise InvalidModelOutput("unsupported assistant result kind")
     if not isinstance(result["message"], str) or not result["message"].strip() or len(result["message"]) > 8_000:
         raise InvalidModelOutput("message has invalid content or size")
+    message_lower = result["message"].casefold()
+    if (
+        any(term in message_lower for term in ("internal prompt", "system prompt", "database schema", "infrastructure details", "security configuration"))
+        or re.search(r"\b(?:api[_ -]?key|password|access[_ -]?token|secret[_ -]?key|credential)\s*[:=]\s*\S+", result["message"], re.I)
+    ):
+        raise InvalidModelOutput("message contains private or internal information")
     action = result["action"]
     if result["kind"] == "action":
         if not allowed_action_names:

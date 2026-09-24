@@ -144,3 +144,9 @@ class AgentResponse:
     needs_confirmation: bool = False
     action_status: ExecutorStatus | str | None = None
     error: AgentError | None = None
+    intent: str | None = None
+    structured_result: Any | None = None
+    confidence: str | None = None
+    uncertainty: str | None = None
+    correlation_id: str | None = None
+    status: str | None = None

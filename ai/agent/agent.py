@@ -1,5 +1,6 @@
 """Request-scoped assistant orchestration with explicit trust boundaries."""
 
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 from typing import Mapping
@@ -21,6 +22,22 @@ from ..integrations.context_provider import ContextProvider, ContextUnavailable,
 from ..integrations.confirmation_store import (
     PendingProposalStore, ProposalStore, ProposalStoreResult, ProposalStoreStatus,
 )
+from ..context.context_manager import AuthorizedContext, SelectedContext
+from ..planning.service import PlanningService
+from ..planning.models import PlanningRequest
+from ..recommendations.service import RecommendationService
+from ..recommendations.models import RecommendationRequest
+from ..progress.service import ProgressService
+from ..progress.models import ProgressRequest
+from ..goals_streaks.service import GoalsStreaksService
+from ..goals_streaks.models import GoalsStreaksRequest
+from ..coaching.service import CoachingService
+from ..coaching.models import CoachingRequest, CoachingRequestType
+from ..food.nutrition_analysis import NutritionAnalysisService
+from ..food.calorie_estimation import NutritionRequest
+from ..memory.service import ConversationMemoryService
+from ..memory.models import MemorySelectionRequest
+from ..memory.validation import InvalidMemory
 
 
 class OmniaAgent:
@@ -35,6 +52,13 @@ class OmniaAgent:
         proposal_store: ProposalStore | None = None,
         *,
         proposal_ttl_seconds: int = 300,
+        planning_service: PlanningService | None = None,
+        recommendation_service: RecommendationService | None = None,
+        progress_service: ProgressService | None = None,
+        goals_streaks_service: GoalsStreaksService | None = None,
+        coaching_service: CoachingService | None = None,
+        nutrition_service: NutritionAnalysisService | None = None,
+        memory_service: ConversationMemoryService | None = None,
     ) -> None:
         if proposal_ttl_seconds <= 0:
             raise ValueError("proposal_ttl_seconds must be positive")
@@ -45,30 +69,109 @@ class OmniaAgent:
         self._proposal_store = proposal_store if proposal_store is not None else PendingProposalStore()
         self._proposal_ttl_seconds = proposal_ttl_seconds
         self._router = RequestRouter(self._model)
+        self._planning = planning_service or PlanningService(self._model)
+        self._recommendations = recommendation_service or RecommendationService(self._model)
+        self._progress = progress_service or ProgressService(self._model)
+        self._goals_streaks = goals_streaks_service or GoalsStreaksService(self._model)
+        self._coaching = coaching_service or CoachingService(self._model)
+        self._nutrition = nutrition_service or NutritionAnalysisService(self._model)
+        self._memory = memory_service or ConversationMemoryService()
 
     def chat(
-        self, request: AgentRequest, *, model_options: ModelCallOptions | None = None
+        self, request: AgentRequest, *, model_options: ModelCallOptions | None = None,
+        memory_request: MemorySelectionRequest | None = None,
     ) -> AgentResponse:
         """Handle one authenticated request and return safe, categorized errors."""
         correlation_id = str(uuid4())
         if request.proposal_id is not None:
-            return self._confirm(request, correlation_id)
+            return replace(self._confirm(request, correlation_id), correlation_id=correlation_id)
 
         try:
             route = self._router.route(request.message, options=model_options)
             category, policy = route["category"], route["policy"]
+            intent = route["intent"]
+            if intent == "clarification":
+                return AgentResponse("What kind of help are you looking for?", kind="clarification", needs_clarification=True,
+                                     intent=intent, correlation_id=correlation_id, status="clarification")
             context: Mapping[str, object] = {}
-            if policy != "general" and policy != "other":
+            selected = SelectedContext(request.user_id, self._context_manager.select({}, category="general", policy="general"))
+            if category != "general" and policy != "other":
                 try:
                     available = self._context_provider.get_context(user_id=request.user_id, policy=policy)
                 except Exception as exc:
                     raise ContextUnavailable("context lookup failed") from exc
-                context = self._context_manager.select(available, category=category, policy=policy)
+                selected = self._context_manager.select_for_user(
+                    AuthorizedContext(request.user_id, available), user_id=request.user_id,
+                    category=category, policy=policy,
+                )
+                context = selected.data
+
+            selected_memory = None
+            memory_payload = None
+            if route["use_memory"] and memory_request is not None:
+                if memory_request.user_id != request.user_id or memory_request.query.strip() != request.message.strip():
+                    raise InvalidMemory("memory request does not match the current user request")
+                selected_memory = self._memory.select(memory_request)
+                memory_payload = selected_memory.for_model(request.user_id)
+
+            # Selected memory is independently filtered and then passed as a
+            # single bounded continuity domain; it never broadens backend access.
+            augmented = thaw_json(context)
+            if memory_payload is not None and intent not in {"nutrition", "action"}:
+                augmented["conversation_memory"] = memory_payload
+            selected_for_module = selected
+            if augmented != thaw_json(context):
+                from ..agent.models import freeze_json
+                selected_for_module = SelectedContext(request.user_id, freeze_json(augmented))
+
+            if intent == "planning":
+                result = self._planning.create_plan(PlanningRequest(request.message, augmented))
+                return self._module_response(result, intent, correlation_id, self._plan_message(result), result.status.value,
+                                             result.confidence if hasattr(result, "confidence") else None,
+                                             "; ".join(result.uncertainties) if result.uncertainties else None)
+            if intent == "recommendation":
+                result = self._recommendations.recommend(RecommendationRequest(request.user_id, request.message, selected_for_module))
+                return self._module_response(result, intent, correlation_id, self._recommendation_message(result), result.status.value,
+                                             result.confidence, result.uncertainty)
+            if intent == "progress":
+                result = self._progress.analyze(ProgressRequest(request.user_id, request.message, selected_for_module))
+                return self._module_response(result, intent, correlation_id, result.summary.fact if result.summary else result.clarification_question,
+                                             result.status.value, result.confidence, result.uncertainty,
+                                             clarification=result.clarification_question)
+            if intent == "goals_streaks":
+                result = self._goals_streaks.analyze(GoalsStreaksRequest(request.user_id, request.message, selected_for_module))
+                msg = result.goal_summary or result.streak_summary or result.clarification_question
+                return self._module_response(result, intent, correlation_id, msg, result.status.value, result.confidence,
+                                             result.uncertainty, clarification=result.clarification_question)
+            if intent == "nutrition":
+                result = self._nutrition.analyze(NutritionRequest(request.message))
+                totals = result.totals
+                msg = result.wording if totals is None else result.wording + " " + ", ".join(f"{k}: {v}" for k, v in totals.items())
+                return self._module_response(result, intent, correlation_id, msg,
+                                             result.status.value, result.confidence.value,
+                                             None if result.status.value == "estimated" else "Food or portion details are uncertain.",
+                                             clarification=result.clarification_question)
+            if intent == "coaching":
+                history = []
+                if memory_payload:
+                    history.extend(memory_payload["messages"])
+                    if memory_payload["summary"]:
+                        history.append({"summary": memory_payload["summary"]})
+                    if memory_payload["memories"]:
+                        history.append({"selected_memories": memory_payload["memories"]})
+                request_type = CoachingRequestType.ACTION if category == "action" else CoachingRequestType.COACHING
+                result = self._coaching.coach(CoachingRequest(request.user_id, request.message, selected_for_module,
+                                                               request_type, tuple(history)))
+                return self._module_response(result, intent, correlation_id, result.response, result.status.value,
+                                             result.confidence, result.uncertainty,
+                                             clarification=result.questions[0].question if result.questions else None)
+
             payload = {
                 "message": request.message,
                 "category": category,
                 "policy": policy,
-                "context": thaw_json(context),
+                "context": augmented,
+                "conversation_memory": memory_payload,
                 "allowed_actions": sorted(
                     name for name, definition in ACTION_REGISTRY.items()
                     if category == "action" and definition.allowed_context_policy == policy
@@ -103,7 +206,8 @@ class OmniaAgent:
             return self._error("I couldn't safely process that request. Please try again.", ErrorCategory.INTERNAL_FAILURE, correlation_id)
 
         if result["kind"] == "clarification":
-            return AgentResponse(result["message"], kind="clarification", needs_clarification=True)
+            return AgentResponse(result["message"], kind="clarification", needs_clarification=True,
+                                 intent=intent, correlation_id=correlation_id, status="clarification")
         if result["kind"] == "action":
             definition = ACTION_REGISTRY[result["action"]["name"]]
             proposal = ActionProposal(
@@ -126,8 +230,32 @@ class OmniaAgent:
             return AgentResponse(
                 result["message"], kind="action", action=proposal,
                 needs_confirmation=proposal.requires_confirmation,
+                intent=intent, correlation_id=correlation_id, status="proposal",
             )
-        return AgentResponse(result["message"])
+        return AgentResponse(result["message"], intent=intent, correlation_id=correlation_id, status="ready")
+
+    @staticmethod
+    def _module_response(result, intent, correlation_id, message, status, confidence, uncertainty, clarification=None):
+        if not isinstance(message, str) or not message.strip():
+            message = "I need a little more information to help with that."
+        needs_clarification = status in {"clarification", "insufficient_context", "unclear", "conflict"}
+        return AgentResponse(message=message, kind="module", needs_clarification=needs_clarification,
+                             intent=intent, structured_result=result, confidence=confidence,
+                             uncertainty=uncertainty, correlation_id=correlation_id, status=status)
+
+    @staticmethod
+    def _plan_message(result):
+        if result.clarification_question:
+            return result.clarification_question
+        if not result.sessions:
+            return "I couldn't build a useful plan from the available details."
+        return "Proposed plan: " + "; ".join(f"{s.title} ({s.duration_minutes} min)" for s in result.sessions)
+
+    @staticmethod
+    def _recommendation_message(result):
+        if result.clarification_question:
+            return result.clarification_question
+        return " ".join(item.recommendation for item in result.recommendations) or "I need more context to make a useful recommendation."
 
     def _confirm(self, request: AgentRequest, correlation_id: str) -> AgentResponse:
         if self._action_executor is None:
@@ -198,4 +326,6 @@ class OmniaAgent:
             message=message,
             action_status=status,
             error=AgentError(category=category, correlation_id=correlation_id),
+            correlation_id=correlation_id,
+            status="error",
         )
