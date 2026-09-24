@@ -23,7 +23,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - SECRET_KEY=${SECRET_KEY:-django-insecure-local-development-key}
+      - SECRET_KEY=${SECRET_KEY}
       - DEBUG=${DEBUG:-True}
       - POSTGRES_DB=${POSTGRES_DB:-omnia_db}
       - POSTGRES_USER=${POSTGRES_USER:-omnia_user}
