@@ -12,6 +12,10 @@ import 'package:flutter/foundation.dart';
 abstract final class ApiConfig {
   static const _fromEnvironment = String.fromEnvironment('API_BASE_URL');
 
+  /// `--dart-define=OMNIA_DATA=api` signs in against the backend. Anything
+  /// else (the default) runs on in-memory mock data with no sign-in.
+  static const apiMode = String.fromEnvironment('OMNIA_DATA') == 'api';
+
   /// The base URL to use, or null when a release build wasn't configured.
   /// The parameters default to the running build; tests pass their own.
   static String? resolveBaseUrl({
