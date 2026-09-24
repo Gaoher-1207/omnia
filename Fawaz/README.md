@@ -56,7 +56,7 @@ All secrets live in environment variables or an untracked `.env` file, never in 
 
 | Variable | Needed | What it is |
 |---|---|---|
-| `DATABASE_URL` | production | `postgresql+psycopg://user:pass@host:5432/omnia`. Local dev falls back to SQLite. |
+| `DATABASE_URL` | production | `. Local dev falls back to SQLite. |
 | `AUTH_SECRET` | production | 32+ random characters for signing tokens. `python -c "import secrets; print(secrets.token_urlsafe(48))"` |
 | `POSTGRES_PASSWORD` | docker compose | Password for the bundled database container. |
 | `PUBLIC_BASE_URL` | for calendar links | Public URL of the API, e.g. `https://api.example.com`. |
