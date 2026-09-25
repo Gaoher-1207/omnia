@@ -14,7 +14,8 @@ Intended order with dependencies. **No dates** are set. Sources: `Shehwaar/READM
 | API infrastructure | `10e8ad2` | `ApiClient`, `ApiConfig`, `ApiException`, JSON helpers, `TokenStore`, Android network config, client tests |
 | Authentication and sessions | `70864a7` | `AuthController`, auth screen, Settings account, `UserSession`, fake auth backend tests |
 | Frontend documentation | `527020e` | `Shehwaar/README.md` rewrite |
-| Tasks API integration | Phase 3 commit (after `39487cd`) | `ApiTaskRepository`, `AppDependencies.api`, `/tasks` fake backend, tests. Automated and manual emulator verification passed. |
+| Tasks API integration | `e141846` | `ApiTaskRepository`, `AppDependencies.api`, `/tasks` fake backend, tests. Automated and manual emulator verification passed. |
+| Dashboard API integration (read-only) | Phase 4 commit (after `e141846`) | `DashboardRepository` (mock + API), `DashboardController`, Home and Track summary, `/dashboard` fake backend, tests. Automated and manual emulator verification passed. |
 
 These were built on the Tasks, Focus, onboarding and design work in the canonical frontend that came before them. See [[Git Checkpoints]].
 
@@ -32,7 +33,8 @@ flowchart TD
     AUTH["Auth + sessions"]:::done
     DOC["README / docs"]:::done
     T["Phase 3: Tasks API"]:::done
-    DASH["Dashboard + daily targets"]:::later
+    DASH["Phase 4: Dashboard (read-only)"]:::done
+    TGT["Profile + daily targets editor"]:::next
     PLAN["Daily plan (AI API)"]:::later
     STUDY["Study integration<br/>(model alignment)"]:::later
     TRACK["Activity / Sleep logging"]:::later
@@ -46,6 +48,7 @@ flowchart TD
 
     INF --> AUTH --> T
     T --> DASH
+    DASH --> TGT
     DASH --> PLAN
     T --> PLAN
     STUDY --> PLAN
@@ -72,14 +75,15 @@ Green = done · Yellow = next · Grey = integration phases · Purple = product v
 ## Sequence
 
 1. **[[Phase 3 - Tasks API Integration]]** (complete)
-2. **Dashboard and [[Daily Targets]]**: `/dashboard` on Home and Track, plus a targets editor in Settings
-3. **Daily plan**: replace `samplePlan` with `/ai/daily-plan`
-4. **Study integration**, then the [[Adaptive Learning Roadmap]]
-5. **Activity and sleep** logging, then the [[Fitness Roadmap]]
-6. **Insights and progress** from real data
-7. **Long-term Goals backend**. This is independent of 2–6 and can be scheduled whenever needed.
-8. **[[AI Assistant]]**, then cross-domain recommendations ([[AI Roadmap]])
-9. **[[Achievements and Life Timeline]]**
+2. **[[Phase 4 - Dashboard API Integration]]**: `/dashboard` on Home and Track, read-only (complete)
+3. **Profile and [[Daily Targets]] editor**: `PATCH /profile` from Settings (next)
+4. **Daily plan**: replace `samplePlan` with `/ai/daily-plan`
+5. **Study integration**, then the [[Adaptive Learning Roadmap]]
+6. **Activity and sleep** logging, then the [[Fitness Roadmap]]
+7. **Insights and progress** from real data
+8. **Long-term Goals backend**. This is independent of 2–7 and can be scheduled whenever needed.
+9. **[[AI Assistant]]**, then cross-domain recommendations ([[AI Roadmap]])
+10. **[[Achievements and Life Timeline]]**
 
 Details per integration phase: [[Backend Integration Roadmap]].
 

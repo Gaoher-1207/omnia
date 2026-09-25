@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:omnia_ui/core/app_dependencies.dart';
 import 'package:omnia_ui/features/goals/goal_controller.dart';
+import 'package:omnia_ui/features/home/dashboard_controller.dart';
 import 'package:omnia_ui/features/plan/revision_controller.dart';
 import 'package:omnia_ui/features/tasks/task_controller.dart';
 
@@ -30,12 +31,23 @@ class _UserSessionState extends State<UserSession> {
   );
   late final tasks = TaskController(dependencies.tasks)..load();
   late final goals = GoalController(dependencies.goals)..load();
+  late final dashboard = DashboardController(dependencies.dashboard)..load();
+  late final AppLifecycleListener _lifecycle;
+
+  @override
+  void initState() {
+    super.initState();
+    // The day may have changed while the app was in the background.
+    _lifecycle = AppLifecycleListener(onResume: dashboard.load);
+  }
 
   @override
   void dispose() {
+    _lifecycle.dispose();
     revision.dispose();
     tasks.dispose();
     goals.dispose();
+    dashboard.dispose();
     super.dispose();
   }
 
@@ -46,7 +58,10 @@ class _UserSessionState extends State<UserSession> {
       controller: revision,
       child: TaskScope(
         controller: tasks,
-        child: GoalScope(controller: goals, child: widget.child),
+        child: GoalScope(
+          controller: goals,
+          child: DashboardScope(controller: dashboard, child: widget.child),
+        ),
       ),
     ),
   );

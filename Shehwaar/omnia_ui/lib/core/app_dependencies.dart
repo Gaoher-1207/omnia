@@ -3,6 +3,9 @@ import 'package:omnia_ui/core/api/api_client.dart';
 import 'package:omnia_ui/core/data/mock_data.dart';
 import 'package:omnia_ui/features/goals/data/mock_goal_repository.dart';
 import 'package:omnia_ui/features/goals/domain/goal_repository.dart';
+import 'package:omnia_ui/features/home/data/api_dashboard_repository.dart';
+import 'package:omnia_ui/features/home/data/mock_dashboard_repository.dart';
+import 'package:omnia_ui/features/home/domain/dashboard_repository.dart';
 import 'package:omnia_ui/features/study/data/mock_study_repository.dart';
 import 'package:omnia_ui/features/study/domain/study_repository.dart';
 import 'package:omnia_ui/features/study/domain/study_session.dart';
@@ -15,7 +18,7 @@ import 'package:omnia_ui/features/tasks/domain/task_repository.dart';
 class AppDependencies {
   const AppDependencies({
     required this.tasks, required this.goals, required this.study,
-    required this.initialRevisionSession,
+    required this.dashboard, required this.initialRevisionSession,
   });
 
   factory AppDependencies.mock() {
@@ -23,16 +26,18 @@ class AppDependencies {
     return AppDependencies(
       tasks: MockTaskRepository(), goals: MockGoalRepository(),
       study: MockStudyRepository(sessions: [revision]),
+      dashboard: MockDashboardRepository(),
       initialRevisionSession: revision,
     );
   }
 
-  /// API mode: tasks live on the backend; the other features stay in-memory
-  /// until their own integration phase.
+  /// API mode: tasks and the dashboard come from the backend; the other
+  /// features stay in-memory until their own integration phase.
   factory AppDependencies.api(ApiClient api) {
     final local = AppDependencies.mock();
     return AppDependencies(
       tasks: ApiTaskRepository(api), goals: local.goals, study: local.study,
+      dashboard: ApiDashboardRepository(api),
       initialRevisionSession: local.initialRevisionSession,
     );
   }
@@ -40,6 +45,7 @@ class AppDependencies {
   final TaskRepository tasks;
   final GoalRepository goals;
   final StudyRepository study;
+  final DashboardRepository dashboard;
   final StudySession initialRevisionSession;
 }
 

@@ -3,27 +3,27 @@ type: feature
 status: partial
 frontend: canonical
 backend_available: true
-backend_connected: false
+backend_connected: partial
 donor: true
 ---
 
 # Track
 
-The **Track** tab: "Your day at a glance", labelled `SAMPLE DATA`.
+The **Track** tab: "Your day at a glance".
 
 ## Current Status
 
-`partial`.
+`partial`. Since [[Phase 4 - Dashboard API Integration]] (complete):
 
-| Tile | Source |
-|---|---|
-| Study `2h 15m / 4h goal` | sample |
-| Activity `6,240 / 8,000 steps` | sample |
-| Sleep `6h 42m / 8h goal` | sample |
-| **Tasks** `done of total` | ✅ live, from `TaskScope` |
-| "Today's activity" list | sample |
+| Tile | Mock mode | API mode |
+|---|---|---|
+| Study `… / … goal` | sample `2h 15m`, `4h goal` | ✅ `/dashboard` `today` |
+| Activity `… / … steps` | sample `6,240`, `8,000 steps` | ✅ `/dashboard` `today` |
+| Sleep `… / … goal` | sample `6h 42m`, `8h goal` | ✅ `/dashboard` `today` (**Not logged** when null) |
+| **Tasks** `done of total` | `TaskScope` | `TaskScope` |
+| "Today's activity" list | sample (page labelled `SAMPLE DATA`) | sample, with a `SAMPLE` tag |
 
-The sample goals (4 h study, 8,000 steps, 8 h sleep) happen to match the backend's default [[Daily Targets]] (240 min, 8000 steps, 480 min).
+The tiles read the **same** `DashboardController` as [[Dashboard|Home]], so Track makes no request of its own.
 
 ## Current Frontend
 
@@ -42,7 +42,7 @@ The donor's `TrackRepository` covers all three plus meal photo estimates, with i
 
 ## Future Direction
 
-Real figures from `/dashboard` and the logging endpoints, in the canonical Track layout. See [[Backend Integration Roadmap]].
+Logging screens in the canonical Track layout, and a real "Today's activity" list. See [[Backend Integration Roadmap]].
 
 ## Related
 

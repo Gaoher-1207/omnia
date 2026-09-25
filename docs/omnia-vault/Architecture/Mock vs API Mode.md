@@ -16,13 +16,14 @@ The canonical frontend has two data modes, chosen at build time with a `--dart-d
 | `UserSession` | One for app life | One per signed-in user ([[Session Architecture]]) |
 | Tasks | In-memory mock | **FastAPI `/tasks`** via `ApiTaskRepository` (user-scoped) |
 | Goals, Study | In-memory mocks | **Still in-memory mocks**, fresh per user |
-| Home / Plan / Track / Insights | Sample data | Sample data |
+| Home / Track day summary | Sample day (`MockDashboardRepository`) | **FastAPI `/dashboard`** via `ApiDashboardRepository` (user-scoped) |
+| Plan, Insights, Home "Next up", Track "Today's activity" | Sample data | Sample data (labelled `SAMPLE` in API mode) |
 | Focus | App-wide, local | App-wide, local |
 | Settings → Account | Hidden | Shown when signed in |
 | Typical use | UI work, demos, automated tests | Auth and integration work |
 
 > [!warning] API mode is not "backend mode" yet
-> Today it means *real accounts + server-backed Tasks + local data for every other feature*. Each feature moves to the backend in its own phase. See [[Mock First API Migration]] and [[Backend Integration Roadmap]].
+> Today it means *real accounts + server-backed Tasks + the server's day summary on Home and Track + local data for every other feature*. Each feature moves to the backend in its own phase. See [[Mock First API Migration]] and [[Backend Integration Roadmap]].
 
 ## Visual
 
@@ -35,7 +36,7 @@ flowchart TB
     subgraph Api["flutter run --dart-define=OMNIA_DATA=api"]
         direction TB
         a1["AuthController + ApiClient"] ==> a0[("FastAPI")]
-        a1 --> a2["UserSession keyed by user.id"] --> a3["ApiTaskRepository ⇒ FastAPI<br/>+ mock Goals / Study"]
+        a1 --> a2["UserSession keyed by user.id"] --> a3["ApiTaskRepository, ApiDashboardRepository ⇒ FastAPI<br/>+ mock Goals / Study"]
     end
 ```
 

@@ -30,7 +30,7 @@ Every route registered in `Fawaz/backend/app/main.py`, all under the `/api` pref
 |---|---|---|
 | GET | `/profile` | — |
 | PATCH | `/profile` | — |
-| GET | `/dashboard` | — |
+| GET | `/dashboard` | ✅ `ApiDashboardRepository.getDashboard` (date, greeting, display name, today's study/steps/sleep and targets, next exam) |
 
 ## Tasks · [[Tasks API]]
 

@@ -5,8 +5,9 @@ import 'package:http/testing.dart';
 import 'package:omnia_ui/core/api/api_client.dart';
 import 'package:omnia_ui/core/auth/token_store.dart';
 
-/// An in-memory stand-in for the backend's auth and tasks endpoints, speaking
-/// the same JSON and status codes as `Fawaz/backend/app/modules/{auth,tasks}`.
+/// An in-memory stand-in for the backend's auth, tasks and dashboard
+/// endpoints, speaking the same JSON and status codes as
+/// `Fawaz/backend/app/modules/{auth,tasks,dashboard}`.
 class FakeAuthBackend {
   /// The device's token storage, shared with every [client].
   final tokens = MemoryTokenStore();
@@ -16,9 +17,18 @@ class FakeAuthBackend {
   /// Makes every `/tasks` call answer 503, like a failing server.
   bool tasksDown = false;
 
+  /// Makes `GET /dashboard` answer 503.
+  bool dashboardDown = false;
+
+  /// The server's "today" (in the profile timezone), independent of the
+  /// device clock.
+  String dashboardDate = '2026-09-24';
+
   final _users = <String, Map<String, String>>{}; // email → account
   final _sessions = <String, String>{}; // token → email
   final _tasks = <String, Map<String, dynamic>>{}; // id → task + owner
+  final _today = <String, Map<String, dynamic>>{}; // email → logged totals
+  final _nextExam = <String, Map<String, dynamic>>{}; // email → exam
   var _ids = 0;
 
   /// Stores a task for [email] as the server would; returns its id.
@@ -27,6 +37,25 @@ class FakeAuthBackend {
     if (done) task['status'] = 'done';
     return task['id'] as String;
   }
+
+  /// Today's logged totals for [email], e.g. `{'steps': 4120}`.
+  void setToday(String email, Map<String, dynamic> values) =>
+      (_today[email] ??= {}).addAll(values);
+
+  /// [email]'s nearest upcoming exam, or none.
+  void setNextExam(
+    String email, {
+    required String subject,
+    required String title,
+    required String date,
+    required int daysLeft,
+  }) => _nextExam[email] = {
+    'id': 'exam-uuid-${++_ids}',
+    'title': title,
+    'subject_name': subject,
+    'exam_date': date,
+    'days_left': daysLeft,
+  };
 
   /// [email]'s tasks as the API returns them.
   List<Map<String, dynamic>> tasksOf(String email) => [
@@ -147,7 +176,14 @@ class FakeAuthBackend {
         endSessions(email);
         _users.remove(email);
         _tasks.removeWhere((_, task) => task['owner'] == email); // cascade
+        _today.remove(email);
+        _nextExam.remove(email);
         return http.Response('', 204);
+      case ('GET', '/dashboard'):
+        if (dashboardDown) {
+          return _error(503, 'service_unavailable', 'Dashboard unavailable.');
+        }
+        return _json(_dashboard(email));
     }
     if (path == '/tasks' || path.startsWith('/tasks/')) {
       return _handleTasks(request.method, path, request.url, body, email);
@@ -286,6 +322,43 @@ class FakeAuthBackend {
     24,
     8,
   ).add(Duration(seconds: ++_ids)).toIso8601String();
+
+  /// `DashboardOut`, with the profile's default daily targets.
+  Map<String, dynamic> _dashboard(String email) {
+    final open = [
+      for (final task in tasksOf(email))
+        if (task['status'] == 'todo') task,
+    ];
+    const streak = {'current': 0, 'longest': 0, 'active_today': false};
+    return {
+      'date': dashboardDate,
+      'greeting': 'morning',
+      'display_name': _users[email]!['name'],
+      'today': {
+        'study_minutes': 0,
+        'study_goal_minutes': 240,
+        'tasks_completed': tasksOf(email).length - open.length,
+        'task_goal': 5,
+        'steps': 0,
+        'step_goal': 8000,
+        'workout_status': 'pending',
+        'workout_minutes': 0,
+        'sleep_minutes': null,
+        'sleep_goal_minutes': 480,
+        'calories': 0,
+        'calorie_goal': 2000,
+        ...?_today[email],
+      },
+      'streaks': {
+        for (final kind in ['study', 'tasks', 'fitness', 'balance'])
+          kind: streak,
+      },
+      'next_exam': _nextExam[email],
+      'upcoming_tasks': open.take(5).toList(),
+      'study_today': <Object>[],
+      'ai_plan': null,
+    };
+  }
 
   Map<String, dynamic> _user(String email) {
     final user = _users[email]!;

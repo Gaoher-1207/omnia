@@ -1,5 +1,6 @@
 import 'package:omnia_ui/core/models/omnia_category.dart';
 import 'package:omnia_ui/features/goals/domain/goal.dart';
+import 'package:omnia_ui/features/home/domain/dashboard.dart';
 import 'package:omnia_ui/features/study/domain/exam.dart';
 import 'package:omnia_ui/features/study/domain/revision_item.dart';
 import 'package:omnia_ui/features/study/domain/study_session.dart';
@@ -43,6 +44,18 @@ abstract final class MockData {
     Goal(id: 'goal-timetable', title: 'Set up a weekly study timetable',
         completed: true, category: OmniaCategory.study),
   ];
+  /// The sample day's figures, as Home and Track have always shown them.
+  static Dashboard get dashboard => Dashboard(
+    date: DateTime(2025, 9, 23), greeting: 'morning', displayName: 'Shew',
+    today: const TodaySummary(
+      studyMinutes: 135, studyGoalMinutes: 240,
+      steps: 6240, stepGoal: 8000,
+      sleepMinutes: 402, sleepGoalMinutes: 480,
+    ),
+    nextExam: NextExam(title: 'DBMS exam', subjectName: 'DBMS',
+        date: DateTime(2025, 10, 1), daysLeft: 8),
+    sample: true,
+  );
   static StudySession get revisionSession => StudySession(
     id: 'session-dbms-revision', subjectId: 'subject-dbms', examId: 'exam-dbms',
     title: 'DBMS Revision', startsAt: DateTime.utc(2025, 9, 23, 10),

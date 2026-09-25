@@ -20,10 +20,11 @@ flowchart TD
         AUTH["AuthController (API mode)"]
     end
     subgraph Session["UserSession: one per signed-in user"]
-        DEPS["AppDependencies<br/>(tasks, goals, study repositories)"]
+        DEPS["AppDependencies<br/>(tasks, goals, study, dashboard repositories)"]
         TC["TaskController"]
         GC["GoalController"]
         RC["RevisionController"]
+        DC["DashboardController<br/>(Home + Track)"]
     end
     AppWide --> Session
     Session --> MA["MaterialApp → OmniaHome"]
@@ -35,6 +36,7 @@ flowchart TD
 | `FocusTimerController` | `TaskController` (`..load()` on creation) |
 | `ApiClient` | `GoalController` (`..load()` on creation) |
 | `AuthController` | `RevisionController` |
+| | `DashboardController` (`..load()` on creation, again on app resume) |
 
 ## Lifecycle
 

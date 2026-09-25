@@ -22,7 +22,7 @@ Account actions go through a shared `_attempt` helper. Change password and delet
 
 ## Not here yet
 
-- **Daily targets editor** (study minutes, steps, tasks, sleep, kcal → `PATCH /profile`). It's planned for the dashboard phase. See [[Daily Targets]] and [[Backend Integration Roadmap]].
+- **Daily targets editor** (study minutes, steps, tasks, sleep, kcal → `PATCH /profile`). The targets are displayed on Home and Track since [[Phase 4 - Dashboard API Integration]]; the editor is the next phase. See [[Daily Targets]] and [[Backend Integration Roadmap]].
 - Username (needed for social features), timezone editing and data export (`GET /account/export`, [[Integrations API]]) exist in the backend but have no UI.
 
 ## Related

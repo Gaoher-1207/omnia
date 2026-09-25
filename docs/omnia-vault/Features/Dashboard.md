@@ -3,7 +3,7 @@ type: feature
 status: partial
 frontend: canonical
 backend_available: true
-backend_connected: false
+backend_connected: true
 donor: true
 aliases: [Home]
 ---
@@ -14,45 +14,49 @@ The **Home** tab of the canonical app.
 
 ## Purpose
 
-A single view of the day: greeting, a highlighted recommendation, category cards, the long-term Goals preview and a **Next up** agenda.
+A single view of the day: greeting, a highlighted exam countdown, category cards, the long-term Goals preview and a **Next up** agenda.
 
 ## Current Status
 
-`partial`. Mostly sample content, labelled `SAMPLE DAY`, with three live pieces:
+`partial`. Since [[Phase 4 - Dashboard API Integration]] (complete; manually verified on the Android emulator against the real backend with real name, date, no-exam and exam states and unlogged figures), the day summary comes from `DashboardController`: `GET /dashboard` in API mode, `MockDashboardRepository` (the sample day) in mock mode.
 
-| Piece | Source | Live? |
+| Piece | Mock mode | API mode |
 |---|---|---|
-| Tasks card (`done / total`) | `TaskScope` | ✅ live (in-memory) |
-| Goals preview (2 most pressing active) | `GoalScope` | ✅ live (in-memory) |
-| Revision agenda item title | `RevisionScope` | ✅ live (in-memory) |
-| Greeting "Good morning, Shew." | hard-coded string | ❌ ignores the signed-in user's name |
-| Date "Tuesday, September 23" | hard-coded | ❌ |
-| Sample recommendation card | hard-coded | ❌ labelled "Sample recommendation" |
-| Other category cards and agenda | `samplePlan` / constants | ❌ |
+| Greeting "Good {morning}, {name}." | sample (Shew) | ✅ server `greeting` + `display_name` (profile time zone) |
+| Date line | "Tuesday, September 23 · SAMPLE DAY" | ✅ server `date`, no sample label |
+| Exam card headline and detail | sample DBMS exam + sample plan sentence, `SAMPLE` tag | ✅ `next_exam` ("today" / "tomorrow" / "in N days", title and date), or "No exams coming up." |
+| Study / Activity / Sleep cards | sample figures | ✅ `today` vs the profile's [[Daily Targets]]; sleep shows **Not logged** when null |
+| Tasks card (`done / total`) | `TaskScope` | `TaskScope` (unchanged; not the dashboard's `tasks_completed`) |
+| Goals preview | `GoalScope` | `GoalScope` (unchanged) |
+| Next up agenda | sample | sample, with a `SAMPLE` tag |
+| "Why?" dialog, "View today's plan" | sample | sample (the dialog is titled "Sample recommendation") |
+
+Loading shows "Hello." and dashes; a first-load failure shows "Couldn't load today." with **Try again**. Pull down to refresh; a failed refresh keeps the last day and shows a snackbar. The dashboard also reloads when the app returns to the foreground.
 
 ## Current Frontend
 
-`features/home/home_page.dart`, `widgets/category_card.dart`, `widgets/agenda_line.dart`, `widgets/goals_preview.dart`. Navigation: Settings button, Tasks card → [[Tasks]], Goals preview → [[Goals]], agenda → [[Study]] revision or sample dialogs, and the `openPlan`/`openTrack` tab callbacks.
+`features/home/home_page.dart`, `dashboard_controller.dart`, `dashboard_format.dart`, `domain/dashboard.dart`, `domain/dashboard_repository.dart`, `data/api_dashboard_repository.dart`, `data/mock_dashboard_repository.dart`; widgets `category_card.dart`, `agenda_line.dart`, `goals_preview.dart`.
 
 ## State / Controller
 
-No dedicated controller. It reads the session scopes.
+`DashboardController` (per [[Session Architecture|UserSession]], shared with [[Track]]), plus `TaskScope`, `GoalScope` and `RevisionScope`.
 
 ## Backend
 
-`GET /api/dashboard` returns "everything the Today screen needs in one call": `greeting`, `display_name`, a `today` summary (study minutes, tasks completed, steps, workout, sleep and calories, each **against its [[Daily Targets|daily target]]**), `streaks`, `next_exam`, `upcoming_tasks`, `study_today` plan blocks and the stored `ai_plan`. See [[Profile and Dashboard API]].
+`GET /api/dashboard`. See [[Profile and Dashboard API]] for the fields read and those left for later phases.
 
-The donor has `DashboardRepository` + `Dashboard.fromJson` to adapt ([[Fawaz Donor Map]]).
-
-## Data Flow (target)
+## Data Flow
 
 ```mermaid
 flowchart LR
-    H["HomePage"] --> TS["TaskScope ✅"]
-    H --> GS["GoalScope ✅"]
-    H --> RS["RevisionScope ✅"]
-    H -.->|dashboard phase| DR["DashboardRepository"] -.-> D["GET /dashboard"]
-    D -.-> P["Profile daily targets"]
+    H["HomePage"] --> DC["DashboardController"]
+    T["TrackPage"] --> DC
+    DC --> DR["DashboardRepository"]
+    DR -->|mock mode| MD["MockDashboardRepository"]
+    DR ==>|API mode| AD["ApiDashboardRepository"] ==> D["GET /dashboard"]
+    H --> TS["TaskScope"]
+    H --> GS["GoalScope"]
+    H --> RS["RevisionScope"]
 ```
 
 ## Related Features
@@ -61,4 +65,4 @@ flowchart LR
 
 ## Future Direction
 
-Fill the category cards from `/dashboard`, use `display_name` in the greeting, and add a daily-targets editor in [[Settings]]. **Long-term Goals preview stays as it is.** See [[Backend Integration Roadmap]] and [[Goals vs Daily Targets]].
+Next: a daily-targets editor in [[Settings]]. Then "Next up" and "Why?" from the daily plan, and possibly the Tasks card from the dashboard's `tasks_completed` (a semantics decision). **Long-term Goals preview stays as it is.** See [[Backend Integration Roadmap]] and [[Goals vs Daily Targets]].

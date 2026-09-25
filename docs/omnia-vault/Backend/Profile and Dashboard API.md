@@ -1,7 +1,7 @@
 ---
 type: backend
 module: users, dashboard
-backend_connected: false
+backend_connected: partial
 ---
 
 # Profile and Dashboard API
@@ -39,6 +39,7 @@ It aggregates across [[Tasks API]], [[Study API]], [[Activity API]], [[Sleep API
 
 ## Canonical usage
 
-None yet. It's planned for the dashboard phase. See [[Dashboard]] and [[Backend Integration Roadmap]].
+- `GET /dashboard`: used in API mode since [[Phase 4 - Dashboard API Integration]] (complete; manually verified on the Android emulator against the real backend). Read: `date`, `greeting`, `display_name`, `today.study_minutes`/`study_goal_minutes`, `today.steps`/`step_goal`, `today.sleep_minutes` (null = not logged)/`sleep_goal_minutes`, and `next_exam` (null = none). Not read yet: tasks, workout and calorie figures, `streaks`, `upcoming_tasks`, `study_today`, `ai_plan`.
+- `/profile`: not used yet. The daily-targets editor is the next phase. See [[Backend Integration Roadmap]].
 
 Related: [[API Map]] · [[User]]

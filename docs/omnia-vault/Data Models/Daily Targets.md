@@ -27,9 +27,9 @@ They reset every day, measure consistency and feed streaks, the "balanced" day f
 
 ## In the code today
 
-- Canonical: absent. The Track sample tiles show similar numbers (4 h, 8,000 steps, 8 h) as plain text.
+- Canonical: read-only since [[Phase 4 - Dashboard API Integration]]. In API mode Home and Track show the study, steps and sleep targets from `/dashboard` (`TodaySummary`); mock mode shows the sample 4 h, 8,000 steps, 8 h. There's no editor.
 - Donor: `ApiGoalRepository` + `settings/goals_page.dart` present these five targets as "goals" ([[Fawaz Donor Map]]).
 
 ## Planned
 
-A daily-targets editor in [[Settings]] and real progress on [[Dashboard]] and [[Track]], in the dashboard phase of the [[Backend Integration Roadmap]].
+A daily-targets editor in [[Settings]] (`PATCH /profile`), the next phase of the [[Backend Integration Roadmap]]. Real progress on [[Dashboard]] and [[Track]] arrived in [[Phase 4 - Dashboard API Integration]].

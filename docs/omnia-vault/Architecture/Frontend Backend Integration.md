@@ -15,12 +15,12 @@ Legend: **CURRENT** = what runs today · **DONOR** = exists in `Fawaz/lib` · **
 | [[Authentication Flow\|Auth]] | `AuthController` | — (uses `ApiClient`) | `ApiClient` → FastAPI | `core/auth/auth_controller.dart` (already adapted) | [[Authentication API]] | ✅ API mode |
 | [[Tasks]] | `TaskController` | `TaskRepository` | `ApiTaskRepository` (API mode) · `MockTaskRepository` (mock mode) | `ApiTaskRepository` (adapted) | [[Tasks API]] | ✅ API mode (Phase 3, verified) |
 | [[Goals]] (long-term) | `GoalController` | `GoalRepository` | `MockGoalRepository` | ⚠️ `ApiGoalRepository` is **[[Daily Targets]]**, not long-term goals | — none | ❌ needs new module |
-| [[Daily Targets]] | — | — | — | `ApiGoalRepository` + `settings/goals_page.dart` | [[Profile and Dashboard API]] (`/profile`, `/dashboard`) | ❌ not in canonical |
+| [[Daily Targets]] | `DashboardController` (read-only) | `DashboardRepository` | read from `/dashboard` | `ApiGoalRepository` + `settings/goals_page.dart` | [[Profile and Dashboard API]] (`/profile`, `/dashboard`) | 🟡 displayed; no editor |
 | [[Study]] (revision session) | `RevisionController` | `StudyRepository` (5 methods, session-centred) | `MockStudyRepository` | `ApiStudyRepository` — **different, larger interface** (subjects, exams, topics, sessions, plan) | [[Study API]] | ❌ model alignment needed |
 | [[Focus]] | `FocusTimerController` | — | local | `plan/focus_session_page.dart` (stopwatch that logs a study session) | `POST /study/sessions` (logging only) | ❌ optional |
-| [[Dashboard]] (Home) | none (reads `TaskScope`, `GoalScope`, `RevisionScope`) | — | sample + live counts | `home/data/dashboard_repository.dart` | `GET /dashboard` | ❌ |
+| [[Dashboard]] (Home) | `DashboardController` (+ `TaskScope`, `GoalScope`, `RevisionScope`) | `DashboardRepository` | `ApiDashboardRepository` (API mode) · `MockDashboardRepository` (mock mode) | `home/data/dashboard_repository.dart` (adapted) | `GET /dashboard` | ✅ API mode (Phase 4, verified) |
 | [[Plan]] | none (`samplePlan` const) | — | sample | `plan/data/plan_repository.dart`, `PlanController` | [[AI API]] `/ai/daily-plan` | ❌ |
-| [[Track]] | none (reads `TaskScope`) | — | sample + live Tasks tile | `track/data/track_repository.dart` | [[Activity API]], [[Sleep API]], [[Nutrition API]] | ❌ |
+| [[Track]] | `DashboardController` (shared with Home) + `TaskScope` | `DashboardRepository` | summary tiles as Home; "Today's activity" sample | `track/data/track_repository.dart` | `GET /dashboard`; logging: [[Activity API]], [[Sleep API]], [[Nutrition API]] | 🟡 tiles only |
 | [[Insights]] | none | — | sample | `insights/data/progress_repository.dart` | [[Progress API]] | ❌ |
 | [[Settings]] | `ThemeController`, `AuthController` | — | theme local; account → FastAPI | `settings/settings_page.dart` | [[Authentication API]] | ✅ account section |
 | Social | — (no feature) | — | — | `social/data/social_repository.dart` + pages | [[Social API]] | ❌ |
@@ -45,7 +45,7 @@ Details: [[Phase 3 - Tasks API Integration]].
 
 - **Goals:** the backend has no long-term goals. The donor's `ApiGoalRepository` presents the five profile targets (study, tasks, steps, sleep, kcal) as "goals" read from `/dashboard` and written with `PATCH /profile`. Wiring it into the canonical `GoalRepository` would silently swap the concept. See [[Goals vs Daily Targets]].
 - **Study:** the canonical `StudySession` embeds a list of `RevisionItem`s. The backend's `StudySession` is a *logged block of time* (minutes, date, optional backlog item), and revision topics are separate `BacklogItem`s with `kind = revision`. See [[Study Session]].
-- **Plan and Dashboard:** the canonical screens have no controllers or domain models for this data yet. That work is new UI wiring inside the existing design, not a repository swap.
+- **Plan:** the canonical screen has no controller or domain model for this data yet. That work is new UI wiring inside the existing design, not a repository swap. (Dashboard got its model and controller in [[Phase 4 - Dashboard API Integration]].)
 
 ## Related
 
