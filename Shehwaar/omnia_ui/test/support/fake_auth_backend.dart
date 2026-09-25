@@ -3,11 +3,12 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:omnia_ui/core/api/api_client.dart';
+import 'package:omnia_ui/core/auth/timezones.dart';
 import 'package:omnia_ui/core/auth/token_store.dart';
 
-/// An in-memory stand-in for the backend's auth, tasks and dashboard
+/// An in-memory stand-in for the backend's auth, profile, tasks and dashboard
 /// endpoints, speaking the same JSON and status codes as
-/// `Fawaz/backend/app/modules/{auth,tasks,dashboard}`.
+/// `Fawaz/backend/app/modules/{auth,users,tasks,dashboard}`.
 class FakeAuthBackend {
   /// The device's token storage, shared with every [client].
   final tokens = MemoryTokenStore();
@@ -24,7 +25,14 @@ class FakeAuthBackend {
   /// device clock.
   String dashboardDate = '2026-09-24';
 
-  final _users = <String, Map<String, String>>{}; // email → account
+  /// "Today" for users in other time zones, e.g. `{'Pacific/Auckland':
+  /// '2026-09-25'}`; everyone else gets [dashboardDate].
+  final dateInZone = <String, String>{};
+
+  /// Every `PATCH /profile` body, in order.
+  final profilePatches = <Map<String, dynamic>>[];
+
+  final _users = <String, Map<String, dynamic>>{}; // email → account
   final _sessions = <String, String>{}; // token → email
   final _tasks = <String, Map<String, dynamic>>{}; // id → task + owner
   final _today = <String, Map<String, dynamic>>{}; // email → logged totals
@@ -72,17 +80,31 @@ class FakeAuthBackend {
   }) {
     _users[email] = {
       'id': 'user-${++_ids}',
-      'name': name,
       'password': password,
-      'timezone': 'UTC',
+      // `ProfileOut`, with the backend's defaults.
+      'profile': <String, dynamic>{
+        'display_name': name,
+        'timezone': 'UTC',
+        'username': null,
+        'daily_study_goal_minutes': 240,
+        'daily_step_goal': 8000,
+        'daily_task_goal': 5,
+        'preferred_workout_time': 'evening',
+        'daily_sleep_goal_minutes': 480,
+        'daily_calorie_goal': 2000,
+      },
     };
     if (signedIn) tokens.token = _issue(email);
   }
 
   bool hasUser(String email) => _users.containsKey(email);
-  String? passwordOf(String email) => _users[email]?['password'];
+  String? passwordOf(String email) => _users[email]?['password'] as String?;
   bool isValid(String token) => _sessions.containsKey(token);
-  String? timezoneOf(String email) => _users[email]?['timezone'];
+  String? timezoneOf(String email) => profileOf(email)?['timezone'] as String?;
+
+  /// [email]'s stored `ProfileOut`.
+  Map<String, dynamic>? profileOf(String email) =>
+      _users[email]?['profile'] as Map<String, dynamic>?;
 
   /// Server-side revocation, e.g. the token expired.
   void endSessions(String email) =>
@@ -128,7 +150,7 @@ class FakeAuthBackend {
           );
         }
         addUser('${body['display_name']}', email, '${body['password']}');
-        _users[email]!['timezone'] = '${body['timezone']}';
+        profileOf(email)!['timezone'] = '${body['timezone']}';
         return _json(_tokenResponse(email), 201);
       case ('POST', '/auth/login'):
         final email = '${body['email']}'.trim().toLowerCase();
@@ -179,6 +201,11 @@ class FakeAuthBackend {
         _today.remove(email);
         _nextExam.remove(email);
         return http.Response('', 204);
+      case ('GET', '/profile'):
+        return _json(profileOf(email)!);
+      case ('PATCH', '/profile'):
+        profilePatches.add(body);
+        return _patchProfile(email, body);
       case ('GET', '/dashboard'):
         if (dashboardDown) {
           return _error(503, 'service_unavailable', 'Dashboard unavailable.');
@@ -323,30 +350,31 @@ class FakeAuthBackend {
     8,
   ).add(Duration(seconds: ++_ids)).toIso8601String();
 
-  /// `DashboardOut`, with the profile's default daily targets.
+  /// `DashboardOut`, measured against the profile's daily targets.
   Map<String, dynamic> _dashboard(String email) {
+    final profile = profileOf(email)!;
     final open = [
       for (final task in tasksOf(email))
         if (task['status'] == 'todo') task,
     ];
     const streak = {'current': 0, 'longest': 0, 'active_today': false};
     return {
-      'date': dashboardDate,
+      'date': dateInZone[profile['timezone']] ?? dashboardDate,
       'greeting': 'morning',
-      'display_name': _users[email]!['name'],
+      'display_name': profile['display_name'],
       'today': {
         'study_minutes': 0,
-        'study_goal_minutes': 240,
+        'study_goal_minutes': profile['daily_study_goal_minutes'],
         'tasks_completed': tasksOf(email).length - open.length,
-        'task_goal': 5,
+        'task_goal': profile['daily_task_goal'],
         'steps': 0,
-        'step_goal': 8000,
+        'step_goal': profile['daily_step_goal'],
         'workout_status': 'pending',
         'workout_minutes': 0,
         'sleep_minutes': null,
-        'sleep_goal_minutes': 480,
+        'sleep_goal_minutes': profile['daily_sleep_goal_minutes'],
         'calories': 0,
-        'calorie_goal': 2000,
+        'calorie_goal': profile['daily_calorie_goal'],
         ...?_today[email],
       },
       'streaks': {
@@ -360,18 +388,76 @@ class FakeAuthBackend {
     };
   }
 
-  Map<String, dynamic> _user(String email) {
-    final user = _users[email]!;
-    return {
-      'id': user['id'],
-      'email': email,
-      'created_at': '2026-09-24T08:00:00Z',
-      'profile': {
-        'display_name': user['name'],
-        'timezone': user['timezone'],
-        'username': null,
-      },
+  Map<String, dynamic> _user(String email) => {
+    'id': _users[email]!['id'],
+    'email': email,
+    'created_at': '2026-09-24T08:00:00Z',
+    'profile': Map.of(profileOf(email)!),
+  };
+
+  static const _targets = {
+    'daily_study_goal_minutes': 960,
+    'daily_step_goal': 100000,
+    'daily_task_goal': 50,
+    'daily_sleep_goal_minutes': 960,
+    'daily_calorie_goal': 10000,
+  };
+
+  /// The backend's `ProfileUpdate` rules: only the fields sent change.
+  http.Response _patchProfile(String email, Map<String, dynamic> body) {
+    const nullable = {'username'};
+    final fields = {
+      'display_name',
+      'timezone',
+      'username',
+      'preferred_workout_time',
+      ..._targets.keys,
     };
+    for (final MapEntry(:key, :value) in body.entries) {
+      if (!fields.contains(key)) {
+        return _invalid('body.$key', 'Extra inputs are not permitted');
+      }
+      if (value == null && !nullable.contains(key)) {
+        return _invalid('body', 'These fields cannot be null: $key');
+      }
+    }
+    final changes = Map.of(body);
+    if (changes['display_name'] case final String name) {
+      if (name.trim().isEmpty || name.trim().length > 60) {
+        return _invalid('body.display_name', 'Enter 1 to 60 characters');
+      }
+      changes['display_name'] = name.trim();
+    }
+    if (changes['timezone'] case final String zone
+        when !commonTimezones.contains(zone)) {
+      return _invalid(
+        'body.timezone',
+        "Unknown timezone. Use an IANA name such as 'Asia/Kolkata'.",
+      );
+    }
+    for (final MapEntry(:key, value: max) in _targets.entries) {
+      if (changes[key] case final int n when n < 0 || n > max) {
+        return _invalid('body.$key', 'Must be 0 to $max');
+      }
+    }
+    if (changes['preferred_workout_time'] case final String time
+        when !['morning', 'afternoon', 'evening'].contains(time)) {
+      return _invalid('body.preferred_workout_time', 'Unknown value');
+    }
+    if (changes['username'] case final String name) {
+      final handle = name.trim().toLowerCase();
+      if (!RegExp(r'^[a-z0-9_]{3,30}$').hasMatch(handle)) {
+        return _invalid('body.username', 'String should match pattern');
+      }
+      final taken = _users.entries.any(
+        (user) =>
+            user.key != email && profileOf(user.key)!['username'] == handle,
+      );
+      if (taken) return _error(409, 'conflict', 'That username is taken');
+      changes['username'] = handle;
+    }
+    profileOf(email)!.addAll(changes);
+    return _json(profileOf(email)!);
   }
 
   Map<String, dynamic> _tokenResponse(String email) => {

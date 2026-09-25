@@ -15,14 +15,14 @@ Legend: **CURRENT** = what runs today · **DONOR** = exists in `Fawaz/lib` · **
 | [[Authentication Flow\|Auth]] | `AuthController` | — (uses `ApiClient`) | `ApiClient` → FastAPI | `core/auth/auth_controller.dart` (already adapted) | [[Authentication API]] | ✅ API mode |
 | [[Tasks]] | `TaskController` | `TaskRepository` | `ApiTaskRepository` (API mode) · `MockTaskRepository` (mock mode) | `ApiTaskRepository` (adapted) | [[Tasks API]] | ✅ API mode (Phase 3, verified) |
 | [[Goals]] (long-term) | `GoalController` | `GoalRepository` | `MockGoalRepository` | ⚠️ `ApiGoalRepository` is **[[Daily Targets]]**, not long-term goals | — none | ❌ needs new module |
-| [[Daily Targets]] | `DashboardController` (read-only) | `DashboardRepository` | read from `/dashboard` | `ApiGoalRepository` + `settings/goals_page.dart` | [[Profile and Dashboard API]] (`/profile`, `/dashboard`) | 🟡 displayed; no editor |
+| [[Daily Targets]] | `AuthController.updateProfile` (edit) · `DashboardController` (display) | — (profile is account data on `AuthController`) | `PATCH /profile`, then a dashboard reload | `settings/goals_page.dart` (reference) | [[Profile and Dashboard API]] (`/profile`, `/dashboard`) | ✅ API mode (Phase 5A, verified) |
 | [[Study]] (revision session) | `RevisionController` | `StudyRepository` (5 methods, session-centred) | `MockStudyRepository` | `ApiStudyRepository` — **different, larger interface** (subjects, exams, topics, sessions, plan) | [[Study API]] | ❌ model alignment needed |
 | [[Focus]] | `FocusTimerController` | — | local | `plan/focus_session_page.dart` (stopwatch that logs a study session) | `POST /study/sessions` (logging only) | ❌ optional |
 | [[Dashboard]] (Home) | `DashboardController` (+ `TaskScope`, `GoalScope`, `RevisionScope`) | `DashboardRepository` | `ApiDashboardRepository` (API mode) · `MockDashboardRepository` (mock mode) | `home/data/dashboard_repository.dart` (adapted) | `GET /dashboard` | ✅ API mode (Phase 4, verified) |
 | [[Plan]] | none (`samplePlan` const) | — | sample | `plan/data/plan_repository.dart`, `PlanController` | [[AI API]] `/ai/daily-plan` | ❌ |
 | [[Track]] | `DashboardController` (shared with Home) + `TaskScope` | `DashboardRepository` | summary tiles as Home; "Today's activity" sample | `track/data/track_repository.dart` | `GET /dashboard`; logging: [[Activity API]], [[Sleep API]], [[Nutrition API]] | 🟡 tiles only |
 | [[Insights]] | none | — | sample | `insights/data/progress_repository.dart` | [[Progress API]] | ❌ |
-| [[Settings]] | `ThemeController`, `AuthController` | — | theme local; account → FastAPI | `settings/settings_page.dart` | [[Authentication API]] | ✅ account section |
+| [[Settings]] | `ThemeController`, `AuthController` | — | theme local; account and profile → FastAPI | `settings/settings_page.dart`, `settings/goals_page.dart` (reference) | [[Authentication API]], [[Profile and Dashboard API]] | ✅ account section + profile editor |
 | Social | — (no feature) | — | — | `social/data/social_repository.dart` + pages | [[Social API]] | ❌ |
 | Calendar feed / data export | — | — | — | — (not called by donor repos) | [[Integrations API]] | ❌ |
 

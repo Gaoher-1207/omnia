@@ -7,10 +7,12 @@ type: data-model
 ## Canonical frontend: `lib/core/models/user.dart`
 
 ```dart
-class User { String id, email, displayName, timezone; String? username; }
+class User { String id, email; Profile profile; }   // displayName, timezone, username forward to profile
+class Profile { displayName, timezone, username?, studyGoalMinutes, stepGoal,
+                taskGoal, sleepGoalMinutes, calorieGoal, WorkoutTime workoutTime; }
 ```
 
-`User.fromJson` reads the backend's `UserOut`: `id`, `email`, `profile.display_name`, `profile.timezone`, `profile.username`. The class comment says *"Only what the app uses so far; the profile's daily targets arrive with that feature."*
+`User.fromJson` reads the backend's `UserOut`; `Profile.fromJson` reads `ProfileOut` (the whole profile, including the five [[Daily Targets]] and `preferred_workout_time`). Since [[Phase 5A - Profile and Daily Targets]], `Profile.changesSince(before)` builds the changed-fields-only `PATCH /profile` body, and `User.withProfile` keeps the same id and email with the profile the server returned.
 
 `user.id` is the key of the per-user [[Session Architecture|UserSession]].
 

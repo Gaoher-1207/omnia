@@ -1,6 +1,6 @@
 ---
 type: status
-verified_against: Phase 4 checkpoint (Dashboard API), after e141846
+verified_against: Phase 5A checkpoint (Profile and daily targets), after fc125e2
 ---
 
 # Current Status
@@ -10,7 +10,7 @@ A snapshot verified against the source, not against the README. Back to [[00 - O
 > [!summary] In one line
 > **In API mode, authentication, Tasks and the Home/Track day summary (`/dashboard`) are real (FastAPI); every other feature's data is still local.** In mock mode, nothing talks to a server.
 >
-> Phase 3 (Tasks) is complete and manually verified. Phase 4 (Dashboard, read-only) is complete: automated verification passed and it was manually verified on the Android emulator against the real backend.
+> Phase 3 (Tasks) is complete and manually verified. Phase 4 (Dashboard, read-only) is complete: automated verification passed and it was manually verified on the Android emulator against the real backend. Phase 5A (Profile and daily targets editor) is complete: automated verification passed and it was manually verified on the Android emulator against the real backend.
 
 ## Feature integration map
 
@@ -84,8 +84,8 @@ Thick arrow = wired today. Dotted arrows to the backend = the backend endpoint e
 | [[Plan]] | `sample` | `samplePlan` constant | [[AI API]] | Revision item and Focus entry are live |
 | [[Track]] | `partial` | Study/Activity/Sleep tiles from the same dashboard as Home (API mode); live Tasks tile; "Today's activity" still sample (labelled in API mode) | `/dashboard`; [[Activity API]], [[Sleep API]], [[Nutrition API]] for logging | No logging UI yet |
 | [[Insights]] | `sample` | Hard-coded | [[Progress API]] | |
-| [[Settings]] | `api-connected` (account section) | Theme local; account via `AuthController` | [[Authentication API]] | Account section only in API mode |
-| [[Daily Targets]] | `partial` (read-only) | Shown as the card and tile targets, read from `/dashboard` (API mode) | `/profile` | No editor yet: the next phase |
+| [[Settings]] | `api-connected` (account section) | Theme local; account and profile via `AuthController` | [[Authentication API]], [[Profile and Dashboard API]] | Account section and "Profile & daily targets" only in API mode |
+| [[Daily Targets]] | `api-connected` (API mode) | Edited in Settings → "Profile & daily targets" (`PATCH /profile`); shown as the card and tile targets from `/dashboard` | `/profile`, `/dashboard` | [[Phase 5A - Profile and Daily Targets]]: complete (automated + manual emulator verification) |
 | [[Nutrition]] | `planned` | None | [[Nutrition API]] | Donor UI exists |
 | Social | `planned` | None | [[Social API]] | Donor UI exists |
 | [[AI Assistant]] | `planned` | None | [[AI API]] (daily plan only) | No AI in canonical frontend |

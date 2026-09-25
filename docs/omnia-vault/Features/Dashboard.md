@@ -65,4 +65,4 @@ flowchart LR
 
 ## Future Direction
 
-Next: a daily-targets editor in [[Settings]]. Then "Next up" and "Why?" from the daily plan, and possibly the Tasks card from the dashboard's `tasks_completed` (a semantics decision). **Long-term Goals preview stays as it is.** See [[Backend Integration Roadmap]] and [[Goals vs Daily Targets]].
+The targets it shows are edited in [[Settings]] since [[Phase 5A - Profile and Daily Targets]]; a save reloads the dashboard. Next: "Next up" and "Why?" from the daily plan, and possibly the Tasks card from the dashboard's `tasks_completed` (a semantics decision). **Long-term Goals preview stays as it is.** See [[Backend Integration Roadmap]] and [[Goals vs Daily Targets]].

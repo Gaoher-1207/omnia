@@ -40,6 +40,7 @@ It aggregates across [[Tasks API]], [[Study API]], [[Activity API]], [[Sleep API
 ## Canonical usage
 
 - `GET /dashboard`: used in API mode since [[Phase 4 - Dashboard API Integration]] (complete; manually verified on the Android emulator against the real backend). Read: `date`, `greeting`, `display_name`, `today.study_minutes`/`study_goal_minutes`, `today.steps`/`step_goal`, `today.sleep_minutes` (null = not logged)/`sleep_goal_minutes`, and `next_exam` (null = none). Not read yet: tasks, workout and calorie figures, `streaks`, `upcoming_tasks`, `study_today`, `ai_plan`.
-- `/profile`: not used yet. The daily-targets editor is the next phase. See [[Backend Integration Roadmap]].
+- `PATCH /profile`: used in API mode since [[Phase 5A - Profile and Daily Targets]] (complete; manually verified on the Android emulator against the real backend). Settings → "Profile & daily targets" sends only the changed fields; the returned `ProfileOut` replaces the signed-in user's profile, then the dashboard reloads. A taken username (409 `conflict`, no field in `details`) is shown on the username field.
+- `GET /profile`: not called; `/auth/me` already returns the full profile.
 
 Related: [[API Map]] · [[User]]

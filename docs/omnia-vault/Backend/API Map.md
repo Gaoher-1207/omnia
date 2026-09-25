@@ -28,8 +28,8 @@ Every route registered in `Fawaz/backend/app/main.py`, all under the `/api` pref
 
 | Method | Path | Used by canonical |
 |---|---|---|
-| GET | `/profile` | — |
-| PATCH | `/profile` | — |
+| GET | `/profile` | — (the same profile arrives in `/auth/me`) |
+| PATCH | `/profile` | ✅ `AuthController.updateProfile` (changed fields only) |
 | GET | `/dashboard` | ✅ `ApiDashboardRepository.getDashboard` (date, greeting, display name, today's study/steps/sleep and targets, next exam) |
 
 ## Tasks · [[Tasks API]]

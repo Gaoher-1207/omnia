@@ -7,6 +7,7 @@ import 'package:omnia_ui/core/theme/app_colors.dart';
 import 'package:omnia_ui/core/widgets/hard_card.dart';
 import 'package:omnia_ui/core/widgets/state_views.dart';
 import 'package:omnia_ui/features/onboarding/onboarding_page.dart';
+import 'package:omnia_ui/features/settings/profile_page.dart';
 import 'package:omnia_ui/core/theme/theme_controller.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -181,6 +182,16 @@ class _AccountSection extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.tune),
+          title: const Text('Profile & daily targets'),
+          subtitle: const Text('Name, time zone and what Home measures'),
+          onTap: () => Navigator.push<void>(
+            context,
+            MaterialPageRoute(builder: (_) => const ProfilePage()),
+          ),
+        ),
         ListTile(
           contentPadding: EdgeInsets.zero,
           leading: const Icon(Icons.password),

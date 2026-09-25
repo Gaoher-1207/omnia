@@ -98,6 +98,20 @@ class AuthController extends ChangeNotifier {
     ),
   );
 
+  /// Sends [changes] (only the fields that changed) to `PATCH /profile` and
+  /// keeps the profile the server returns. The account and its session stay
+  /// the same. Throws [ApiException] on a refusal.
+  Future<void> updateProfile(Map<String, Object?> changes) async {
+    if (changes.isEmpty) return;
+    final profile = Profile.fromJson(
+      asMap(await _api.patch('/profile', body: changes)),
+    );
+    final user = _user;
+    if (user == null) return; // signed out while the request was in flight
+    _user = user.withProfile(profile);
+    _notify();
+  }
+
   Future<void> _accept(dynamic response) async {
     final data = asMap(response);
     await _api.setToken(data['access_token'] as String);

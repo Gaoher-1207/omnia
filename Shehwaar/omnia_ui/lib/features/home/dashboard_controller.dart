@@ -9,25 +9,42 @@ class DashboardController extends ChangeNotifier {
   final DashboardRepository _repository;
 
   Dashboard? _dashboard;
-  bool _loading = false, _disposed = false;
+  bool _again = false, _disposed = false;
+  Future<void>? _pending;
   Object? _loadError;
 
   /// Null until the first successful load.
   Dashboard? get dashboard => _dashboard;
-  bool get loading => _loading;
+  bool get loading => _pending != null;
+
+  /// Why the latest load failed, if it did.
   Object? get loadError => _loadError;
 
-  Future<void> load() async {
-    if (_loading) return;
-    _loading = true;
-    _loadError = null;
-    _notify();
+  /// Asked for while a load is running, it fetches once more afterwards: a
+  /// caller that has just changed something on the server always gets a
+  /// dashboard requested after that change.
+  Future<void> load() {
+    if (_pending != null) {
+      _again = true;
+      return _pending!;
+    }
+    return _pending = _loadUntilCurrent();
+  }
+
+  Future<void> _loadUntilCurrent() async {
     try {
-      _dashboard = await _repository.getDashboard();
-    } catch (error) {
-      _loadError = error;
+      do {
+        _again = false;
+        _loadError = null;
+        _notify();
+        try {
+          _dashboard = await _repository.getDashboard();
+        } catch (error) {
+          _loadError = error;
+        }
+      } while (_again && !_disposed);
     } finally {
-      _loading = false;
+      _pending = null;
       _notify();
     }
   }
@@ -52,4 +69,8 @@ class DashboardScope extends InheritedNotifier<DashboardController> {
 
   static DashboardController of(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<DashboardScope>()!.notifier!;
+
+  /// Read without subscribing (for callbacks).
+  static DashboardController read(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<DashboardScope>()!.notifier!;
 }

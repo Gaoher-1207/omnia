@@ -1,14 +1,14 @@
 ---
 type: data-model
-status: planned
-frontend: none
+status: api-connected
+frontend: canonical
 backend_available: true
-backend_connected: false
+backend_connected: true
 ---
 
 # Daily Targets
 
-Per-day numeric targets stored on the backend **profile**. They're what the backend and donor app call "daily goals". The canonical frontend doesn't have them yet.
+Per-day numeric targets stored on the backend **profile**. They're what the backend and donor app call "daily goals". In the canonical app they are `Profile` fields, edited in Settings since [[Phase 5A - Profile and Daily Targets]].
 
 | Target | Profile field | Default | Compared with (dashboard `today`) |
 |---|---|---|---|
@@ -27,9 +27,9 @@ They reset every day, measure consistency and feed streaks, the "balanced" day f
 
 ## In the code today
 
-- Canonical: read-only since [[Phase 4 - Dashboard API Integration]]. In API mode Home and Track show the study, steps and sleep targets from `/dashboard` (`TodaySummary`); mock mode shows the sample 4 h, 8,000 steps, 8 h. There's no editor.
+- Canonical: shown on Home and Track since [[Phase 4 - Dashboard API Integration]] (study, steps and sleep, from `/dashboard`); edited in Settings → "Profile & daily targets" since [[Phase 5A - Profile and Daily Targets]] (all five, 0 = not tracking), API mode only. Mock mode shows the sample 4 h, 8,000 steps, 8 h and has no editor.
 - Donor: `ApiGoalRepository` + `settings/goals_page.dart` present these five targets as "goals" ([[Fawaz Donor Map]]).
 
 ## Planned
 
-A daily-targets editor in [[Settings]] (`PATCH /profile`), the next phase of the [[Backend Integration Roadmap]]. Real progress on [[Dashboard]] and [[Track]] arrived in [[Phase 4 - Dashboard API Integration]].
+Delivered: the editor ([[Phase 5A - Profile and Daily Targets]]) and real progress on [[Dashboard]] and [[Track]] ([[Phase 4 - Dashboard API Integration]]). The task and calorie targets are editable but not displayed yet (the Home Tasks card keeps its all-tasks meaning; there's no nutrition UI).

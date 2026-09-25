@@ -35,7 +35,7 @@ Merging them would break the canonical Goal invariants (completion-only goals, e
 ## Consequences
 
 - The canonical `GoalRepository` stays long-term-only. Its backend needs a **new module** ([[Backend Integration Roadmap]]).
-- Daily targets get their own client code and UI: Dashboard and Track progress (read-only, [[Phase 4 - Dashboard API Integration]]), then a Settings editor.
+- Daily targets get their own client code and UI: Dashboard and Track progress ([[Phase 4 - Dashboard API Integration]]) and the Settings "Profile & daily targets" editor ([[Phase 5A - Profile and Daily Targets]]), which says in its copy that long-term Goals are separate.
 - The donor's `ApiGoalRepository` is **INCOMPATIBLE** for canonical Goals, but it's a useful **REFERENCE** for daily targets ([[Fawaz Donor Map]]).
 - In the vault, UI copy and code, "Goals" means long-term goals, and the profile values are called "daily targets".
 - They can still interact later. A long-term goal like "Walk 10,000 steps a day" (a seeded mock goal) could relate to the step target, but that's an explicit future link, not a shared model.
