@@ -45,7 +45,7 @@ Two separate flows run through the app:
 1. **Auth flow (real in API mode):** `AuthController → ApiClient → FastAPI`. See [[Authentication Flow]].
 2. **Feature flow (local):** `Screen → Controller → Repository interface → Mock repository`. See [[Repository Pattern]].
 
-They meet in only one place: `AuthController` decides *which user* owns the current [[Session Architecture|UserSession]]. Feature repositories don't touch `ApiClient` yet. Closing that gap is the purpose of the [[Backend Integration Roadmap]], beginning with [[Phase 3 - Tasks API Integration]].
+`AuthController` decides *which user* owns the current [[Session Architecture|UserSession]]. Since [[Phase 3 - Tasks API Integration]], the Tasks repository in API mode also calls `ApiClient` (`ApiTaskRepository`). Other feature repositories are still local; the [[Backend Integration Roadmap]] moves them one at a time.
 
 ## Layering rules visible in the code
 

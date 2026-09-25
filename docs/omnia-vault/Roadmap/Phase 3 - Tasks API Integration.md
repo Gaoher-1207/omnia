@@ -1,13 +1,13 @@
 ---
 type: roadmap
-status: planned
+status: complete
 phase: 3
 ---
 
 # Phase 3 - Tasks API Integration
 
-> [!note] Plan only
-> This is not implemented. It describes the expected next phase.
+> [!note] Status
+> **Complete.** Automated verification passed, and the checklist below was manually verified on the Android emulator against the real backend. Committed as the Phase 3 checkpoint after `39487cd`. The target architecture below is what was built.
 
 ## Goal
 
@@ -27,7 +27,7 @@ flowchart TD
     AC -. 401 .-> AUTH["AuthController → sign-out"]
 ```
 
-## Likely changes
+## Changes made
 
 1. **`ApiTaskRepository`.** Adapt `Fawaz/lib/features/tasks/data/api_task_repository.dart`:
    - Import `asMap`/`asMapList`/`parseDay`/`formatDay` from `core/api/json.dart` (the donor imports them from `core/models/user.dart`). `isAllDay` already exists in the canonical `task_format.dart`.
@@ -45,18 +45,18 @@ flowchart TD
 
 ## Verification checklist
 
-- [ ] Create persists (visible after reload from server)
-- [ ] Edit persists (title, description, priority, category, due date/time, estimate)
-- [ ] Complete / uncomplete persists
-- [ ] Delete persists
-- [ ] App restart preserves server data (API mode)
-- [ ] Sign out → sign in restores the same user's tasks
-- [ ] Different users don't see each other's tasks
-- [ ] Session expiry (401 on a task call) returns to sign-in once, with the session-ended notice
-- [ ] Network failure shows the existing error / retry state, and mutations return `false` without corrupting the list
-- [ ] Mock mode unchanged (`flutter run` still uses `MockTaskRepository`)
-- [ ] Tasks UI visually unchanged. Home card and Track tile still live.
-- [ ] Existing tests stay green, `flutter analyze` is clean, and new tests are added for the API repository and wiring
+- [x] Create persists (visible after reload from server) — automated + manual
+- [x] Edit persists (title, description, priority, category, due date/time, estimate) — automated + manual
+- [x] Complete / uncomplete persists — automated + manual
+- [x] Delete persists — automated + manual
+- [x] App restart preserves server data (API mode) — automated (fresh client, same token) + manual
+- [x] Sign out → sign in restores the same user's tasks — manual
+- [x] Different users don't see each other's tasks — automated (fake backend, backend pytest, live check) + manual (User A / User B)
+- [x] Session expiry (401 on a task call) returns to sign-in once, with the session-ended notice — automated
+- [x] Network failure shows the existing error / retry state, and mutations return `false` without corrupting the list — automated + manual (backend stopped)
+- [x] Mock mode unchanged (`flutter run` still uses `MockTaskRepository`) — automated + manual
+- [x] Tasks UI code unchanged (no UI files modified). Home card and Track tile still live. Exercised manually through the unchanged Tasks UI.
+- [x] Existing tests stay green, `flutter analyze` is clean, and new tests are added for the API repository and wiring (128 passing)
 
 ## Out of scope
 

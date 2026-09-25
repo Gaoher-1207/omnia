@@ -13,7 +13,7 @@ The canonical frontend was built on local mock data. The backend and a donor cli
 
 **Migrate backend features incrementally, one feature per phase, behind the existing repository interfaces. Keep mock mode working permanently.**
 
-Order so far: API infrastructure (`10e8ad2`) → authentication and sessions (`70864a7`) → **next: Tasks** ([[Phase 3 - Tasks API Integration]]).
+Order so far: API infrastructure (`10e8ad2`) → authentication and sessions (`70864a7`) → **Tasks** ([[Phase 3 - Tasks API Integration]], complete).
 
 ## Reasons
 

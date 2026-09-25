@@ -1,6 +1,6 @@
 ---
 type: status
-verified_against: working tree after commit 527020e
+verified_against: Phase 3 checkpoint (Tasks API), after 39487cd
 ---
 
 # Current Status
@@ -8,7 +8,9 @@ verified_against: working tree after commit 527020e
 A snapshot verified against the source, not against the README. Back to [[00 - OMNIA|OMNIA]].
 
 > [!summary] In one line
-> **In API mode, authentication is real and every feature's data is still local.** In mock mode, nothing talks to a server.
+> **In API mode, authentication and Tasks are real (FastAPI); every other feature's data is still local.** In mock mode, nothing talks to a server.
+>
+> Phase 3 (Tasks) is complete: automated verification passed and it was manually verified on the Android emulator against the real backend.
 
 ## Feature integration map
 
@@ -16,7 +18,7 @@ A snapshot verified against the source, not against the README. Back to [[00 - O
 flowchart LR
     subgraph FE["Canonical frontend (Shehwaar/omnia_ui)"]
         AUTH["Authentication ✅"]
-        TASKS["Tasks 🟡"]
+        TASKS["Tasks ✅ API mode"]
         GOALS["Long-term Goals 🟡"]
         FOCUS["Focus ✅ local"]
         STUDY["Study revision 🟡"]
@@ -42,7 +44,8 @@ flowchart LR
     end
 
     AUTH ==> A1
-    TASKS --> MT
+    TASKS -->|mock mode| MT
+    TASKS ==>|API mode| T1
     GOALS --> MG
     STUDY --> MS
     HOME --> SD
@@ -54,7 +57,6 @@ flowchart LR
     TRACK -.->|live tile| TASKS
     PLAN -.->|entry| FOCUS
 
-    TASKS -.-|exists, not connected| T1
     STUDY -.-|exists, models differ| S1
     HOME -.-|exists, not connected| D1
     PLAN -.-|exists, not connected| P1
@@ -69,7 +71,7 @@ Thick arrow = wired today. Dotted arrows to the backend = the backend endpoint e
 | Area | Status | Data source today | Backend support | Note |
 |---|---|---|---|---|
 | [[Authentication Flow\|Authentication]] | `api-connected` | FastAPI `/auth/*` | [[Authentication API]] | Manually verified on the Android emulator (per README) |
-| [[Tasks]] | `local-functional` | `MockTaskRepository` | [[Tasks API]] full CRUD | **Next phase**: [[Phase 3 - Tasks API Integration]] |
+| [[Tasks]] | `api-connected` (API mode) | `ApiTaskRepository` (API mode) · `MockTaskRepository` (mock mode) | [[Tasks API]] full CRUD | [[Phase 3 - Tasks API Integration]]: complete (automated + manual emulator verification) |
 | [[Goals]] (long-term) | `local-functional` | `MockGoalRepository` | ❌ none | Not the same as [[Daily Targets]] |
 | [[Focus]] | `local-functional` | `FocusTimerController` (app-wide, not stored) | `/study/sessions` could log time | Intentionally app-wide |
 | [[Study]] (revision session) | `partial` | `MockStudyRepository`, one sample session | [[Study API]] | Frontend and backend models differ |
@@ -91,12 +93,13 @@ See [[Mock vs API Mode]].
 | | Mock mode (`flutter run`) | API mode (`--dart-define=OMNIA_DATA=api`) |
 |---|---|---|
 | Sign-in | None | Real (FastAPI) |
-| Tasks / Goals / Study | In-memory, one session for app life | In-memory, **fresh per signed-in user** |
+| Tasks | In-memory, one session for app life | **FastAPI `/tasks`**, scoped to the signed-in user |
+| Goals / Study | In-memory, one session for app life | In-memory, **fresh per signed-in user** |
 | Focus | App-wide, local | App-wide, local |
 | Everything else | Sample | Sample |
 
 ## What "verified" means here
 
-- Wiring was read from `lib/app.dart`, `lib/core/session.dart` and `lib/core/app_dependencies.dart`: `AppDependencies.mock()` is the only factory, and `OmniaApp` never receives API repositories.
+- Wiring was read from `lib/app.dart`, `lib/core/session.dart` and `lib/core/app_dependencies.dart`: `AppDependencies.mock()` is used in mock mode and `AppDependencies.api(api)` for signed-in sessions in API mode (Tasks only).
 - Sample screens were identified by their on-screen labels (`SAMPLE DAY`, `SAMPLE DATA`) and the `samplePlan` constant.
 - The emulator check of authentication is recorded in `Shehwaar/README.md`. It was not re-run while building this vault.

@@ -11,7 +11,7 @@ This vault is the internal map of the project: architecture, reasoning, relation
 
 > [!important] Two rules that the rest of the vault depends on
 > 1. **`Shehwaar/omnia_ui` is the canonical frontend.** `Fawaz/lib` is a donor/reference implementation built on an older frontend. See [[Canonical Frontend]].
-> 2. **"Backend has an endpoint" ≠ "frontend uses it".** Only authentication is connected today. See [[Current Status]].
+> 2. **"Backend has an endpoint" ≠ "frontend uses it".** Today only authentication and, in API mode, Tasks are connected. See [[Current Status]].
 
 ## Where to start
 
@@ -32,7 +32,7 @@ This vault is the internal map of the project: architecture, reasoning, relation
 ```mermaid
 flowchart LR
     subgraph Canonical["Canonical frontend · Shehwaar/omnia_ui"]
-        F1[Tasks]:::local
+        F1[Tasks]:::api
         F2[Goals]:::local
         F3[Focus]:::local
         F4[Study revision]:::local
@@ -46,7 +46,7 @@ flowchart LR
         D[Older UI + API repositories]
     end
     F6 ==>|connected| B
-    F1 -.->|next phase| B
+    F1 ==>|API mode| B
     D -.->|adapt, don't copy UI| Canonical
     D --- B
 

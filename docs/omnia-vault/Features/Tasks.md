@@ -1,9 +1,9 @@
 ---
 type: feature
-status: local-functional
+status: api-connected
 frontend: canonical
 backend_available: true
-backend_connected: false
+backend_connected: true
 donor: true
 ---
 
@@ -15,7 +15,12 @@ Everyday to-dos: title, optional description, priority, category, optional due d
 
 ## Current Status
 
-`local-functional`. Create, edit, complete/uncomplete and delete (with confirmation) all work, but on an **in-memory** repository in **both** modes. Nothing survives a restart. In API mode each signed-in user starts from the seeded mock data again.
+`api-connected` in API mode, `local-functional` in mock mode. Create, edit, complete/uncomplete and delete (with confirmation) all work in both modes.
+
+- **API mode:** tasks are stored by FastAPI through `ApiTaskRepository`, scoped to the signed-in user, and survive restarts and sign-out/sign-in.
+- **Mock mode:** unchanged. In-memory `MockTaskRepository`; nothing survives a restart.
+
+Phase 3 passed automated verification (fake-backend tests plus a live check against a throwaway FastAPI instance) and was manually verified on the Android emulator against the real backend: create, edit, complete/reopen, delete, persistence across restart and sign-out/sign-in, User A / User B isolation, backend-unavailable behaviour and mock mode.
 
 ## Current Frontend
 
@@ -35,23 +40,28 @@ Everyday to-dos: title, optional description, priority, category, optional due d
 
 ## Repository
 
-`TaskRepository` → `MockTaskRepository` (`InMemoryDataSource<Task>`, seeded with one sample task, "Complete Assignment"). See [[Repository Pattern]] and the model in [[Task]].
+`TaskRepository` → chosen per session by `AppDependencies`:
+
+- mock mode: `MockTaskRepository` (`InMemoryDataSource<Task>`, seeded with one sample task, "Complete Assignment")
+- API mode: `ApiTaskRepository` (`features/tasks/data/api_task_repository.dart`), adapted from the donor
+
+See [[Repository Pattern]] and the model in [[Task]].
 
 ## Backend
 
-The [[Tasks API]] provides full CRUD at `/api/tasks`, scoped per user. The Fawaz donor has a matching `ApiTaskRepository` that implements the **same interface**. See [[Fawaz Donor Map]].
+The [[Tasks API]] provides full CRUD at `/api/tasks`, scoped per user by the token. The canonical `ApiTaskRepository` implements the unchanged `TaskRepository` interface; it was adapted from the donor with only its imports changed. See [[Fawaz Donor Map]].
 
 ## Data Flow
 
 ```mermaid
 flowchart LR
     TP["TasksPage / TaskFormPage"] -->|"create / update / setCompleted / delete"| TC["TaskController"]
-    TC --> MR["MockTaskRepository<br/>(now)"]
+    TC -->|mock mode| MR["MockTaskRepository"]
     MR --> TC
     TC -->|notifyListeners| TP
     TC -->|notifyListeners| HC["Home Tasks card"]
     TC -->|notifyListeners| TT["Track Tasks tile"]
-    TC -.->|Phase 3| AR["ApiTaskRepository → /api/tasks"]
+    TC ==>|API mode| AR["ApiTaskRepository → /api/tasks"]
 ```
 
 ## Related Features
@@ -60,4 +70,4 @@ flowchart LR
 
 ## Future Direction
 
-[[Phase 3 - Tasks API Integration]] is the next milestone. After it, tasks are expected to feed the dashboard's `tasks_completed` and the AI daily plan. See [[Backend Integration Roadmap]] and [[AI Roadmap]].
+[[Phase 3 - Tasks API Integration]] is complete. Next, tasks are expected to feed the dashboard's `tasks_completed` and the AI daily plan. See [[Backend Integration Roadmap]] and [[AI Roadmap]].

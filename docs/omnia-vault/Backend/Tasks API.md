@@ -1,12 +1,12 @@
 ---
 type: backend
 module: tasks
-backend_connected: false
+backend_connected: true
 ---
 
 # Tasks API
 
-`Fawaz/backend/app/modules/tasks` · prefix `/api/tasks`. It's the target of [[Phase 3 - Tasks API Integration]].
+`Fawaz/backend/app/modules/tasks` · prefix `/api/tasks`. Used by the canonical frontend in API mode since [[Phase 3 - Tasks API Integration]] (complete; manually verified on the Android emulator against the real backend).
 
 | Endpoint | Request | Response |
 |---|---|---|
@@ -26,7 +26,7 @@ The server assigns ids. Unknown fields are rejected. Another user's task returns
 
 ## Mapping to the canonical Task
 
-The canonical [[Task]] model differs in shape. The donor `ApiTaskRepository` already maps it:
+The canonical [[Task]] model differs in shape. The canonical `ApiTaskRepository` (adapted from the donor) maps it:
 
 | Canonical `Task` | Backend | Mapping |
 |---|---|---|

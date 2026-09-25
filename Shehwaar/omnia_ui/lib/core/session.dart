@@ -8,10 +8,14 @@ import 'package:omnia_ui/features/tasks/task_controller.dart';
 /// user, so signing out (or in as someone else) disposes it and the next
 /// account starts clean. In mock mode there is one session for the app's life.
 class UserSession extends StatefulWidget {
-  const UserSession({super.key, this.dependencies, required this.child});
+  const UserSession({
+    super.key,
+    required this.dependencies,
+    required this.child,
+  });
 
-  /// Feature repositories; null gives this session fresh in-memory mocks.
-  final AppDependencies? dependencies;
+  /// Builds this session's feature repositories, once, when it starts.
+  final AppDependencies Function() dependencies;
   final Widget child;
 
   @override
@@ -19,7 +23,7 @@ class UserSession extends StatefulWidget {
 }
 
 class _UserSessionState extends State<UserSession> {
-  late final dependencies = widget.dependencies ?? AppDependencies.mock();
+  late final dependencies = widget.dependencies();
   late final revision = RevisionController(
     session: dependencies.initialRevisionSession,
     repository: dependencies.study,

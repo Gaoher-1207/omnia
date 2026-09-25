@@ -98,7 +98,8 @@ void main() {
     await startApiApp(tester, backend);
     expect(find.byType(OnboardingPage), findsNothing);
     expect(find.byType(HomePage), findsOneWidget);
-    expect(backend.requests, ['GET /auth/me']);
+    // The session loads this user's tasks only after the account is known.
+    expect(backend.requests, ['GET /auth/me', 'GET /tasks']);
 
     await openSettings(tester);
     expect(find.text('Account'), findsOneWidget);
@@ -324,10 +325,14 @@ void main() {
     final backend = FakeAuthBackend()
       ..addUser('Sam', email, password, signedIn: true)
       ..addUser('Ada', 'ada@example.com', 'ada-password');
+    backend
+      ..addTask(email, 'Sam task')
+      ..addTask('ada@example.com', 'Ada task');
     await startApiApp(tester, backend);
 
     final samTasks = tasksOf(tester);
     final samGoals = GoalScope.of(tester.element(find.byType(HomePage)));
+    expect(samTasks.tasks.map((t) => t.title), ['Sam task']);
     await samTasks.setCompleted(samTasks.tasks.first.id, true);
     await tester.pumpAndSettle();
     expect(samTasks.completedCount, 1);
@@ -342,6 +347,7 @@ void main() {
       identical(GoalScope.of(tester.element(find.byType(HomePage))), samGoals),
       isFalse,
     );
+    expect(adaTasks.tasks.map((t) => t.title), ['Ada task']);
     expect(adaTasks.completedCount, 0, reason: "Sam's changes don't leak");
   });
 

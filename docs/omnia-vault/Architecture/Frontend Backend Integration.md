@@ -13,7 +13,7 @@ Legend: **CURRENT** = what runs today · **DONOR** = exists in `Fawaz/lib` · **
 | Canonical feature | Controller (canonical) | Repository interface | CURRENT implementation | DONOR implementation | BACKEND | Connected? |
 |---|---|---|---|---|---|---|
 | [[Authentication Flow\|Auth]] | `AuthController` | — (uses `ApiClient`) | `ApiClient` → FastAPI | `core/auth/auth_controller.dart` (already adapted) | [[Authentication API]] | ✅ API mode |
-| [[Tasks]] | `TaskController` | `TaskRepository` | `MockTaskRepository` | `ApiTaskRepository` (same interface) | [[Tasks API]] | ❌ next phase |
+| [[Tasks]] | `TaskController` | `TaskRepository` | `ApiTaskRepository` (API mode) · `MockTaskRepository` (mock mode) | `ApiTaskRepository` (adapted) | [[Tasks API]] | ✅ API mode (Phase 3, verified) |
 | [[Goals]] (long-term) | `GoalController` | `GoalRepository` | `MockGoalRepository` | ⚠️ `ApiGoalRepository` is **[[Daily Targets]]**, not long-term goals | — none | ❌ needs new module |
 | [[Daily Targets]] | — | — | — | `ApiGoalRepository` + `settings/goals_page.dart` | [[Profile and Dashboard API]] (`/profile`, `/dashboard`) | ❌ not in canonical |
 | [[Study]] (revision session) | `RevisionController` | `StudyRepository` (5 methods, session-centred) | `MockStudyRepository` | `ApiStudyRepository` — **different, larger interface** (subjects, exams, topics, sessions, plan) | [[Study API]] | ❌ model alignment needed |
@@ -26,17 +26,17 @@ Legend: **CURRENT** = what runs today · **DONOR** = exists in `Fawaz/lib` · **
 | Social | — (no feature) | — | — | `social/data/social_repository.dart` + pages | [[Social API]] | ❌ |
 | Calendar feed / data export | — | — | — | — (not called by donor repos) | [[Integrations API]] | ❌ |
 
-## The Tasks path (next)
+## The Tasks path (Phase 3)
 
 ```mermaid
 flowchart LR
     UI["TasksPage · TaskFormPage<br/>Home card · Track tile"] --> TC["TaskController"]
     TC --> TR["TaskRepository"]
-    TR --> MT["MockTaskRepository<br/>CURRENT (both modes)"]
-    TR -.-> AT["ApiTaskRepository<br/>DONOR → adapt"]
-    AT -.-> AC["ApiClient"]
-    AC -.-> BE["/api/tasks<br/>Fawaz/backend/app/modules/tasks"]
-    BE -.-> DB[("tasks table")]
+    TR -->|mock mode| MT["MockTaskRepository"]
+    TR ==>|API mode| AT["ApiTaskRepository<br/>(adapted from donor)"]
+    AT ==> AC["ApiClient"]
+    AC ==> BE["/api/tasks<br/>Fawaz/backend/app/modules/tasks"]
+    BE ==> DB[("tasks table")]
 ```
 
 Details: [[Phase 3 - Tasks API Integration]].

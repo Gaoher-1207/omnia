@@ -14,6 +14,7 @@ Intended order with dependencies. **No dates** are set. Sources: `Shehwaar/READM
 | API infrastructure | `10e8ad2` | `ApiClient`, `ApiConfig`, `ApiException`, JSON helpers, `TokenStore`, Android network config, client tests |
 | Authentication and sessions | `70864a7` | `AuthController`, auth screen, Settings account, `UserSession`, fake auth backend tests |
 | Frontend documentation | `527020e` | `Shehwaar/README.md` rewrite |
+| Tasks API integration | Phase 3 commit (after `39487cd`) | `ApiTaskRepository`, `AppDependencies.api`, `/tasks` fake backend, tests. Automated and manual emulator verification passed. |
 
 These were built on the Tasks, Focus, onboarding and design work in the canonical frontend that came before them. See [[Git Checkpoints]].
 
@@ -30,7 +31,7 @@ flowchart TD
     INF["API infrastructure"]:::done
     AUTH["Auth + sessions"]:::done
     DOC["README / docs"]:::done
-    T["Phase 3: Tasks API"]:::next
+    T["Phase 3: Tasks API"]:::done
     DASH["Dashboard + daily targets"]:::later
     PLAN["Daily plan (AI API)"]:::later
     STUDY["Study integration<br/>(model alignment)"]:::later
@@ -70,7 +71,7 @@ Green = done · Yellow = next · Grey = integration phases · Purple = product v
 
 ## Sequence
 
-1. **[[Phase 3 - Tasks API Integration]]** (next)
+1. **[[Phase 3 - Tasks API Integration]]** (complete)
 2. **Dashboard and [[Daily Targets]]**: `/dashboard` on Home and Track, plus a targets editor in Settings
 3. **Daily plan**: replace `samplePlan` with `/ai/daily-plan`
 4. **Study integration**, then the [[Adaptive Learning Roadmap]]

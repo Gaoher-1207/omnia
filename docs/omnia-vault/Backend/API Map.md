@@ -36,11 +36,11 @@ Every route registered in `Fawaz/backend/app/main.py`, all under the `/api` pref
 
 | Method | Path | Used by canonical |
 |---|---|---|
-| GET | `/tasks` (`status`, `priority`, `due_on_or_before`, `limit` ≤200, `offset`) | — (Phase 3) |
-| POST | `/tasks` | — (Phase 3) |
-| GET | `/tasks/{task_id}` | — (Phase 3) |
-| PATCH | `/tasks/{task_id}` | — (Phase 3) |
-| DELETE | `/tasks/{task_id}` | — (Phase 3) |
+| GET | `/tasks` (`status`, `priority`, `due_on_or_before`, `limit` ≤200, `offset`) | ✅ `ApiTaskRepository.getTasks` (pages of 200) |
+| POST | `/tasks` | ✅ `createTask` |
+| GET | `/tasks/{task_id}` | ✅ `getTask` |
+| PATCH | `/tasks/{task_id}` | ✅ `updateTask`, `setCompleted` |
+| DELETE | `/tasks/{task_id}` | ✅ `deleteTask` |
 
 ## Study · [[Study API]]
 

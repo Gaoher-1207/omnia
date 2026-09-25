@@ -42,7 +42,7 @@ flowchart LR
 
 | Feature | Scope | Controller | Repository | Implementation |
 |---|---|---|---|---|
-| [[Tasks]] | `TaskScope` | `TaskController` | `TaskRepository` | `MockTaskRepository` |
+| [[Tasks]] | `TaskScope` | `TaskController` | `TaskRepository` | `MockTaskRepository` (mock) · `ApiTaskRepository` (API mode) |
 | [[Goals]] | `GoalScope` | `GoalController` | `GoalRepository` | `MockGoalRepository` |
 | [[Study]] | `RevisionScope` | `RevisionController` | `StudyRepository` | `MockStudyRepository` |
 | [[Focus]] | `FocusTimerScope` | `FocusTimerController` | none | none (in memory) |

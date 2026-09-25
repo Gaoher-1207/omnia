@@ -14,14 +14,15 @@ The canonical frontend has two data modes, chosen at build time with a `--dart-d
 | Sign-in | None | Real FastAPI accounts ([[Authentication Flow]]) |
 | Backend needed | No | Yes |
 | `UserSession` | One for app life | One per signed-in user ([[Session Architecture]]) |
-| Tasks, Goals, Study | In-memory mocks | **Still in-memory mocks**, fresh per user |
+| Tasks | In-memory mock | **FastAPI `/tasks`** via `ApiTaskRepository` (user-scoped) |
+| Goals, Study | In-memory mocks | **Still in-memory mocks**, fresh per user |
 | Home / Plan / Track / Insights | Sample data | Sample data |
 | Focus | App-wide, local | App-wide, local |
 | Settings → Account | Hidden | Shown when signed in |
 | Typical use | UI work, demos, automated tests | Auth and integration work |
 
 > [!warning] API mode is not "backend mode" yet
-> Today it means *real accounts + local feature data*. Each feature moves to the backend in its own phase. See [[Mock First API Migration]] and [[Backend Integration Roadmap]].
+> Today it means *real accounts + server-backed Tasks + local data for every other feature*. Each feature moves to the backend in its own phase. See [[Mock First API Migration]] and [[Backend Integration Roadmap]].
 
 ## Visual
 
@@ -34,7 +35,7 @@ flowchart TB
     subgraph Api["flutter run --dart-define=OMNIA_DATA=api"]
         direction TB
         a1["AuthController + ApiClient"] ==> a0[("FastAPI")]
-        a1 --> a2["UserSession keyed by user.id"] --> a3["Mock repositories<br/>(API repositories: future, per feature)"]
+        a1 --> a2["UserSession keyed by user.id"] --> a3["ApiTaskRepository ⇒ FastAPI<br/>+ mock Goals / Study"]
     end
 ```
 

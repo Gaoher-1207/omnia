@@ -83,7 +83,7 @@ Client-side validation on registration: a name, an email format check and a pass
 
 ## Worth knowing
 
-- Feature repositories don't make authenticated calls yet, so **an expired token is only noticed on an account action or on the next launch**. Once [[Phase 3 - Tasks API Integration]] lands, task calls will surface expiry during normal use.
+- Since [[Phase 3 - Tasks API Integration]], task calls are routine authenticated calls, so an expired token surfaces during normal use: the 401 goes through `ApiClient.onUnauthorized` and back to sign-in once (tested with the fake backend and against a live backend).
 - Backend tokens are JWTs that expire after 720 minutes by default. There is no refresh-token endpoint. See [[Risks and Discrepancies]].
 
 ## Related

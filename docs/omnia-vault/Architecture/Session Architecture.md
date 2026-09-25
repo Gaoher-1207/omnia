@@ -39,9 +39,9 @@ flowchart TD
 ## Lifecycle
 
 - **Mock mode:** one `UserSession` for the life of the app.
-- **API mode:** `UserSession(key: ValueKey(user.id))`. Sign-out, session expiry or switching accounts removes the widget, and `dispose()` tears down its controllers. The next user gets a new `AppDependencies.mock()`, which means **fresh in-memory data**.
+- **API mode:** `UserSession(key: ValueKey(user.id))`. Sign-out, session expiry or switching accounts removes the widget, and `dispose()` tears down its controllers. The next user gets new `AppDependencies` from the session factory: server-backed Tasks for that account, and **fresh in-memory data** for Goals and Study.
 
-This guarantees that one user's local data can't carry over into another user's session. Today that data is only mock data. After [[Phase 3 - Tasks API Integration]], the same boundary will make sure user B never sees user A's cached tasks.
+This guarantees that one user's local data can't carry over into another user's session. Since [[Phase 3 - Tasks API Integration]], the same boundary makes sure user B never sees user A's cached tasks (tested); the backend scopes the stored tasks themselves.
 
 ## Why Focus is not per user
 

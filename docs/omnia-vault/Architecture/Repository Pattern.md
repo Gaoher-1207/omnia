@@ -11,7 +11,7 @@ Controllers talk to **repository interfaces**. A single composition point, `AppD
 
 | Interface | Methods | Current implementation | Model |
 |---|---|---|---|
-| `TaskRepository` | `getTasks`, `getTask`, `createTask`, `updateTask`, `setCompleted`, `deleteTask` | `MockTaskRepository` | [[Task]] |
+| `TaskRepository` | `getTasks`, `getTask`, `createTask`, `updateTask`, `setCompleted`, `deleteTask` | `MockTaskRepository` (mock) · `ApiTaskRepository` (API mode) | [[Task]] |
 | `GoalRepository` | `getGoals`, `getGoal`, `createGoal`, `updateGoal`, `setCompleted`, `deleteGoal` | `MockGoalRepository` | [[Goal]] |
 | `StudyRepository` | `getSubjects`, `getExams`, `getSessions`, `getSession`, `updateSession` | `MockStudyRepository` | [[Study Session]] |
 
@@ -32,27 +32,27 @@ All mock repositories wrap `InMemoryDataSource<T>` (`lib/core/data/in_memory_dat
 
 ```mermaid
 flowchart LR
-    US["UserSession"] -->|"dependencies ?? AppDependencies.mock()"| AD["AppDependencies"]
+    US["UserSession"] -->|"dependencies() — mock() or api(api)"| AD["AppDependencies"]
     AD --> T["tasks: TaskRepository"]
     AD --> G["goals: GoalRepository"]
     AD --> S["study: StudyRepository"]
     AD --> IR["initialRevisionSession"]
-    T --> MT["MockTaskRepository ✅ now"]
-    T -.-> AT["ApiTaskRepository<br/>(Phase 3, donor exists)"]
+    T -->|mock mode| MT["MockTaskRepository ✅"]
+    T ==>|API mode| AT["ApiTaskRepository ✅<br/>(Phase 3)"]
     G --> MG["MockGoalRepository ✅ now"]
     G -.-> AG["needs a new backend module"]
     S --> MS["MockStudyRepository ✅ now"]
     S -.-> ASR["needs model alignment"]
 ```
 
-`AppDependencies.mock()` is the only factory today. `OmniaApp` accepts an optional `dependencies` override, which tests use. In API mode nothing passes one, so every session falls back to mocks.
+There are two factories. `AppDependencies.mock()` builds all-mock repositories; `AppDependencies.api(ApiClient)` uses `ApiTaskRepository` and keeps mock Goals and Study. `UserSession` takes a factory and calls it **once** when the session starts. `app.dart` passes mock in mock mode and `api(api)` once signed in. `OmniaApp`'s optional `dependencies` override (used by tests) wins in both modes.
 
-## What an API implementation will need
+## How Phase 3 added the first API implementation
 
-For [[Phase 3 - Tasks API Integration]]:
+In [[Phase 3 - Tasks API Integration]]:
 
-- An `ApiTaskRepository(ApiClient)`. The donor version fits the canonical `TaskRepository` interface **unchanged**; the interface files are identical. See [[Fawaz Donor Map]].
-- A way to build per-session `AppDependencies` that holds the app-wide `ApiClient`, for example a factory beside `mock()`, chosen in `app.dart` when `auth != null`.
+- `ApiTaskRepository(ApiClient)`: the donor version, which fits the canonical `TaskRepository` interface unchanged (imports switched to `core/api/json.dart`). See [[Fawaz Donor Map]].
+- `AppDependencies.api(api)` beside `mock()`, chosen in `app.dart` when `auth != null`, built per session through `UserSession`'s factory.
 - Error mapping: API failures throw `ApiException`, and the controllers already turn any exception into `false` or `loadError`.
 
 ## Related

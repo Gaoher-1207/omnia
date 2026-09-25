@@ -78,10 +78,16 @@ class _OmniaAppState extends State<OmniaApp> {
     ),
   );
 
+  /// A new session's repositories: server-backed Tasks once signed in (API
+  /// mode), in-memory mocks otherwise, or whatever a test injected.
+  AppDependencies _newDependencies() =>
+      widget.dependencies ??
+      (auth == null ? AppDependencies.mock() : AppDependencies.api(api!));
+
   // Session state sits above MaterialApp so pushed screens can reach it.
   Widget _session(Widget home, {Key? key}) => UserSession(
     key: key,
-    dependencies: widget.dependencies,
+    dependencies: _newDependencies,
     child: _app(home),
   );
 
