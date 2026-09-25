@@ -1,0 +1,366 @@
+{
+ "nodes": [
+  {
+   "id": "gFE",
+   "type": "group",
+   "label": "Canonical frontend · Shehwaar/omnia_ui",
+   "x": -940,
+   "y": -60,
+   "width": 1320,
+   "height": 520
+  },
+  {
+   "id": "gBE",
+   "type": "group",
+   "label": "Backend · Fawaz/backend",
+   "x": -940,
+   "y": 540,
+   "width": 1320,
+   "height": 200
+  },
+  {
+   "id": "gDN",
+   "type": "group",
+   "label": "Donor · Fawaz/lib (reference)",
+   "x": 460,
+   "y": 260,
+   "width": 320,
+   "height": 200
+  },
+  {
+   "id": "omnia",
+   "type": "file",
+   "file": "00 - OMNIA.md",
+   "x": -300,
+   "y": -220,
+   "width": 260,
+   "height": 60,
+   "color": "6"
+  },
+  {
+   "id": "arch",
+   "type": "file",
+   "file": "Architecture/Architecture Overview.md",
+   "x": -300,
+   "y": -20,
+   "width": 260,
+   "height": 60
+  },
+  {
+   "id": "auth",
+   "type": "file",
+   "file": "Architecture/Authentication Flow.md",
+   "x": -900,
+   "y": 100,
+   "width": 260,
+   "height": 60,
+   "color": "4"
+  },
+  {
+   "id": "sess",
+   "type": "file",
+   "file": "Architecture/Session Architecture.md",
+   "x": -900,
+   "y": 200,
+   "width": 260,
+   "height": 60
+  },
+  {
+   "id": "repo",
+   "type": "file",
+   "file": "Architecture/Repository Pattern.md",
+   "x": -460,
+   "y": 100,
+   "width": 260,
+   "height": 60
+  },
+  {
+   "id": "mode",
+   "type": "file",
+   "file": "Architecture/Mock vs API Mode.md",
+   "x": -160,
+   "y": 100,
+   "width": 260,
+   "height": 60
+  },
+  {
+   "id": "tasks",
+   "type": "file",
+   "file": "Features/Tasks.md",
+   "x": -460,
+   "y": 260,
+   "width": 260,
+   "height": 60,
+   "color": "3"
+  },
+  {
+   "id": "goals",
+   "type": "file",
+   "file": "Features/Goals.md",
+   "x": -160,
+   "y": 260,
+   "width": 260,
+   "height": 60,
+   "color": "3"
+  },
+  {
+   "id": "focus",
+   "type": "file",
+   "file": "Features/Focus.md",
+   "x": 120,
+   "y": 100,
+   "width": 260,
+   "height": 60,
+   "color": "3"
+  },
+  {
+   "id": "study",
+   "type": "file",
+   "file": "Features/Study.md",
+   "x": 120,
+   "y": 260,
+   "width": 260,
+   "height": 60,
+   "color": "3"
+  },
+  {
+   "id": "plan",
+   "type": "file",
+   "file": "Features/Plan.md",
+   "x": 120,
+   "y": 380,
+   "width": 260,
+   "height": 60
+  },
+  {
+   "id": "dash",
+   "type": "file",
+   "file": "Features/Dashboard.md",
+   "x": -460,
+   "y": 380,
+   "width": 260,
+   "height": 60
+  },
+  {
+   "id": "fbi",
+   "type": "file",
+   "file": "Architecture/Frontend Backend Integration.md",
+   "x": -900,
+   "y": 380,
+   "width": 260,
+   "height": 60,
+   "color": "5"
+  },
+  {
+   "id": "authapi",
+   "type": "file",
+   "file": "Backend/Authentication API.md",
+   "x": -900,
+   "y": 640,
+   "width": 260,
+   "height": 60,
+   "color": "4"
+  },
+  {
+   "id": "tasksapi",
+   "type": "file",
+   "file": "Backend/Tasks API.md",
+   "x": -600,
+   "y": 640,
+   "width": 260,
+   "height": 60
+  },
+  {
+   "id": "apimap",
+   "type": "file",
+   "file": "Backend/API Map.md",
+   "x": -300,
+   "y": 640,
+   "width": 260,
+   "height": 60
+  },
+  {
+   "id": "studyapi",
+   "type": "file",
+   "file": "Backend/Study API.md",
+   "x": 0,
+   "y": 640,
+   "width": 260,
+   "height": 60
+  },
+  {
+   "id": "donor",
+   "type": "file",
+   "file": "Architecture/Fawaz Donor Map.md",
+   "x": 490,
+   "y": 340,
+   "width": 260,
+   "height": 60
+  },
+  {
+   "id": "p3",
+   "type": "file",
+   "file": "Roadmap/Phase 3 - Tasks API Integration.md",
+   "x": -600,
+   "y": 820,
+   "width": 260,
+   "height": 60,
+   "color": "2"
+  },
+  {
+   "id": "road",
+   "type": "file",
+   "file": "Roadmap/Roadmap.md",
+   "x": -300,
+   "y": 820,
+   "width": 260,
+   "height": 60
+  },
+  {
+   "id": "gvdt",
+   "type": "file",
+   "file": "Decisions/Goals vs Daily Targets.md",
+   "x": 120,
+   "y": 820,
+   "width": 260,
+   "height": 60
+  },
+  {
+   "id": "legend",
+   "type": "text",
+   "text": "**Colours**\n🟩 connected (auth)\n🟨 local-functional\n🟧 next phase (Phase 3)",
+   "x": 460,
+   "y": -220,
+   "width": 260,
+   "height": 110
+  }
+ ],
+ "edges": [
+  {
+   "id": "e0",
+   "fromNode": "omnia",
+   "fromSide": "bottom",
+   "toNode": "arch",
+   "toSide": "top"
+  },
+  {
+   "id": "e1",
+   "fromNode": "arch",
+   "fromSide": "left",
+   "toNode": "auth",
+   "toSide": "top"
+  },
+  {
+   "id": "e2",
+   "fromNode": "arch",
+   "fromSide": "bottom",
+   "toNode": "repo",
+   "toSide": "top"
+  },
+  {
+   "id": "e3",
+   "fromNode": "arch",
+   "fromSide": "bottom",
+   "toNode": "mode",
+   "toSide": "top"
+  },
+  {
+   "id": "e4",
+   "fromNode": "auth",
+   "fromSide": "bottom",
+   "toNode": "sess",
+   "toSide": "top"
+  },
+  {
+   "id": "e5",
+   "fromNode": "auth",
+   "fromSide": "left",
+   "toNode": "authapi",
+   "toSide": "left",
+   "label": "api-connected ✅"
+  },
+  {
+   "id": "e6",
+   "fromNode": "repo",
+   "fromSide": "bottom",
+   "toNode": "tasks",
+   "toSide": "top"
+  },
+  {
+   "id": "e7",
+   "fromNode": "repo",
+   "fromSide": "bottom",
+   "toNode": "goals",
+   "toSide": "top"
+  },
+  {
+   "id": "e8",
+   "fromNode": "tasks",
+   "fromSide": "bottom",
+   "toNode": "tasksapi",
+   "toSide": "top",
+   "label": "next phase"
+  },
+  {
+   "id": "e9",
+   "fromNode": "study",
+   "fromSide": "bottom",
+   "toNode": "studyapi",
+   "toSide": "top",
+   "label": "models differ"
+  },
+  {
+   "id": "e10",
+   "fromNode": "plan",
+   "fromSide": "right",
+   "toNode": "focus",
+   "toSide": "right",
+   "label": "entry"
+  },
+  {
+   "id": "e11",
+   "fromNode": "dash",
+   "fromSide": "top",
+   "toNode": "tasks",
+   "toSide": "bottom",
+   "label": "live count"
+  },
+  {
+   "id": "e12",
+   "fromNode": "fbi",
+   "fromSide": "bottom",
+   "toNode": "apimap",
+   "toSide": "top"
+  },
+  {
+   "id": "e13",
+   "fromNode": "donor",
+   "fromSide": "bottom",
+   "toNode": "tasksapi",
+   "toSide": "right",
+   "label": "ApiTaskRepository → adapt"
+  },
+  {
+   "id": "e14",
+   "fromNode": "tasksapi",
+   "fromSide": "bottom",
+   "toNode": "p3",
+   "toSide": "top"
+  },
+  {
+   "id": "e15",
+   "fromNode": "p3",
+   "fromSide": "right",
+   "toNode": "road",
+   "toSide": "left"
+  },
+  {
+   "id": "e16",
+   "fromNode": "goals",
+   "fromSide": "right",
+   "toNode": "gvdt",
+   "toSide": "top",
+   "label": "≠ daily targets"
+  }
+ ]
+}

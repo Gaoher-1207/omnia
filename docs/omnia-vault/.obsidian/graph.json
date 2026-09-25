@@ -1,0 +1,72 @@
+{
+  "collapse-filter": true,
+  "search": "",
+  "showTags": false,
+  "showAttachments": false,
+  "hideUnresolved": false,
+  "showOrphans": true,
+  "collapse-color-groups": true,
+  "colorGroups": [
+    {
+      "query": "path:Features",
+      "color": {
+        "a": 1,
+        "rgb": 16032353
+      }
+    },
+    {
+      "query": "path:Architecture",
+      "color": {
+        "a": 1,
+        "rgb": 5009141
+      }
+    },
+    {
+      "query": "path:Backend",
+      "color": {
+        "a": 1,
+        "rgb": 2792847
+      }
+    },
+    {
+      "query": "path:\"Data Models\"",
+      "color": {
+        "a": 1,
+        "rgb": 15320170
+      }
+    },
+    {
+      "query": "path:Decisions",
+      "color": {
+        "a": 1,
+        "rgb": 10309341
+      }
+    },
+    {
+      "query": "path:Roadmap",
+      "color": {
+        "a": 1,
+        "rgb": 15167313
+      }
+    },
+    {
+      "query": "path:Development",
+      "color": {
+        "a": 1,
+        "rgb": 9279918
+      }
+    }
+  ],
+  "collapse-display": false,
+  "showArrow": false,
+  "textFadeMultiplier": 0,
+  "nodeSizeMultiplier": 1,
+  "lineSizeMultiplier": 0.993229166666667,
+  "collapse-forces": true,
+  "centerStrength": 0.518713248970312,
+  "repelStrength": 10,
+  "linkStrength": 1,
+  "linkDistance": 250,
+  "scale": 0.2588386562181625,
+  "close": false
+}
