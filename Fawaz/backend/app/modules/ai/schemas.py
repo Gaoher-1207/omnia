@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.common.schemas import InputModel
+from app.common.schemas import InputModel, Text
 
 Category = Literal["study", "task", "fitness", "break", "recovery", "other"]
 _HHMM = r"^([01]\d|2[0-3]):[0-5]\d$"
@@ -118,6 +118,23 @@ class DailyPlanRequest(InputModel):
         max_length=280,
         description="Optional context for today, e.g. 'slept badly' or 'busy afternoon'",
     )
+
+
+class ChatTurn(InputModel):
+    role: Literal["user", "assistant"]
+    content: Text(2000)
+
+
+class ChatRequest(InputModel):
+    """The question and recent turns. The server builds the user's context itself."""
+
+    message: Text(1000)
+    history: list[ChatTurn] = Field(default_factory=list, max_length=10, description="Earlier turns, oldest first")
+
+
+class ChatReply(BaseModel):
+    reply: str
+    source: str = Field(description="The provider that answered, e.g. 'ollama'")
 
 
 class PlanItemOut(BaseModel):

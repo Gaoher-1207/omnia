@@ -7,9 +7,9 @@ import 'package:omnia_ui/core/auth/timezones.dart';
 import 'package:omnia_ui/core/auth/token_store.dart';
 
 /// An in-memory stand-in for the backend's auth, profile, tasks, dashboard,
-/// activity, sleep and study (subjects, exams) endpoints, speaking the same
-/// JSON and status codes as
-/// `Fawaz/backend/app/modules/{auth,users,tasks,dashboard,activity,sleep,study}`.
+/// activity, sleep, study (subjects, exams) and Ask Omnia endpoints,
+/// speaking the same JSON and status codes as
+/// `Fawaz/backend/app/modules/{auth,users,tasks,dashboard,activity,sleep,study,ai}`.
 class FakeAuthBackend {
   /// The device's token storage, shared with every [client].
   final tokens = MemoryTokenStore();
@@ -42,6 +42,12 @@ class FakeAuthBackend {
   /// Every `/study` write as ("METHOD /study/…", body), ids replaced by
   /// `{id}`, in order.
   final studyWrites = <(String, Map<String, dynamic>)>[];
+
+  /// Makes `POST /ai/chat` answer 503, like a server whose model is offline.
+  bool assistantDown = false;
+
+  /// Every `POST /ai/chat` as (signed-in email, body), in order.
+  final chats = <(String, Map<String, dynamic>)>[];
 
   /// Every `PATCH /profile` body, in order.
   final profilePatches = <Map<String, dynamic>>[];
@@ -356,6 +362,22 @@ class FakeAuthBackend {
           return _error(503, 'service_unavailable', 'Dashboard unavailable.');
         }
         return _json(_dashboard(email));
+      case ('POST', '/ai/chat'):
+        chats.add((email, body));
+        if (!{'message', 'history'}.containsAll(body.keys)) {
+          return _invalid('body', 'Extra inputs are not permitted');
+        }
+        if (assistantDown) {
+          return _error(
+            503,
+            'service_unavailable',
+            "Omnia's assistant is offline right now. Try again in a moment.",
+          );
+        }
+        return _json({
+          'reply': 'Answer to: ${body['message']}',
+          'source': 'fake',
+        });
     }
     if (path.startsWith('/activity/') || path.startsWith('/sleep/')) {
       return _handleTrack(request.method, path, body, email);

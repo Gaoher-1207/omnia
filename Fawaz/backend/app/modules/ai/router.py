@@ -6,13 +6,28 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from app.common.deps import CurrentUser, DbSession
 from app.core.errors import NotFoundError
 from app.core.time import local_today
-from app.modules.ai import service
+from app.modules.ai import assistant, service
 from app.modules.ai.providers import PlanProvider
-from app.modules.ai.schemas import AIPlanOut, DailyPlanRequest
+from app.modules.ai.schemas import AIPlanOut, ChatReply, ChatRequest, DailyPlanRequest
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
 Provider = Annotated[PlanProvider, Depends(service.get_provider)]
+ChatProviderDep = Annotated[assistant.ChatProvider | None, Depends(assistant.get_chat_provider)]
+
+
+@router.post(
+    "/chat",
+    response_model=ChatReply,
+    summary="Ask Omnia about your day (read-only)",
+    description=(
+        "Answers from the signed-in user's own OMNIA data, which the server gathers itself. "
+        "Changes nothing. 503 when the assistant is switched off, offline or its model is missing; "
+        "502 when the model times out or gives an unusable answer."
+    ),
+)
+def chat(body: ChatRequest, user: CurrentUser, db: DbSession, provider: ChatProviderDep):
+    return assistant.answer(db, user, body, provider)
 
 
 @router.post(

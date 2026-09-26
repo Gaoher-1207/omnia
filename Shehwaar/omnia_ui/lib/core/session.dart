@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:omnia_ui/core/app_dependencies.dart';
+import 'package:omnia_ui/features/assistant/assistant_controller.dart';
 import 'package:omnia_ui/features/goals/goal_controller.dart';
 import 'package:omnia_ui/features/home/dashboard_controller.dart';
 import 'package:omnia_ui/features/plan/revision_controller.dart';
@@ -37,6 +38,8 @@ class _UserSessionState extends State<UserSession> {
   late final track = TrackController(dependencies.track, dashboard);
   // Loaded when Study opens, not at sign-in.
   late final study = StudyController(dependencies.study, dashboard);
+  // Held only in memory: a new session starts a new conversation.
+  late final assistant = AssistantController(dependencies.assistant);
   late final AppLifecycleListener _lifecycle;
 
   @override
@@ -54,6 +57,7 @@ class _UserSessionState extends State<UserSession> {
     goals.dispose();
     track.dispose();
     study.dispose();
+    assistant.dispose();
     dashboard.dispose();
     super.dispose();
   }
@@ -71,7 +75,13 @@ class _UserSessionState extends State<UserSession> {
             controller: dashboard,
             child: TrackScope(
               controller: track,
-              child: StudyScope(controller: study, child: widget.child),
+              child: StudyScope(
+                controller: study,
+                child: AssistantScope(
+                  controller: assistant,
+                  child: widget.child,
+                ),
+              ),
             ),
           ),
         ),

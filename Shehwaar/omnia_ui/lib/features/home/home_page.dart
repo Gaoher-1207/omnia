@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:omnia_ui/core/api/api_exception.dart';
 import 'package:omnia_ui/core/widgets/info_dialog.dart';
 import 'package:omnia_ui/core/widgets/state_views.dart';
+import 'package:omnia_ui/features/assistant/assistant_page.dart';
 import 'package:omnia_ui/features/home/dashboard_controller.dart';
 import 'package:omnia_ui/features/home/dashboard_format.dart';
 import 'package:omnia_ui/features/home/domain/dashboard.dart';
@@ -203,6 +204,8 @@ class HomePage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
+          const _AskOmniaEntry(),
+          const SizedBox(height: 10),
           Row(
             children: [
               Expanded(
@@ -328,4 +331,43 @@ class HomePage extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Opens Ask Omnia, the read-only assistant for questions about today.
+class _AskOmniaEntry extends StatelessWidget {
+  const _AskOmniaEntry();
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    child: HardCard(
+      color: paper,
+      shadowOffset: const Offset(2, 3),
+      onTap: () => AssistantPage.open(context),
+      child: Row(
+        children: [
+          const Icon(Icons.chat_bubble_outline_rounded),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Ask Omnia',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'What should I prioritize tonight?',
+                  style: TextStyle(color: context.mutedForeground),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          const Icon(Icons.chevron_right_rounded),
+        ],
+      ),
+    ),
+  );
 }

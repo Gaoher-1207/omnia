@@ -1,6 +1,9 @@
 import 'package:flutter/widgets.dart';
 import 'package:omnia_ui/core/api/api_client.dart';
 import 'package:omnia_ui/core/data/mock_data.dart';
+import 'package:omnia_ui/features/assistant/data/api_assistant_repository.dart';
+import 'package:omnia_ui/features/assistant/data/mock_assistant_repository.dart';
+import 'package:omnia_ui/features/assistant/domain/assistant_repository.dart';
 import 'package:omnia_ui/features/goals/data/mock_goal_repository.dart';
 import 'package:omnia_ui/features/goals/domain/goal_repository.dart';
 import 'package:omnia_ui/features/home/data/api_dashboard_repository.dart';
@@ -24,7 +27,7 @@ class AppDependencies {
   const AppDependencies({
     required this.tasks, required this.goals, required this.study,
     required this.dashboard, required this.track, required this.revision,
-    required this.initialRevisionSession,
+    required this.assistant, required this.initialRevisionSession,
     this.sampleContent = false,
   });
 
@@ -38,13 +41,15 @@ class AppDependencies {
       tasks: MockTaskRepository(), goals: MockGoalRepository(),
       study: study, revision: study,
       dashboard: MockDashboardRepository(track: track, study: study),
-      track: track, initialRevisionSession: revision, sampleContent: true,
+      track: track, assistant: MockAssistantRepository(),
+      initialRevisionSession: revision, sampleContent: true,
     );
   }
 
-  /// API mode: tasks, the dashboard, activity, sleep and study subjects and
-  /// exams come from the backend. Goals stay in-memory until their own
-  /// integration phase, and start empty: the user's, never the demo's. The
+  /// API mode: tasks, the dashboard, activity, sleep, study subjects and
+  /// exams, and Ask Omnia's answers come from the backend. Goals stay
+  /// in-memory until their own integration phase, and start empty: the
+  /// user's, never the demo's. The
   /// demo revision session has no backend twin; screens hide it while
   /// [sampleContent] is false.
   factory AppDependencies.api(ApiClient api) {
@@ -53,6 +58,7 @@ class AppDependencies {
       tasks: ApiTaskRepository(api), goals: MockGoalRepository(seed: const []),
       study: ApiStudyRepository(api), revision: local.revision,
       dashboard: ApiDashboardRepository(api), track: ApiTrackRepository(api),
+      assistant: ApiAssistantRepository(api),
       initialRevisionSession: local.initialRevisionSession,
     );
   }
@@ -63,6 +69,7 @@ class AppDependencies {
   final RevisionRepository revision;
   final DashboardRepository dashboard;
   final TrackRepository track;
+  final AssistantRepository assistant;
   final StudySession initialRevisionSession;
 
   /// Mock mode's demo day: the sample plan, revision session and "Why?"

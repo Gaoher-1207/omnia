@@ -154,6 +154,20 @@ Rules the frontend relies on:
 - Another user's subject or exam id answers `404`, like a missing one; deleting something already gone is treated as done.
 - `GET /dashboard` `next_exam` is the first of `GET /study/exams`, so after any study change the app reloads the dashboard and Today follows.
 
+## Ask Omnia (read-only assistant)
+
+| Call | Body | Response |
+|---|---|---|
+| `POST /ai/chat` | `{ "message": string (1–1000), "history": [ { "role": "user" \| "assistant", "content": string (1–2000) } ] (≤ 10, oldest first) }` | `{ "reply": string, "source": string }` |
+
+Rules the frontend relies on:
+
+- The server builds the signed-in user's context itself; the body never carries ids, a user or context, and unknown fields are refused with `422`.
+- Asking changes nothing on the server.
+- `503` = the assistant is switched off, offline or has no model (shown as "unavailable", with `error.message`); `502` = the model timed out or gave an unusable answer; `429` = too many questions this hour.
+- A first answer can take a while (the server may be loading its model), so the app waits up to 75 s.
+- `reply` is plain text.
+
 ## Not used by the frontend (yet)
 
 Present in the reference backend, not called: `/study/backlog`, `/study/sessions` (study minutes arrive through `/dashboard`), `/study/plan`, `/ai/daily-plan` (Phase 5C), `/progress`, `/achievements`, `/meals` and nutrition, `/social/*`, `/integrations/*`. Long-term Goals have **no endpoint anywhere**; the app keeps them in memory.

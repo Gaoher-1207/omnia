@@ -34,6 +34,16 @@ class Settings(BaseSettings):
     ai_timeout_seconds: float = Field(default=20.0, gt=0, le=120)
     ai_rate_limit_per_hour: int = Field(default=20, ge=1)
 
+    # Ask Omnia (POST /ai/chat). Separate from AI_PROVIDER so the daily plan and
+    # photo estimates are unaffected. "off" answers 503; nothing is invented.
+    assistant_provider: Literal["off", "ollama"] = "off"
+    assistant_base_url: str = "http://localhost:11434"
+    assistant_model: str = "qwen3:8b"
+    # A local model's first answer includes loading it into memory.
+    assistant_timeout_seconds: float = Field(default=60.0, gt=0, le=300)
+    assistant_context_tokens: int = Field(default=8192, ge=2048, le=131072)
+    assistant_rate_limit_per_hour: int = Field(default=60, ge=1)
+
     auth_rate_limit_per_minute: int = Field(default=10, ge=1)
 
     @model_validator(mode="after")

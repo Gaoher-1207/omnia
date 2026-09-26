@@ -323,6 +323,17 @@ void main() {
     await tester.tap(find.widgetWithText(TextButton, 'Delete'));
     await tester.pumpAndSettle();
     await backToToday(tester);
+    // Opening Study scrolled Today down to its card; scroll back up.
+    await tester.scrollUntilVisible(
+      todayExam('No exams coming up.'),
+      -200,
+      scrollable: find
+          .descendant(
+            of: find.byType(HomePage),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
     expect(todayExam('No exams coming up.'), findsOneWidget);
   });
 
