@@ -4,7 +4,7 @@ import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/core/widgets/hard_card.dart';
 import 'package:omnia_ui/core/widgets/solid_action.dart';
 import 'package:omnia_ui/core/widgets/state_views.dart';
-import 'package:omnia_ui/core/widgets/surface_shadow.dart';
+import 'package:omnia_ui/core/widgets/omnia_pressable.dart';
 import 'package:omnia_ui/features/tasks/domain/task.dart';
 import 'package:omnia_ui/features/tasks/task_controller.dart';
 import 'package:omnia_ui/features/tasks/task_form_page.dart';
@@ -125,9 +125,12 @@ class TasksPage extends StatelessWidget {
           ),
         ],
       ),
-      floatingActionButton: SurfaceShadow(
+      // FloatingActionButton has no states controller: touch and mouse press
+      // into the shadow; keyboard activation works without the visual press.
+      floatingActionButton: OmniaPressable(
         radius: 14,
-        child: FloatingActionButton.extended(
+        builder: (context, _) => FloatingActionButton.extended(
+          splashColor: Colors.transparent,
           onPressed: () => _openForm(context, tasks),
           backgroundColor: context.actionBackground,
           foregroundColor: context.actionForeground,

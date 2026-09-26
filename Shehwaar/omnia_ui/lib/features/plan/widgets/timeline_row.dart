@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:omnia_ui/core/widgets/accent_circle.dart';
-import 'package:omnia_ui/core/widgets/surface_shadow.dart';
+import 'package:omnia_ui/core/widgets/omnia_pressable.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
 
 class TimelineRow extends StatelessWidget {
@@ -37,10 +37,10 @@ class TimelineRow extends StatelessWidget {
         if (showTimeline) AccentCircle(color: color, size: 9),
         if (showTimeline) const SizedBox(width: 9),
         Expanded(
-          child: SurfaceShadow(
+          child: OmniaPressable(
             radius: 10,
-            offset: const Offset(2, 3),
-            child: Material(
+            shadowOffset: const Offset(2, 3),
+            builder: (context, states) => Material(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
                 side: BorderSide(
@@ -51,6 +51,8 @@ class TimelineRow extends StatelessWidget {
               color: context.cardColor(color),
               child: InkWell(
                 onTap: onTap,
+                statesController: states,
+                splashFactory: NoSplash.splashFactory,
                 borderRadius: BorderRadius.circular(10),
                 child: Container(
                   padding: const EdgeInsets.symmetric(

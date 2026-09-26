@@ -6,7 +6,7 @@ import 'package:omnia_ui/core/widgets/hard_card.dart';
 import 'package:omnia_ui/core/widgets/omnia_progress_bar.dart';
 import 'package:omnia_ui/core/widgets/solid_action.dart';
 import 'package:omnia_ui/core/widgets/state_views.dart';
-import 'package:omnia_ui/core/widgets/surface_shadow.dart';
+import 'package:omnia_ui/core/widgets/omnia_pressable.dart';
 import 'package:omnia_ui/features/goals/domain/goal.dart';
 import 'package:omnia_ui/features/goals/goal_controller.dart';
 import 'package:omnia_ui/features/goals/goal_form_page.dart';
@@ -180,9 +180,12 @@ class GoalsPage extends StatelessWidget {
           ),
         ],
       ),
-      floatingActionButton: SurfaceShadow(
+      // FloatingActionButton has no states controller: touch and mouse press
+      // into the shadow; keyboard activation works without the visual press.
+      floatingActionButton: OmniaPressable(
         radius: 14,
-        child: FloatingActionButton.extended(
+        builder: (context, _) => FloatingActionButton.extended(
+          splashColor: Colors.transparent,
           onPressed: () => _openForm(context, goals),
           backgroundColor: context.actionBackground,
           foregroundColor: context.actionForeground,

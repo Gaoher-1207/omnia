@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
-import 'package:omnia_ui/core/widgets/surface_shadow.dart';
+import 'package:omnia_ui/core/widgets/omnia_pressable.dart';
 
 /// The full-width primary onboarding button (label plus trailing arrow).
 class OnboardingAction extends StatelessWidget {
@@ -15,16 +15,18 @@ class OnboardingAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox(
     width: double.infinity,
-    child: SurfaceShadow(
+    child: OmniaPressable(
       radius: 9,
-      offset: const Offset(2, 2),
-      child: FilledButton(
+      shadowOffset: const Offset(2, 2),
+      builder: (context, states) => FilledButton(
         onPressed: onPressed,
+        statesController: states,
         style: FilledButton.styleFrom(
           backgroundColor: context.actionBackground,
           foregroundColor: context.actionForeground,
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+          splashFactory: NoSplash.splashFactory,
         ),
         child: Row(
           children: [
