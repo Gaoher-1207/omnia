@@ -46,12 +46,16 @@ flowchart TB
 
 | Situation | URL |
 |---|---|
-| `--dart-define=API_BASE_URL=<url>` | that URL (trailing `/` removed) |
+| `--dart-define=OMNIA_API_BASE_URL=<url>` (or the older `API_BASE_URL`) | that URL (trailing `/` removed) |
 | Debug, Android emulator | `http://10.0.2.2:8000/api` (the emulator's alias for the host) |
 | Debug, web / iOS / desktop | `http://localhost:8000/api` |
-| Release without `API_BASE_URL` | `null` → "Server not configured" screen |
+| Release without `OMNIA_API_BASE_URL` | `null` → "Server not configured" screen |
 
 Plain `http://` is allowed only in **debug** Android builds (`usesCleartextTraffic` in the debug manifest).
+
+## Running against any backend
+
+`Shehwaar/omnia_ui/integration/` holds the portable setup: `README.md` (modes, settings, commands, per-platform notes), `API_CONTRACT.md` (every endpoint the frontend calls and the JSON it expects), `COMPATIBILITY.md` (a checklist for a new backend), `omnia.env.example` (for `--dart-define-from-file`) and `run_frontend.ps1`.
 
 ## The target state after migration
 

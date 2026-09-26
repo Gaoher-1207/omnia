@@ -4,7 +4,7 @@
 
 This folder holds the canonical Flutter frontend for OMNIA, a final-year team project. It covers the app's screens, state management, local data layer, and the client side of backend integration: API access, authentication and user sessions.
 
-> **Current checkpoint:** Tasks, long-term Goals, the Focus Timer and study revision work on local, in-memory data. Accounts and sign-in are integrated with the team's FastAPI backend. Other feature data is being moved to the backend one module at a time. See [Backend integration status](#backend-integration-status).
+> **Current checkpoint:** in API mode, accounts, Tasks, the profile and daily targets, the day summary and activity/sleep logging use the team's FastAPI backend. Long-term Goals and the Focus Timer are local. Other feature data is being moved to the backend one module at a time. See [Backend integration status](#backend-integration-status).
 
 ---
 
@@ -78,7 +78,7 @@ Screens that show sample data say so on screen (`SAMPLE DAY`, `SAMPLE DATA`).
 - **Live counts:** the Home **Tasks** card and the Track **Tasks** tile read from the same controller, so they update as soon as a task changes.
 - **Double taps:** a second operation on a task is ignored while the first is still in progress.
 
-**Persistence:** tasks live in an in-memory repository in both modes today. Moving them to the backend is the next integration phase; the backend already has a tasks API.
+**Persistence:** in API mode tasks live on the backend (`/tasks`); in mock mode, in an in-memory repository.
 
 ### Long-term Goals
 
@@ -195,10 +195,12 @@ The app has two data modes, chosen when you build or run it.
 | Command | `flutter run` | `flutter run --dart-define=OMNIA_DATA=api` |
 | Sign-in | None | Real accounts on the FastAPI backend |
 | Backend required | No | Yes |
-| Tasks, Goals, Study | In-memory | **Still in-memory** (fresh for each signed-in session) |
-| Typical use | UI work, demos, automated tests | Account and integration work |
+| Tasks, profile and daily targets, day summary, activity and sleep | In-memory, seeded with a labelled sample day | **The backend**, per signed-in user |
+| Long-term Goals | In-memory sample goals | In-memory, starts empty (no backend endpoint yet) |
+| Plan, Insights | Labelled sample content | Empty states (never sample data) |
+| Typical use | UI work, demos, automated tests | Integration and real use |
 
-In short, **in API mode today, authentication is real and feature data is still local.** This is a deliberate intermediate step: each feature moves to its API repository in its own phase, while mock mode stays available.
+Each remaining feature moves to its API repository in its own phase, while mock mode stays available. The full guide to running against any compatible backend, the API contract and a compatibility checklist are in [`omnia_ui/integration/`](omnia_ui/integration/README.md).
 
 ### Backend URL
 
@@ -206,14 +208,14 @@ The address comes from `ApiConfig`:
 
 | Situation | URL used |
 |---|---|
-| `--dart-define=API_BASE_URL=<url>` given | That URL (any trailing `/` removed) |
+| `--dart-define=OMNIA_API_BASE_URL=<url>` given | That URL (any trailing `/` removed). The older `API_BASE_URL` still works. |
 | Debug build, Android emulator | `http://10.0.2.2:8000/api` |
 | Debug build, web / iOS / desktop | `http://localhost:8000/api` |
-| Release build without `API_BASE_URL` | None; the app shows *Server not configured* |
+| Release build without `OMNIA_API_BASE_URL` | None; the app shows *Server not configured* |
 
 **Why `10.0.2.2`?** Inside the Android emulator, `localhost` means the emulator itself. `10.0.2.2` is the emulator's fixed address for the computer running it, which is where the backend is.
 
-**Plain HTTP:** only debug Android builds are allowed to use plain `http://` (`usesCleartextTraffic` is set in the debug manifest only). The main manifest adds the `INTERNET` permission for release builds, which should use HTTPS. On a physical phone, pass your computer's LAN address, for example `--dart-define=API_BASE_URL=http://192.168.1.20:8000/api`.
+**Plain HTTP:** only debug Android builds are allowed to use plain `http://` (`usesCleartextTraffic` is set in the debug manifest only). The main manifest adds the `INTERNET` permission for release builds, which should use HTTPS. On a physical phone, pass your computer's LAN address, for example `--dart-define=OMNIA_API_BASE_URL=http://192.168.1.20:8000/api`. Platform notes (web CORS, iOS, macOS) are in [`integration/README.md`](omnia_ui/integration/README.md#platform-notes).
 
 ---
 
@@ -401,7 +403,12 @@ flutter run -d <device-id> --dart-define=OMNIA_DATA=api
 flutter run -d chrome --dart-define=OMNIA_DATA=api
 ```
 
-To point at a different server, add `--dart-define=API_BASE_URL=http://<host>:8000/api`.
+To point at a different server, add `--dart-define=OMNIA_API_BASE_URL=http://<host>:8000/api`, or use a settings file / the helper script:
+
+```powershell
+flutter run --dart-define-from-file=integration/omnia.env   # copy integration/omnia.env.example first
+.\integration\run_frontend.ps1 -Api -BaseUrl http://<host>:8000/api
+```
 
 ---
 

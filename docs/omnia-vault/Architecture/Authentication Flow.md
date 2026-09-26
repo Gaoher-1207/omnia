@@ -20,7 +20,7 @@ flowchart TD
     L([App launch]) --> M{"OMNIA_DATA=api?"}
     M -- no --> MOCK["Mock mode<br/>no sign-in, one UserSession"] --> ONB1["Onboarding → OmniaHome"]
     M -- yes --> URL{"Base URL resolved?<br/>(ApiConfig)"}
-    URL -- "no (release build,<br/>no API_BASE_URL)" --> MISS["'Server not configured'"]
+    URL -- "no (release build,<br/>no OMNIA_API_BASE_URL)" --> MISS["'Server not configured'"]
     URL -- yes --> R["AuthController.restore()<br/>status = unknown → splash"]
     R --> TOK{"Token in<br/>TokenStore?"}
     TOK -- no --> OUT["status = signedOut"]

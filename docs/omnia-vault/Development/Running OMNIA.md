@@ -13,7 +13,7 @@ cd Shehwaar\omnia_ui
 flutter pub get
 flutter run -d <device>                                   # mock mode
 flutter run -d <device> --dart-define=OMNIA_DATA=api      # API mode
-flutter run -d <device> --dart-define=OMNIA_DATA=api --dart-define=API_BASE_URL=http://<lan-ip>:8000/api
+flutter run -d <device> --dart-define=OMNIA_DATA=api --dart-define=OMNIA_API_BASE_URL=http://<lan-ip>:8000/api
 ```
 
 Which URL is used when: see [[Mock vs API Mode]].

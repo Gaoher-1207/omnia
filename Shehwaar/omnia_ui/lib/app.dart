@@ -45,7 +45,7 @@ class _OmniaAppState extends State<OmniaApp> {
       ? null
       : (AuthController(api!)..restore());
 
-  /// Null when not in API mode, or a release build has no API_BASE_URL.
+  /// Null when not in API mode, or a release build has no OMNIA_API_BASE_URL.
   static ApiClient? _environmentApi() {
     final url = ApiConfig.apiMode ? ApiConfig.resolveBaseUrl() : null;
     return url == null
@@ -186,8 +186,8 @@ class _MissingConfiguration extends StatelessWidget {
       child: MessageView(
         title: 'Server not configured',
         detail:
-            'This build has no API_BASE_URL. Rebuild with '
-            '--dart-define=API_BASE_URL=https://your-server/api',
+            'This build has no OMNIA_API_BASE_URL. Rebuild with '
+            '--dart-define=OMNIA_API_BASE_URL=https://your-server/api',
       ),
     ),
   );

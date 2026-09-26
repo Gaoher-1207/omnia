@@ -53,7 +53,7 @@ class BrokenStorage implements FlutterSecureStorage {
 
 void main() {
   group('ApiConfig', () {
-    test('an explicit API_BASE_URL wins everywhere, without a trailing /', () {
+    test('an explicit base URL wins everywhere, without a trailing /', () {
       for (final release in [false, true]) {
         expect(
           ApiConfig.resolveBaseUrl(
@@ -107,14 +107,14 @@ void main() {
       }
     });
 
-    test('release builds without API_BASE_URL have no default', () {
+    test('release builds without a base URL have no default', () {
       expect(
         ApiConfig.resolveBaseUrl(fromEnvironment: '', releaseMode: true),
         isNull,
       );
     });
 
-    test('this test run has no API_BASE_URL and is not a release build', () {
+    test('this test run has no base URL and is not a release build', () {
       expect(ApiConfig.resolveBaseUrl(), isNotNull);
     });
   });
