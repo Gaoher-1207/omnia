@@ -36,13 +36,6 @@ class SettingsPage extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           SegmentedButton<ThemeMode>(
-            style: ButtonStyle(
-              backgroundColor: WidgetStateProperty.resolveWith(
-                (states) => states.contains(WidgetState.selected)
-                    ? Theme.of(context).colorScheme.secondaryContainer
-                    : Theme.of(context).colorScheme.surface,
-              ),
-            ),
             segments: const [
               ButtonSegment(
                 value: ThemeMode.light,
@@ -62,14 +55,14 @@ class SettingsPage extends StatelessWidget {
           if (kDebugMode) ...[
             const SizedBox(height: 24),
             TextButton.icon(
-              onPressed: () => Navigator.push<void>(
-                context,
-                MaterialPageRoute(
-                  builder: (previewContext) => OnboardingPage(
-                    onSkip: () => Navigator.pop(previewContext),
+              onPressed: () =>
+                  Navigator.of(context, rootNavigator: true).push<void>(
+                    MaterialPageRoute(
+                      builder: (previewContext) => OnboardingPage(
+                        onSkip: () => Navigator.pop(previewContext),
+                      ),
+                    ),
                   ),
-                ),
-              ),
               icon: const Icon(Icons.replay),
               label: const Text('Preview onboarding'),
             ),
@@ -181,41 +174,51 @@ class _AccountSection extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 8),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.tune),
-          title: const Text('Profile & daily targets'),
-          subtitle: const Text('Name, time zone and what Home measures'),
-          onTap: () => Navigator.push<void>(
-            context,
-            MaterialPageRoute(builder: (_) => const ProfilePage()),
+        const SizedBox(height: 12),
+        HardCard(
+          color: paper,
+          shadowOffset: const Offset(2, 3),
+          child: Column(
+            children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.tune),
+                title: const Text('Profile & daily targets'),
+                subtitle: const Text('Name, time zone and what Today measures'),
+                onTap: () =>
+                    Navigator.of(context, rootNavigator: true).push<void>(
+                      MaterialPageRoute(builder: (_) => const ProfilePage()),
+                    ),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.password),
+                title: const Text('Change password'),
+                onTap: () => _changePassword(context),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.devices_other),
+                title: const Text('Sign out everywhere'),
+                onTap: () => _signOutEverywhere(context),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.logout),
+                title: const Text('Sign out'),
+                onTap: () => _attempt(context, AuthScope.read(context).signOut),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(Icons.delete_forever_outlined, color: danger),
+                title: Text('Delete account', style: TextStyle(color: danger)),
+                subtitle: const Text(
+                  'Permanently removes your account and data',
+                ),
+                onTap: () => _deleteAccount(context),
+              ),
+            ],
           ),
-        ),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.password),
-          title: const Text('Change password'),
-          onTap: () => _changePassword(context),
-        ),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.devices_other),
-          title: const Text('Sign out everywhere'),
-          onTap: () => _signOutEverywhere(context),
-        ),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.logout),
-          title: const Text('Sign out'),
-          onTap: () => _attempt(context, AuthScope.read(context).signOut),
-        ),
-        ListTile(
-          contentPadding: EdgeInsets.zero,
-          leading: Icon(Icons.delete_forever_outlined, color: danger),
-          title: Text('Delete account', style: TextStyle(color: danger)),
-          subtitle: const Text('Permanently removes your account and data'),
-          onTap: () => _deleteAccount(context),
         ),
       ],
     );

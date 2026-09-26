@@ -11,7 +11,7 @@ donor: true
 
 ## Current Status
 
-`sample`. The **Insights** tab shows a weekly overview built from hard-coded data, labelled `SAMPLE DATA`. The screen says "Insights will be connected to your real activity after tracking and the backend are ready."
+Not implemented. The **Insights** tab shows an empty state, "No insights yet", explaining they aren't connected. No charts or figures are drawn (mock mode only adds a `SAMPLE DATA` label).
 
 **Code:** `features/insights/insights_page.dart`, with no controller or repository.
 
@@ -30,4 +30,4 @@ Insights only becomes meaningful once real data flows in from [[Tasks]], [[Study
 
 ## Related
 
-[[Track]] · [[Dashboard]] · [[AI Roadmap]]
+[[Areas]] · [[Dashboard]] · [[AI Roadmap]]

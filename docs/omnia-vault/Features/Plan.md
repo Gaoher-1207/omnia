@@ -15,7 +15,9 @@ The day's schedule, eventually an adaptive daily plan that reacts to sleep, exam
 
 ## Current Status
 
-`sample`. Timeline and list views of a **fixed sample day** (`samplePlan` in `features/plan/plan_item.dart`, labelled `SAMPLE DAY`). Two parts are live:
+**API mode: empty.** The tab shows the server's date, "No plan yet." and the [[Focus]] timer entry; no sample schedule is ever shown. The page reads an `items` list, which Phase 5C fills from `/ai/daily-plan`.
+
+**Mock mode: `sample`.** Timeline and list views of a **fixed sample day** (`samplePlan` in `features/plan/plan_item.dart`, labelled `SAMPLE DAY`). Two parts are live:
 
 - The **revision** item opens the real [[Study]] revision session and shows its current title.
 - The **Focus** entry (`FocusTimerEntry`) shows the live app-wide [[Focus]] timer.

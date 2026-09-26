@@ -13,7 +13,7 @@ import 'package:omnia_ui/features/tasks/data/mock_task_repository.dart';
 import 'package:omnia_ui/features/tasks/domain/task.dart';
 import 'package:omnia_ui/features/tasks/task_controller.dart';
 import 'package:omnia_ui/features/tasks/tasks_page.dart';
-import 'package:omnia_ui/features/track/track_page.dart';
+import 'package:omnia_ui/features/areas/areas_page.dart';
 
 import 'widget_test.dart' show startApp, tab, tapText;
 
@@ -55,8 +55,8 @@ void main() {
     final semantics = tester.ensureSemantics();
     await startApp(tester);
     expect(
-      tester.getSemantics(find.text('Home')),
-      isSemantics(label: 'Home', isButton: true, isSelected: true),
+      tester.getSemantics(find.text('Today')),
+      isSemantics(label: 'Today', isButton: true, isSelected: true),
     );
     expect(
       tester.getSemantics(find.text('Plan')),
@@ -68,16 +68,16 @@ void main() {
       isSemantics(isSelected: true),
     );
     expect(
-      tester.getSemantics(find.text('Home')),
+      tester.getSemantics(find.text('Today')),
       isSemantics(isSelected: false),
     );
     semantics.dispose();
   });
 
-  testWidgets('Track and Home share the live task count', (tester) async {
+  testWidgets('Areas and Today share the live task count', (tester) async {
     await startApp(tester);
     expect(find.text('0 / 1'), findsOneWidget);
-    await tab(tester, Icons.bar_chart_rounded);
+    await tab(tester, Icons.grid_view_rounded);
     expect(find.text('0 of 1'), findsOneWidget);
 
     await tab(tester, Icons.home_rounded);
@@ -87,8 +87,8 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(find.text('1 / 1'), findsOneWidget);
-    await tab(tester, Icons.bar_chart_rounded);
-    expect(find.byType(TrackPage), findsOneWidget);
+    await tab(tester, Icons.grid_view_rounded);
+    expect(find.byType(AreasPage), findsOneWidget);
     expect(find.text('1 of 1'), findsOneWidget);
   });
 
@@ -228,7 +228,7 @@ void main() {
     await startApp(tester, size: const Size(360, 740));
     expect(tester.takeException(), isNull);
 
-    await tab(tester, Icons.bar_chart_rounded);
+    await tab(tester, Icons.grid_view_rounded);
     expect(tester.takeException(), isNull);
     await tab(tester, Icons.calendar_month_outlined);
     await tester.scrollUntilVisible(find.text('DBMS Revision'), 200);

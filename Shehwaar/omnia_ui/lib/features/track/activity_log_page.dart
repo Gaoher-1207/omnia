@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:omnia_ui/core/api/api_exception.dart';
+import 'package:omnia_ui/core/theme/app_colors.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
+import 'package:omnia_ui/core/widgets/area_header.dart';
+import 'package:omnia_ui/core/widgets/hard_card.dart';
+import 'package:omnia_ui/core/widgets/section_header.dart';
+import 'package:omnia_ui/core/widgets/select_field.dart';
 import 'package:omnia_ui/core/widgets/solid_action.dart';
 import 'package:omnia_ui/core/widgets/state_views.dart';
 import 'package:omnia_ui/features/home/dashboard_controller.dart';
@@ -36,10 +41,11 @@ class ActivityLogPage extends StatefulWidget {
       showDone(context, notLoadedMessage);
       return;
     }
-    Navigator.push<void>(
+    // A short form: it takes the whole screen, over the tab bar.
+    Navigator.of(
       context,
-      MaterialPageRoute(builder: (_) => ActivityLogPage(day: day)),
-    );
+      rootNavigator: true,
+    ).push<void>(MaterialPageRoute(builder: (_) => ActivityLogPage(day: day)));
   }
 
   @override
@@ -150,7 +156,7 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Activity')),
+    appBar: AppBar(),
     body: _loading
         ? const Center(
             child: CircularProgressIndicator(
@@ -168,11 +174,14 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
             child: ListView(
               padding: const EdgeInsets.all(18),
               children: [
-                Text(
-                  'Today  ·  ${formatLongDate(widget.day)}',
-                  style: TextStyle(color: context.mutedForeground),
+                AreaHeader(
+                  icon: Icons.directions_walk,
+                  color: mint,
+                  eyebrow: 'Today',
+                  title: 'Activity',
+                  subtitle: formatLongDate(widget.day),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
                 TextFormField(
                   controller: _steps,
                   keyboardType: TextInputType.number,
@@ -185,14 +194,23 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                   ),
                   validator: (text) => _range(text, 200000, required: true),
                 ),
-                const SizedBox(height: 8),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Workout done'),
-                  value: _workout,
-                  onChanged: (value) => setState(() => _workout = value),
+                const SizedBox(height: 24),
+                const SectionHeader('Workout'),
+                HardCard(
+                  color: paper,
+                  shadowOffset: const Offset(2, 3),
+                  child: SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text(
+                      'Workout done',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    value: _workout,
+                    onChanged: (value) => setState(() => _workout = value),
+                  ),
                 ),
                 if (_workout) ...[
+                  const SizedBox(height: 18),
                   TextFormField(
                     controller: _minutes,
                     keyboardType: TextInputType.number,
@@ -204,29 +222,22 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                     ),
                     validator: (text) => _range(text, 600, required: false),
                   ),
-                  const SizedBox(height: 8),
-                  DropdownButtonFormField<String?>(
+                  const SizedBox(height: 18),
+                  SelectField<String?>(
+                    label: 'Workout type',
                     initialValue: _choice,
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      labelText: 'Workout type (optional)',
-                      errorText: _choice == _other
-                          ? null
-                          : _error?.fieldMessage('workout_type'),
-                      errorMaxLines: 3,
-                    ),
-                    items: [
-                      const DropdownMenuItem(
-                        value: null,
-                        child: Text('Not specified'),
-                      ),
+                    errorText: _choice == _other
+                        ? null
+                        : _error?.fieldMessage('workout_type'),
+                    options: [
+                      const SelectOption(null, 'Not specified'),
                       for (final type in [...workoutTypes, _other])
-                        DropdownMenuItem(value: type, child: Text(type)),
+                        SelectOption(type, type),
                     ],
                     onChanged: (value) => setState(() => _choice = value),
                   ),
                   if (_choice == _other) ...[
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 18),
                     TextFormField(
                       controller: _type,
                       maxLength: 40,
@@ -241,12 +252,14 @@ class _ActivityLogPageState extends State<ActivityLogPage> {
                           : null,
                     ),
                   ],
-                ] else if (_minutes.text.isNotEmpty || _choice != null)
+                ] else if (_minutes.text.isNotEmpty || _choice != null) ...[
+                  const SizedBox(height: 10),
                   Text(
                     'Saving without a workout clears its minutes and type.',
                     style: TextStyle(color: context.mutedForeground),
                   ),
-                const SizedBox(height: 24),
+                ],
+                const SizedBox(height: 28),
                 SolidAction(label: _saving ? 'Saving…' : 'Save', onTap: _save),
               ],
             ),

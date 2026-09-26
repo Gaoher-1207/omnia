@@ -11,10 +11,7 @@ import 'package:omnia_ui/features/tasks/task_format.dart';
 class GoalsPreview extends StatelessWidget {
   const GoalsPreview({super.key});
 
-  static void _open(BuildContext context) => Navigator.push<void>(
-    context,
-    MaterialPageRoute(builder: (_) => const GoalsPage()),
-  );
+  static void _open(BuildContext context) => GoalsPage.open(context);
 
   @override
   Widget build(BuildContext context) {

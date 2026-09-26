@@ -5,12 +5,12 @@ frontend: canonical
 backend_available: true
 backend_connected: true
 donor: true
-aliases: [Home]
+aliases: [Home, Today]
 ---
 
 # Dashboard
 
-The **Home** tab of the canonical app.
+The **Today** tab of the canonical app (formerly "Home"; the code is still `HomePage`). A summary and router: see [[Navigation and Information Architecture]].
 
 ## Purpose
 
@@ -24,13 +24,13 @@ A single view of the day: greeting, a highlighted exam countdown, category cards
 |---|---|---|
 | Greeting "Good {morning}, {name}." | sample (Shew) | ✅ server `greeting` + `display_name` (profile time zone) |
 | Date line | "Tuesday, September 23 · SAMPLE DAY" | ✅ server `date`, no sample label |
-| Exam card headline and detail | sample DBMS exam + sample plan sentence, `SAMPLE` tag | ✅ `next_exam` ("today" / "tomorrow" / "in N days", title and date), or "No exams coming up." |
+| Exam card headline and detail | sample DBMS exam + sample plan sentence, `SAMPLE` tag | ✅ `next_exam` ("today" / "tomorrow" / "in N days", title and date) with **Open Study**, or "No exams coming up." |
 | Study / Activity / Sleep cards | sample figures | ✅ `today` vs the profile's [[Daily Targets]]; sleep shows **Not logged** when null |
-| Card taps ([[Phase 5B - Activity and Sleep Logging]]) | Activity → activity log, Sleep → sleep log (mock state), Tasks → Tasks, Study → Track tab | same, against the server's day; Study → Track tab (no real study destination yet) |
+| Card taps | Activity → activity log, Sleep → sleep log (full screen), Tasks → Tasks, Study → Study (in the Today tab) | same, against the server's day |
 | Tasks card (`done / total`) | `TaskScope` | `TaskScope` (unchanged; not the dashboard's `tasks_completed`) |
 | Goals preview | `GoalScope` | `GoalScope` (unchanged) |
-| Next up agenda | sample | sample, with a `SAMPLE` tag |
-| "Why?" dialog, "View today's plan" | sample | sample (the dialog is titled "Sample recommendation") |
+| Next up agenda | sample | "No plan yet." (Phase 5C) |
+| "Why?" dialog, "View today's plan" | sample | not shown |
 
 Loading shows "Hello." and dashes; a first-load failure shows "Couldn't load today." with **Try again**. Pull down to refresh; a failed refresh keeps the last day and shows a snackbar. The dashboard also reloads when the app returns to the foreground.
 
@@ -40,7 +40,7 @@ Loading shows "Hello." and dashes; a first-load failure shows "Couldn't load tod
 
 ## State / Controller
 
-`DashboardController` (per [[Session Architecture|UserSession]], shared with [[Track]]), plus `TaskScope`, `GoalScope` and `RevisionScope`.
+`DashboardController` (per [[Session Architecture|UserSession]], shared with [[Areas]] and the Study screen), plus `TaskScope`, `GoalScope` and `RevisionScope`.
 
 ## Backend
 
@@ -51,7 +51,7 @@ Loading shows "Hello." and dashes; a first-load failure shows "Couldn't load tod
 ```mermaid
 flowchart LR
     H["HomePage"] --> DC["DashboardController"]
-    T["TrackPage"] --> DC
+    T["AreasPage"] --> DC
     DC --> DR["DashboardRepository"]
     DR -->|mock mode| MD["MockDashboardRepository"]
     DR ==>|API mode| AD["ApiDashboardRepository"] ==> D["GET /dashboard"]
@@ -62,7 +62,7 @@ flowchart LR
 
 ## Related Features
 
-[[Tasks]] · [[Goals]] · [[Plan]] · [[Track]] · [[Daily Targets]] · [[AI Assistant]]
+[[Tasks]] · [[Goals]] · [[Plan]] · [[Areas]] · [[Daily Targets]] · [[AI Assistant]]
 
 ## Future Direction
 

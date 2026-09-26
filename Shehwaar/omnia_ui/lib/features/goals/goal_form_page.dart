@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:omnia_ui/core/widgets/choice_segments.dart';
 import 'package:omnia_ui/core/models/omnia_category.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
 import 'package:omnia_ui/core/widgets/omnia_progress_bar.dart';
+import 'package:omnia_ui/core/widgets/select_field.dart';
 import 'package:omnia_ui/core/widgets/solid_action.dart';
 import 'package:omnia_ui/features/goals/domain/goal.dart';
 import 'package:omnia_ui/features/goals/goals_page.dart';
@@ -169,52 +171,33 @@ class _GoalFormPageState extends State<GoalFormPage> {
               ),
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<OmniaCategory>(
+            SelectField<OmniaCategory>(
+              label: 'Category',
               initialValue: _category,
-              // Fits the field instead of the widest item at large text.
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Category'),
-              items: [
+              options: [
                 for (final category in OmniaCategory.values)
-                  DropdownMenuItem(
-                    value: category,
-                    child: Text(categoryLabel(category)),
-                  ),
+                  SelectOption(category, categoryLabel(category)),
               ],
-              onChanged: (value) => setState(() => _category = value!),
+              onChanged: (value) => setState(() => _category = value),
             ),
             const SizedBox(height: 18),
-            _label('Target date (optional)'),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: _pickDeadline,
-                  icon: const Icon(Icons.event_outlined),
-                  label: Text(
-                    _deadline == null ? 'Add date' : formatDate(_deadline!),
-                  ),
-                ),
-                if (_deadline != null)
-                  IconButton(
-                    tooltip: 'Clear target date',
-                    onPressed: () => setState(() => _deadline = null),
-                    icon: const Icon(Icons.close),
-                  ),
-              ],
+            PickerField(
+              label: 'Target date',
+              value: _deadline == null ? null : formatDate(_deadline!),
+              icon: Icons.event_outlined,
+              onTap: _pickDeadline,
+              clearTooltip: 'Clear target date',
+              onClear: () => setState(() => _deadline = null),
             ),
             const SizedBox(height: 18),
-            _label('Track progress'),
-            SegmentedButton<bool>(
-              segments: const [
-                ButtonSegment(value: true, label: Text('Measurable')),
-                ButtonSegment(value: false, label: Text('Completion only')),
+            ChoiceSegments<bool>(
+              label: 'Track progress',
+              options: const [
+                SelectOption(true, 'Measurable'),
+                SelectOption(false, 'Completion only'),
               ],
-              selected: {_measurable},
-              onSelectionChanged: (selection) =>
-                  setState(() => _measurable = selection.single),
+              selected: _measurable,
+              onChanged: (value) => setState(() => _measurable = value),
             ),
             const SizedBox(height: 18),
             if (_measurable) ...[
@@ -309,9 +292,4 @@ class _GoalFormPageState extends State<GoalFormPage> {
       ),
     );
   }
-
-  Widget _label(String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Text(text, style: const TextStyle(fontWeight: FontWeight.w800)),
-  );
 }

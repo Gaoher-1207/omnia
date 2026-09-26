@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:omnia_ui/core/app_dependencies.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
+import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/core/widgets/hard_card.dart';
 import 'package:omnia_ui/core/widgets/omnia_mark.dart';
 
+/// Patterns over time. Nothing is computed yet, so it says so rather than
+/// drawing charts from invented numbers.
 class InsightsPage extends StatelessWidget {
   const InsightsPage({super.key});
   @override
@@ -11,15 +15,20 @@ class InsightsPage extends StatelessWidget {
     children: [
       Semantics(
         header: true,
-        child: Text(
+        child: const Text(
           'Insights',
           style: TextStyle(fontSize: 29, fontWeight: FontWeight.w900),
         ),
       ),
-      SizedBox(height: 5),
-      Text('Patterns across your week  ·  SAMPLE DATA'),
-      SizedBox(height: 24),
-      HardCard(
+      const SizedBox(height: 5),
+      Text(
+        AppDependenciesScope.of(context).sampleContent
+            ? 'Patterns across your week  ·  SAMPLE DATA'
+            : 'Patterns across your week',
+        style: TextStyle(color: context.mutedForeground),
+      ),
+      const SizedBox(height: 24),
+      const HardCard(
         color: lilac,
         prominent: true,
         child: Column(
@@ -28,13 +37,13 @@ class InsightsPage extends StatelessWidget {
             OmniaMark(),
             SizedBox(height: 12),
             Text(
-              'Your week in perspective',
+              'No insights yet',
               style: TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
             ),
             SizedBox(height: 6),
             Text(
-              'Insights will be connected to your real activity after '
-              'tracking and the backend are ready.',
+              'Insights aren’t connected yet. They’ll build on the '
+              'activity, sleep and study you log.',
             ),
           ],
         ),

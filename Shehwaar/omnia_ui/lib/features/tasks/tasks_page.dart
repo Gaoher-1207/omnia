@@ -3,6 +3,8 @@ import 'package:omnia_ui/core/theme/app_colors.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/core/widgets/hard_card.dart';
 import 'package:omnia_ui/core/widgets/solid_action.dart';
+import 'package:omnia_ui/core/widgets/state_views.dart';
+import 'package:omnia_ui/core/widgets/surface_shadow.dart';
 import 'package:omnia_ui/features/tasks/domain/task.dart';
 import 'package:omnia_ui/features/tasks/task_controller.dart';
 import 'package:omnia_ui/features/tasks/task_form_page.dart';
@@ -10,6 +12,11 @@ import 'package:omnia_ui/features/tasks/task_format.dart';
 
 class TasksPage extends StatelessWidget {
   const TasksPage({super.key});
+
+  static void open(BuildContext context) => Navigator.push<void>(
+    context,
+    MaterialPageRoute(builder: (_) => const TasksPage()),
+  );
 
   static void _failed(BuildContext context, String action) =>
       ScaffoldMessenger.of(context).showSnackBar(
@@ -20,8 +27,7 @@ class TasksPage extends StatelessWidget {
     BuildContext context,
     TaskController tasks, [
     Task? task,
-  ]) => Navigator.push<void>(
-    context,
+  ]) => Navigator.of(context, rootNavigator: true).push<void>(
     MaterialPageRoute(
       builder: (_) => TaskFormPage(
         initial: task,
@@ -66,12 +72,12 @@ class TasksPage extends StatelessWidget {
     if (!tasks.loaded && tasks.loadError == null) {
       body = const Center(child: CircularProgressIndicator());
     } else if (!tasks.loaded) {
-      body = _Message(
+      body = MessageView(
         title: 'Tasks could not be loaded',
         action: SolidAction(label: 'Try again', onTap: tasks.load),
       );
     } else if (items.isEmpty) {
-      body = const _Message(
+      body = const MessageView(
         title: 'No tasks yet',
         detail: 'Add your first task to start planning your day.',
       );
@@ -81,7 +87,7 @@ class TasksPage extends StatelessWidget {
         children: [
           Text(
             '${tasks.completedCount} of ${items.length} completed',
-            style: TextStyle(color: context.mutedForeground),
+            style: OmniaText.meta.copyWith(color: context.mutedForeground),
           ),
           const SizedBox(height: 12),
           for (final task in items)
@@ -119,47 +125,22 @@ class TasksPage extends StatelessWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openForm(context, tasks),
-        backgroundColor: context.actionBackground,
-        foregroundColor: context.actionForeground,
-        icon: const Icon(Icons.add),
-        label: const Text(
-          'Add task',
-          style: TextStyle(fontWeight: FontWeight.w800),
+      floatingActionButton: SurfaceShadow(
+        radius: 14,
+        child: FloatingActionButton.extended(
+          onPressed: () => _openForm(context, tasks),
+          backgroundColor: context.actionBackground,
+          foregroundColor: context.actionForeground,
+          icon: const Icon(Icons.add),
+          label: const Text(
+            'Add task',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
         ),
       ),
       body: SafeArea(child: body),
     );
   }
-}
-
-class _Message extends StatelessWidget {
-  const _Message({required this.title, this.detail, this.action});
-  final String title;
-  final String? detail;
-  final Widget? action;
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-          ),
-          if (detail != null) ...[
-            const SizedBox(height: 6),
-            Text(detail!, textAlign: TextAlign.center),
-          ],
-          if (action != null) ...[const SizedBox(height: 16), action!],
-        ],
-      ),
-    ),
-  );
 }
 
 class _TaskCard extends StatelessWidget {
@@ -227,10 +208,7 @@ class _TaskCard extends StatelessWidget {
                     ),
                   ],
                   const SizedBox(height: 6),
-                  Text(
-                    meta.join('  ·  '),
-                    style: const TextStyle(fontSize: 12),
-                  ),
+                  Text(meta.join('  ·  '), style: OmniaText.meta),
                 ],
               ),
             ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:omnia_ui/core/widgets/select_field.dart';
 import 'package:omnia_ui/core/api/api_exception.dart';
 import 'package:omnia_ui/core/auth/auth_controller.dart';
 import 'package:omnia_ui/core/auth/timezones.dart';
@@ -150,7 +151,7 @@ class _AuthPageState extends State<AuthPage> {
                         autofillHints: const [AutofillHints.name],
                         maxLength: 60,
                         decoration: InputDecoration(
-                          labelText: 'What should we call you?',
+                          labelText: 'Your name',
                           errorText: error?.fieldMessage('display_name'),
                         ),
                         validator: (value) =>
@@ -212,25 +213,17 @@ class _AuthPageState extends State<AuthPage> {
                     ),
                     if (_register) ...[
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
+                      SelectField<String>(
+                        label: 'Time zone',
                         initialValue: _timezone,
-                        // Fits the field instead of the widest item.
-                        isExpanded: true,
-                        decoration: InputDecoration(
-                          labelText: 'Time zone',
-                          helperText: 'Decides when your day starts.',
-                          helperMaxLines: 3,
-                          errorText: error?.fieldMessage('timezone'),
-                        ),
-                        items: [
+                        helperText: 'Decides when your day starts.',
+                        errorText: error?.fieldMessage('timezone'),
+                        searchable: true,
+                        options: [
                           for (final zone in commonTimezones)
-                            DropdownMenuItem(
-                              value: zone,
-                              child: Text(zone.replaceAll('_', ' ')),
-                            ),
+                            SelectOption(zone, zone.replaceAll('_', ' ')),
                         ],
-                        onChanged: (value) =>
-                            setState(() => _timezone = value ?? _timezone),
+                        onChanged: (value) => setState(() => _timezone = value),
                       ),
                     ],
                     if (general != null) ...[

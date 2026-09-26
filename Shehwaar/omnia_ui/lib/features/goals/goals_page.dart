@@ -5,6 +5,8 @@ import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/core/widgets/hard_card.dart';
 import 'package:omnia_ui/core/widgets/omnia_progress_bar.dart';
 import 'package:omnia_ui/core/widgets/solid_action.dart';
+import 'package:omnia_ui/core/widgets/state_views.dart';
+import 'package:omnia_ui/core/widgets/surface_shadow.dart';
 import 'package:omnia_ui/features/goals/domain/goal.dart';
 import 'package:omnia_ui/features/goals/goal_controller.dart';
 import 'package:omnia_ui/features/goals/goal_form_page.dart';
@@ -39,8 +41,18 @@ String goalAmount(Goal goal) =>
     '${formatAmount(goal.currentValue!)} / '
     '${formatAmount(goal.targetValue!)} ${goal.unit}';
 
+/// Long-term goals have no backend yet; never imply they are saved to the
+/// account.
+const localOnlyNote =
+    'Goals aren’t synced to your account yet. They stay until you close OMNIA.';
+
 class GoalsPage extends StatelessWidget {
   const GoalsPage({super.key});
+
+  static void open(BuildContext context) => Navigator.push<void>(
+    context,
+    MaterialPageRoute(builder: (_) => const GoalsPage()),
+  );
 
   static void _failed(BuildContext context, String action) =>
       ScaffoldMessenger.of(context).showSnackBar(
@@ -51,8 +63,7 @@ class GoalsPage extends StatelessWidget {
     BuildContext context,
     GoalController goals, [
     Goal? goal,
-  ]) => Navigator.push<void>(
-    context,
+  ]) => Navigator.of(context, rootNavigator: true).push<void>(
     MaterialPageRoute(
       builder: (_) => GoalFormPage(
         initial: goal,
@@ -112,16 +123,16 @@ class GoalsPage extends StatelessWidget {
     if (!goals.loaded && goals.loadError == null) {
       body = const Center(child: CircularProgressIndicator());
     } else if (!goals.loaded) {
-      body = _Message(
+      body = MessageView(
         title: 'Goals could not be loaded',
         action: SolidAction(label: 'Try again', onTap: goals.load),
       );
     } else if (goals.isEmpty) {
-      body = const _Message(
+      body = MessageView(
         title: 'No goals yet',
         detail:
             'Add something you are working toward, like finishing a '
-            'syllabus or reading 12 books.',
+            'syllabus or reading 12 books.\n\n$localOnlyNote',
       );
     } else {
       body = ListView(
@@ -129,7 +140,12 @@ class GoalsPage extends StatelessWidget {
         children: [
           Text(
             '${active.length} active  ·  ${completed.length} completed',
-            style: TextStyle(color: context.mutedForeground),
+            style: OmniaText.meta.copyWith(color: context.mutedForeground),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            localOnlyNote,
+            style: TextStyle(color: context.mutedForeground, fontSize: 12),
           ),
           const SizedBox(height: 12),
           const _Header('Active'),
@@ -164,14 +180,17 @@ class GoalsPage extends StatelessWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _openForm(context, goals),
-        backgroundColor: context.actionBackground,
-        foregroundColor: context.actionForeground,
-        icon: const Icon(Icons.add),
-        label: const Text(
-          'Add goal',
-          style: TextStyle(fontWeight: FontWeight.w800),
+      floatingActionButton: SurfaceShadow(
+        radius: 14,
+        child: FloatingActionButton.extended(
+          onPressed: () => _openForm(context, goals),
+          backgroundColor: context.actionBackground,
+          foregroundColor: context.actionForeground,
+          icon: const Icon(Icons.add),
+          label: const Text(
+            'Add goal',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
         ),
       ),
       body: SafeArea(child: body),
@@ -190,34 +209,6 @@ class _Header extends StatelessWidget {
       child: Text(
         text,
         style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-      ),
-    ),
-  );
-}
-
-class _Message extends StatelessWidget {
-  const _Message({required this.title, this.detail, this.action});
-  final String title;
-  final String? detail;
-  final Widget? action;
-  @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-          ),
-          if (detail != null) ...[
-            const SizedBox(height: 6),
-            Text(detail!, textAlign: TextAlign.center),
-          ],
-          if (action != null) ...[const SizedBox(height: 16), action!],
-        ],
       ),
     ),
   );
@@ -291,10 +282,7 @@ class _GoalCard extends StatelessWidget {
                         ),
                       ],
                       const SizedBox(height: 6),
-                      Text(
-                        meta.join('  ·  '),
-                        style: const TextStyle(fontSize: 12),
-                      ),
+                      Text(meta.join('  ·  '), style: OmniaText.meta),
                     ],
                   ),
                 ),

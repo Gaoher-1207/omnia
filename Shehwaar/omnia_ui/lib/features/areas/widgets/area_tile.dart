@@ -1,25 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/core/widgets/omnia_progress_bar.dart';
 import 'package:omnia_ui/core/widgets/hard_card.dart';
 
-class TrackTile extends StatelessWidget {
-  const TrackTile({
+/// One area on the Areas hub: its name, a real status and, when it has a
+/// daily target, progress towards it. A tap opens the area.
+class AreaTile extends StatelessWidget {
+  const AreaTile({
     super.key,
     required this.icon,
     required this.name,
     required this.amount,
     required this.goal,
-    required this.progress,
     required this.color,
-    this.onTap,
+    required this.onTap,
+    this.progress,
   });
   final IconData icon;
   final String name, amount, goal;
-  final double progress;
   final Color color;
+  final VoidCallback onTap;
 
-  /// Opens the feature behind the tile, if it has one.
-  final VoidCallback? onTap;
+  /// Null when the area has no daily target to measure against.
+  final double? progress;
+
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 10),
@@ -39,7 +43,7 @@ class TrackTile extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.w900),
                 ),
               ),
-              Text(goal, style: const TextStyle(fontSize: 12)),
+              const Icon(Icons.chevron_right, size: 20),
             ],
           ),
           const SizedBox(height: 12),
@@ -47,14 +51,17 @@ class TrackTile extends StatelessWidget {
             amount,
             style: const TextStyle(fontSize: 23, fontWeight: FontWeight.w900),
           ),
-          const SizedBox(height: 10),
-          OmniaProgressBar(
-            value: progress,
-            color: color,
-            height: 8,
-            radius: 8,
-            semanticsLabel: '$name progress',
-          ),
+          if (goal.isNotEmpty) Text(goal, style: OmniaText.meta),
+          if (progress != null) ...[
+            const SizedBox(height: 10),
+            OmniaProgressBar(
+              value: progress!,
+              color: color,
+              height: 8,
+              radius: 8,
+              semanticsLabel: '$name progress',
+            ),
+          ],
         ],
       ),
     ),

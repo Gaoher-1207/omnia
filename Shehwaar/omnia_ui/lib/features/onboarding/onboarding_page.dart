@@ -53,12 +53,15 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       onPressed: widget.onSkip,
                       style: TextButton.styleFrom(
                         foregroundColor: context.foreground,
-                        textStyle: const TextStyle(
+                      ),
+                      child: const Text(
+                        'SKIP →',
+                        semanticsLabel: 'Skip',
+                        style: TextStyle(
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1,
                         ),
                       ),
-                      child: const Text('SKIP →', semanticsLabel: 'Skip'),
                     ),
                   ),
                 ),

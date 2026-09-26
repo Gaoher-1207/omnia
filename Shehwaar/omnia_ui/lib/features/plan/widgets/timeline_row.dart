@@ -31,7 +31,7 @@ class TimelineRow extends StatelessWidget {
             width: 52,
             child: Text(
               time,
-              style: TextStyle(color: context.mutedForeground, fontSize: 12),
+              style: OmniaText.meta.copyWith(color: context.mutedForeground),
             ),
           ),
         if (showTimeline) AccentCircle(color: color, size: 9),
@@ -82,9 +82,8 @@ class TimelineRow extends StatelessWidget {
                       ),
                       Text(
                         showTimeline ? duration : "$time \u00b7 $duration",
-                        style: TextStyle(
+                        style: OmniaText.meta.copyWith(
                           color: context.cardForeground(color),
-                          fontSize: 12,
                         ),
                       ),
                       if (showChevron)

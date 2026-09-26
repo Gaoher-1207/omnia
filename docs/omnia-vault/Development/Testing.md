@@ -27,7 +27,7 @@ flutter test
 | `data_foundation_test.dart` | JSON round-trips, in-memory CRUD, revision saves | 4 |
 | `onboarding_test.dart` | onboarding flow, reduced motion | 3 |
 
-That's **186 declarations** in source. Some sit inside loops (for example per brightness or per platform), so the runtime count is higher: **192 passing** after Phase 5B (164 after Phase 5A, 146 after Phase 4, 128 after Phase 3, 106 at the auth checkpoint).
+Some tests sit inside loops (for example per brightness or per platform), so the runtime count is higher than the declarations: **220 passing** after the UX architecture pass and typography (`test/ux_architecture_test.dart` covers the tabs, per-tab stacks, empty states in API mode, selectors and typography), 196 at the Phase 5B commit, 164 after Phase 5A, 146 after Phase 4, 128 after Phase 3, 106 at the auth checkpoint.
 
 Test doubles: `test/support/fake_auth_backend.dart` (a fake FastAPI for `/auth/*`, `/profile`, `/tasks`, `/dashboard`, `/activity/{day}` and `/sleep/{day}` with the real JSON, status codes, validation and user scoping) and `http`'s `MockClient`. No test needs a running server.
 

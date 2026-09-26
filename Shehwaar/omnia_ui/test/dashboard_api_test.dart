@@ -207,7 +207,7 @@ void main() {
     });
   });
 
-  group('Home and Track', () {
+  group('Today and Areas', () {
     testWidgets('mock mode keeps the sample day, labelled', (tester) async {
       tallView(tester);
       await tester.pumpWidget(const OmniaApp());
@@ -222,15 +222,18 @@ void main() {
       }
       expect(find.text('SAMPLE'), findsOneWidget, reason: 'the card tag only');
 
-      await openTab(tester, 'Track');
-      expect(find.text('Your day at a glance  ·  SAMPLE DATA'), findsOneWidget);
+      await openTab(tester, 'Areas');
+      expect(
+        find.text('Everything you manage  ·  SAMPLE DATA'),
+        findsOneWidget,
+      );
       for (final text in ['4h goal', '8,000 steps', '6h 42m', '8h goal']) {
         expect(find.text(text), findsOneWidget, reason: text);
       }
       expect(find.text('SAMPLE'), findsNothing);
     });
 
-    testWidgets('API mode shows the real day on Home and Track', (
+    testWidgets('API mode shows the real day on Today and Areas', (
       tester,
     ) async {
       final backend = samsDay();
@@ -259,24 +262,29 @@ void main() {
       }
       expect(find.textContaining('SAMPLE DAY'), findsNothing);
       expect(find.text('SAMPLE'), findsNothing, reason: 'the card is real');
-      // Only Next up is still the sample plan, and it says so.
+      expect(find.text('Why?'), findsNothing, reason: 'no sample reasoning');
+      // No plan exists yet, so Next up says so instead of showing a sample.
       await tester.dragUntilVisible(
-        find.textContaining('Next up'),
+        find.text('No plan yet.'),
         find.byType(HomePage),
         const Offset(0, -300),
       );
-      expect(find.text('SAMPLE'), findsOneWidget);
+      for (final text in ['Complete Assignment', 'Walk', 'DBMS Revision']) {
+        expect(find.text(text), findsNothing, reason: text);
+      }
+      expect(find.text('SAMPLE'), findsNothing);
       // Tasks keep their all-time meaning, not the dashboard's 1 of 5 goal.
       expect(find.text('1 / 2'), findsOneWidget);
 
-      await openTab(tester, 'Track');
-      expect(find.text('Your day at a glance'), findsOneWidget);
+      await openTab(tester, 'Areas');
+      expect(find.text('Everything you manage'), findsOneWidget);
       for (final text in ['1h 30m', '4h goal', '4,120', '8,000 steps']) {
         expect(find.text(text), findsOneWidget, reason: text);
       }
       expect(find.text('Not logged'), findsOneWidget);
-      expect(find.text('SAMPLE'), findsOneWidget, reason: "Today's activity");
-      expect(dashboardRequests(backend), 1, reason: 'Track shares Home’s');
+      expect(find.text('SAMPLE'), findsNothing);
+      expect(find.text('0 active'), findsOneWidget, reason: 'no demo goals');
+      expect(dashboardRequests(backend), 1, reason: 'Areas shares Today’s');
     });
 
     testWidgets('the API-mode labels fit 200% text on a small phone', (
@@ -296,8 +304,8 @@ void main() {
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
       }
-      expect(find.text('SAMPLE'), findsOneWidget, reason: 'reached Next up');
-      await openTab(tester, 'Track');
+      expect(find.text('No plan yet.'), findsOneWidget, reason: 'the end');
+      await openTab(tester, 'Areas');
       expect(tester.takeException(), isNull);
     });
 

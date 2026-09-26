@@ -24,7 +24,7 @@ Completion is always the **user's decision**. Reaching the target doesn't comple
 
 ## Current Status
 
-`local-functional`. Create, edit, delete (confirmed), complete and reopen, plus Active and Completed sections and a Home preview of the two most pressing active goals. Data is **in-memory** (`MockGoalRepository`) and resets on restart or sign-in.
+`local-functional`. Create, edit, delete (confirmed), complete and reopen, plus Active and Completed sections and a Home preview of the two most pressing active goals. Data is **in-memory** (`MockGoalRepository`) and resets on restart or sign-in. In API mode the repository **starts empty** (no demo goals), and the screen says: "Goals aren't synced to your account yet. They stay until you close OMNIA." Opened from the Today preview and the [[Areas]] tile.
 
 ## Current Frontend
 

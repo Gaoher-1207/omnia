@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:omnia_ui/core/widgets/choice_segments.dart';
+import 'package:flutter/services.dart';
+import 'package:omnia_ui/core/widgets/select_field.dart';
 import 'package:omnia_ui/core/models/omnia_category.dart';
 import 'package:omnia_ui/core/widgets/solid_action.dart';
 import 'package:omnia_ui/features/tasks/domain/task.dart';
@@ -15,14 +18,27 @@ class TaskFormPage extends StatefulWidget {
   State<TaskFormPage> createState() => _TaskFormPageState();
 }
 
+const _estimates = [15, 30, 45, 60, 90, 120];
+const _custom = -1;
+
 class _TaskFormPageState extends State<TaskFormPage> {
   final _form = GlobalKey<FormState>();
   late final _title = TextEditingController(text: widget.initial?.title);
   late final _description = TextEditingController(
     text: widget.initial?.description,
   );
+  late final int? _initialMinutes =
+      widget.initial?.estimatedDuration?.inMinutes;
+
+  /// A preset, [_custom], or null for no estimate. A stored estimate that
+  /// isn't a preset opens as Custom with its minutes, so none is lost.
+  late int? _estimate = _initialMinutes == null
+      ? null
+      : _estimates.contains(_initialMinutes)
+      ? _initialMinutes
+      : _custom;
   late final _minutes = TextEditingController(
-    text: widget.initial?.estimatedDuration?.inMinutes.toString(),
+    text: _estimate == _custom ? '$_initialMinutes' : '',
   );
   late var _priority = widget.initial?.priority ?? TaskPriority.normal;
   late var _category = widget.initial?.category ?? OmniaCategory.tasks;
@@ -60,9 +76,7 @@ class _TaskFormPageState extends State<TaskFormPage> {
   }
 
   static String? _validateMinutes(String? value) {
-    final text = value?.trim() ?? '';
-    if (text.isEmpty) return null;
-    final minutes = int.tryParse(text);
+    final minutes = int.tryParse(value?.trim() ?? '');
     if (minutes == null || minutes < 1 || minutes > 24 * 60) {
       return 'Enter whole minutes from 1 to 1440';
     }
@@ -81,7 +95,9 @@ class _TaskFormPageState extends State<TaskFormPage> {
             _time?.hour ?? 0,
             _time?.minute ?? 0,
           );
-    final minutes = int.tryParse(_minutes.text.trim());
+    final minutes = _estimate == _custom
+        ? int.tryParse(_minutes.text.trim())
+        : _estimate;
     final description = _description.text.trim();
     final initial = widget.initial;
     final task = initial == null
@@ -144,72 +160,76 @@ class _TaskFormPageState extends State<TaskFormPage> {
               ),
             ),
             const SizedBox(height: 12),
-            _label('Priority'),
-            SegmentedButton<TaskPriority>(
-              segments: [
+            ChoiceSegments<TaskPriority>(
+              label: 'Priority',
+              options: [
                 for (final priority in TaskPriority.values)
-                  ButtonSegment(
-                    value: priority,
-                    label: Text(priorityLabel(priority)),
-                  ),
+                  SelectOption(priority, priorityLabel(priority)),
               ],
-              selected: {_priority},
-              onSelectionChanged: (selection) =>
-                  setState(() => _priority = selection.single),
+              selected: _priority,
+              onChanged: (value) => setState(() => _priority = value),
             ),
             const SizedBox(height: 18),
-            DropdownButtonFormField<OmniaCategory>(
+            SelectField<OmniaCategory>(
+              label: 'Category',
               initialValue: _category,
-              decoration: const InputDecoration(labelText: 'Category'),
-              items: [
+              options: [
                 for (final category in OmniaCategory.values)
-                  DropdownMenuItem(
-                    value: category,
-                    child: Text(categoryLabel(category)),
-                  ),
+                  SelectOption(category, categoryLabel(category)),
               ],
-              onChanged: (value) => setState(() => _category = value!),
+              onChanged: (value) => setState(() => _category = value),
             ),
             const SizedBox(height: 18),
-            _label('Due'),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: _pickDate,
-                  icon: const Icon(Icons.event_outlined),
-                  label: Text(_date == null ? 'Add date' : formatDate(_date!)),
-                ),
-                if (_date != null)
-                  OutlinedButton.icon(
-                    onPressed: _pickTime,
-                    icon: const Icon(Icons.schedule),
-                    label: Text(
-                      _time == null ? 'Add time' : _time!.format(context),
-                    ),
-                  ),
-                if (_date != null)
-                  IconButton(
-                    tooltip: 'Clear due date',
-                    onPressed: () => setState(() {
-                      _date = null;
-                      _time = null;
-                    }),
-                    icon: const Icon(Icons.close),
-                  ),
-              ],
+            PickerField(
+              label: 'Due date',
+              value: _date == null ? null : formatDate(_date!),
+              icon: Icons.event_outlined,
+              onTap: _pickDate,
+              clearTooltip: 'Clear due date',
+              onClear: () => setState(() {
+                _date = null;
+                _time = null;
+              }),
             ),
-            const SizedBox(height: 18),
-            TextFormField(
-              controller: _minutes,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Estimated minutes (optional)',
+            if (_date != null) ...[
+              const SizedBox(height: 18),
+              PickerField(
+                label: 'Due time',
+                value: _time?.format(context),
+                icon: Icons.schedule,
+                onTap: _pickTime,
+                clearTooltip: 'Clear due time',
+                onClear: () => setState(() => _time = null),
               ),
-              validator: _validateMinutes,
+            ],
+            const SizedBox(height: 18),
+            SelectField<int?>(
+              label: 'Estimated time',
+              initialValue: _estimate,
+              options: [
+                const SelectOption(null, 'No estimate'),
+                for (final minutes in _estimates)
+                  SelectOption(
+                    minutes,
+                    formatDuration(Duration(minutes: minutes)),
+                  ),
+                const SelectOption(_custom, 'Custom'),
+              ],
+              onChanged: (value) => setState(() => _estimate = value),
             ),
+            if (_estimate == _custom) ...[
+              const SizedBox(height: 18),
+              TextFormField(
+                controller: _minutes,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: const InputDecoration(
+                  labelText: 'Custom minutes',
+                  errorMaxLines: 3,
+                ),
+                validator: _validateMinutes,
+              ),
+            ],
             const SizedBox(height: 24),
             SolidAction(
               label: _saving
@@ -224,9 +244,4 @@ class _TaskFormPageState extends State<TaskFormPage> {
       ),
     );
   }
-
-  Widget _label(String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Text(text, style: const TextStyle(fontWeight: FontWeight.w800)),
-  );
 }

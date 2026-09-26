@@ -270,7 +270,7 @@ void main() {
       await backToHome(tester);
       expect(find.text('/ 3h'), findsOneWidget);
       expect(find.text('/ 4h'), findsNothing);
-      await tester.tap(find.text('Track').last);
+      await tester.tap(find.text('Areas').last);
       await tester.pumpAndSettle();
       expect(find.text('3h goal'), findsOneWidget);
     });

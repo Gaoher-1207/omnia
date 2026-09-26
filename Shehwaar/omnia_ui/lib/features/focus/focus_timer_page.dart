@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:omnia_ui/core/widgets/choice_segments.dart';
+import 'package:omnia_ui/core/widgets/select_field.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/core/widgets/action_row.dart';
@@ -80,16 +82,16 @@ class FocusTimerPage extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(18),
           children: [
-            SegmentedButton<int>(
-              showSelectedIcon: false,
-              segments: [
+            ChoiceSegments<int>(
+              label: 'Timer',
+              showLabel: false,
+              options: [
                 for (final (i, preset) in FocusPreset.builtIns.indexed)
-                  ButtonSegment(value: i, label: Text(preset.label)),
-                const ButtonSegment(value: _custom, label: Text('Custom')),
+                  SelectOption(i, preset.label),
+                const SelectOption(_custom, 'Custom'),
               ],
-              selected: {selected},
-              onSelectionChanged: (choice) =>
-                  _choose(context, timer, choice.single),
+              selected: selected,
+              onChanged: (choice) => _choose(context, timer, choice),
             ),
             if (timer.preset.isCustom)
               Align(

@@ -11,7 +11,8 @@ import 'package:omnia_ui/features/plan/plan_page.dart';
 import 'package:omnia_ui/features/plan/revision_detail_page.dart';
 import 'package:omnia_ui/features/plan/widgets/timeline_row.dart';
 import 'package:omnia_ui/features/settings/settings_page.dart';
-import 'package:omnia_ui/features/track/track_page.dart';
+import 'package:omnia_ui/features/areas/areas_page.dart';
+import 'package:omnia_ui/features/study/study_page.dart';
 
 Future<void> startApp(
   WidgetTester tester, {
@@ -133,8 +134,8 @@ void main() {
         await tester.pageBack();
         await tester.pumpAndSettle();
 
-        await tab(tester, Icons.bar_chart_rounded);
-        expectTheme(tester, TrackPage, brightness);
+        await tab(tester, Icons.grid_view_rounded);
+        expectTheme(tester, AreasPage, brightness);
         // Live TaskController count (one seeded mock task), not sample text.
         expect(find.text('0 of 1'), findsOneWidget);
         await tab(tester, Icons.pie_chart_outline);
@@ -160,7 +161,7 @@ void main() {
   ) async {
     await startApp(tester);
     await tapText(tester, 'Study');
-    expect(find.byType(TrackPage), findsOneWidget);
+    expect(find.byType(StudyPage), findsOneWidget);
     await tab(tester, Icons.home_rounded);
     await tapText(tester, 'Why?');
     expect(find.text('Sample recommendation'), findsOneWidget);

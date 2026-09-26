@@ -14,11 +14,7 @@ class LabelTag extends StatelessWidget {
     ),
     child: Text(
       text,
-      style: TextStyle(
-        color: context.actionForeground,
-        fontSize: 11,
-        fontWeight: FontWeight.w900,
-      ),
+      style: OmniaText.label.copyWith(color: context.actionForeground),
     ),
   );
 }

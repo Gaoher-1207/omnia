@@ -9,6 +9,8 @@ import 'package:omnia_ui/features/tasks/domain/task_repository.dart';
 import 'package:omnia_ui/features/tasks/task_controller.dart';
 import 'package:omnia_ui/features/tasks/tasks_page.dart';
 
+import 'support/select.dart';
+
 Task task(String id, {bool completed = false}) => Task(
   id: id,
   title: 'Task $id',
@@ -121,8 +123,10 @@ void main() {
       await tester.tap(find.byType(FloatingActionButton));
       await tester.pumpAndSettle();
       final save = find.widgetWithText(SolidAction, 'Add task');
+      // A known duration is picked; only Custom asks for typed minutes.
+      await pick(tester, 'Estimated time', 'Custom');
       await tester.enterText(
-        find.widgetWithText(TextFormField, 'Estimated minutes (optional)'),
+        find.widgetWithText(TextFormField, 'Custom minutes'),
         '0',
       );
       await tester.ensureVisible(save);
@@ -136,7 +140,7 @@ void main() {
         'Buy groceries',
       );
       await tester.enterText(
-        find.widgetWithText(TextFormField, 'Estimated minutes (optional)'),
+        find.widgetWithText(TextFormField, 'Custom minutes'),
         '25',
       );
       await tester.ensureVisible(save);
@@ -146,6 +150,62 @@ void main() {
       expect(find.byType(TasksPage), findsOneWidget);
       expect(find.text('Buy groceries'), findsOneWidget);
       expect(find.textContaining('25m'), findsOneWidget);
+    });
+
+    testWidgets('a preset estimate saves without typing', (tester) async {
+      final controller = await pumpTasksPage(
+        tester,
+        MockTaskRepository(seed: []),
+      );
+      await tester.tap(find.byType(FloatingActionButton));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Title'),
+        'Read',
+      );
+      await pick(tester, 'Estimated time', '45m');
+      expect(
+        find.widgetWithText(TextFormField, 'Custom minutes'),
+        findsNothing,
+      );
+      final save = find.widgetWithText(SolidAction, 'Add task');
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      expect(
+        controller.tasks.single.estimatedDuration,
+        const Duration(minutes: 45),
+      );
+    });
+
+    testWidgets('an estimate that is not a preset stays as Custom', (
+      tester,
+    ) async {
+      final controller = await pumpTasksPage(
+        tester,
+        MockTaskRepository(
+          seed: [
+            Task(
+              id: 'odd',
+              title: 'Odd estimate',
+              createdAt: DateTime.utc(2025),
+              estimatedDuration: const Duration(minutes: 25),
+            ),
+          ],
+        ),
+      );
+      await tester.tap(find.text('Odd estimate'));
+      await tester.pumpAndSettle();
+      expect(find.text('Custom'), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, '25'), findsOneWidget);
+      final save = find.widgetWithText(SolidAction, 'Save changes');
+      await tester.ensureVisible(save);
+      await tester.tap(save);
+      await tester.pumpAndSettle();
+      expect(
+        controller.tasks.single.estimatedDuration,
+        const Duration(minutes: 25),
+      );
     });
 
     testWidgets('edit pre-fills and saves; delete asks first', (tester) async {

@@ -172,7 +172,7 @@ void main() {
     expect(find.text('Enter your password'), findsOneWidget);
     expect(backend.requests, isEmpty, reason: 'checked before sending');
 
-    await tester.enterText(field('What should we call you?'), 'Ada');
+    await tester.enterText(field('Your name'), 'Ada');
     await tester.enterText(field('Email'), 'ada@nowhere');
     await tester.enterText(field('Password'), 'short');
     await tapAction(tester, 'Create account');

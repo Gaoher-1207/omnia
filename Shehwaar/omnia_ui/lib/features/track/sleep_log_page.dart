@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:omnia_ui/core/api/api_exception.dart';
+import 'package:omnia_ui/core/theme/app_colors.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
+import 'package:omnia_ui/core/widgets/area_header.dart';
+import 'package:omnia_ui/core/widgets/section_header.dart';
+import 'package:omnia_ui/core/widgets/select_field.dart';
 import 'package:omnia_ui/core/widgets/solid_action.dart';
 import 'package:omnia_ui/core/widgets/state_views.dart';
 import 'package:omnia_ui/features/home/dashboard_controller.dart';
@@ -22,10 +26,11 @@ class SleepLogPage extends StatefulWidget {
       showDone(context, notLoadedMessage);
       return;
     }
-    Navigator.push<void>(
+    // A short form: it takes the whole screen, over the tab bar.
+    Navigator.of(
       context,
-      MaterialPageRoute(builder: (_) => SleepLogPage(day: day)),
-    );
+      rootNavigator: true,
+    ).push<void>(MaterialPageRoute(builder: (_) => SleepLogPage(day: day)));
   }
 
   @override
@@ -198,7 +203,7 @@ class _SleepLogPageState extends State<SleepLogPage> {
     ];
     final danger = Theme.of(context).colorScheme.error;
     return Scaffold(
-      appBar: AppBar(title: const Text('Sleep')),
+      appBar: AppBar(),
       body: _loading
           ? const Center(
               child: CircularProgressIndicator(semanticsLabel: 'Loading sleep'),
@@ -214,12 +219,17 @@ class _SleepLogPageState extends State<SleepLogPage> {
               child: ListView(
                 padding: const EdgeInsets.all(18),
                 children: [
-                  Text(
-                    'The night ending ${formatLongDate(widget.day)}'
-                    '${entry == null ? '  ·  not logged yet' : ''}',
-                    style: TextStyle(color: context.mutedForeground),
+                  AreaHeader(
+                    icon: Icons.dark_mode_outlined,
+                    color: lilac,
+                    eyebrow: 'Last night',
+                    title: 'Sleep',
+                    subtitle:
+                        'The night ending ${formatLongDate(widget.day)}'
+                        '${entry == null ? '  ·  not logged yet' : ''}',
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
+                  const SectionHeader('How long you slept'),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -235,24 +245,15 @@ class _SleepLogPageState extends State<SleepLogPage> {
                       padding: const EdgeInsets.only(top: 6),
                       child: Text(m, style: TextStyle(color: danger)),
                     ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<int?>(
+                  const SizedBox(height: 22),
+                  SelectField<int?>(
+                    label: 'How did you sleep?',
                     initialValue: _quality,
-                    isExpanded: true,
-                    decoration: InputDecoration(
-                      labelText: 'How did you sleep? (optional)',
-                      errorText: _error?.fieldMessage('quality'),
-                    ),
-                    items: [
-                      const DropdownMenuItem(
-                        value: null,
-                        child: Text('Not rated'),
-                      ),
+                    errorText: _error?.fieldMessage('quality'),
+                    options: [
+                      const SelectOption(null, 'Not rated'),
                       for (final MapEntry(:key, :value) in _qualities.entries)
-                        DropdownMenuItem(
-                          value: key,
-                          child: Text('$key · $value'),
-                        ),
+                        SelectOption(key, '$key · $value'),
                     ],
                     onChanged: (value) => setState(() => _quality = value),
                   ),
@@ -263,19 +264,27 @@ class _SleepLogPageState extends State<SleepLogPage> {
                       style: TextStyle(color: context.mutedForeground),
                     ),
                   ],
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 28),
                   SolidAction(
                     label: _saving ? 'Saving…' : 'Save',
                     onTap: _save,
                   ),
                   if (entry != null) ...[
                     const SizedBox(height: 12),
-                    TextButton.icon(
+                    OutlinedButton.icon(
                       onPressed: _saving ? null : _remove,
-                      icon: Icon(Icons.delete_outline, color: danger),
-                      label: Text(
+                      icon: const Icon(Icons.delete_outline),
+                      label: const Text(
                         'Remove entry',
-                        style: TextStyle(color: danger),
+                        style: TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: danger,
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                        side: BorderSide(color: danger, width: 1.6),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(9),
+                        ),
                       ),
                     ),
                   ],

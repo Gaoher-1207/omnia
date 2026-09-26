@@ -23,6 +23,7 @@ class AppDependencies {
     required this.tasks, required this.goals, required this.study,
     required this.dashboard, required this.track,
     required this.initialRevisionSession,
+    this.sampleContent = false,
   });
 
   factory AppDependencies.mock() {
@@ -33,17 +34,19 @@ class AppDependencies {
       tasks: MockTaskRepository(), goals: MockGoalRepository(),
       study: MockStudyRepository(sessions: [revision]),
       dashboard: MockDashboardRepository(track: track), track: track,
-      initialRevisionSession: revision,
+      initialRevisionSession: revision, sampleContent: true,
     );
   }
 
   /// API mode: tasks, the dashboard, activity and sleep come from the
-  /// backend; the other features stay in-memory until their own integration
-  /// phase.
+  /// backend. Goals stay in-memory until their own integration phase, and
+  /// start empty: the user's, never the demo's. Study is still the demo
+  /// session, which screens hide while [sampleContent] is false.
   factory AppDependencies.api(ApiClient api) {
     final local = AppDependencies.mock();
     return AppDependencies(
-      tasks: ApiTaskRepository(api), goals: local.goals, study: local.study,
+      tasks: ApiTaskRepository(api), goals: MockGoalRepository(seed: const []),
+      study: local.study,
       dashboard: ApiDashboardRepository(api), track: ApiTrackRepository(api),
       initialRevisionSession: local.initialRevisionSession,
     );
@@ -55,6 +58,10 @@ class AppDependencies {
   final DashboardRepository dashboard;
   final TrackRepository track;
   final StudySession initialRevisionSession;
+
+  /// Mock mode's demo day: the sample plan, revision session and "Why?"
+  /// exist only here. Real sessions show real data or an empty state.
+  final bool sampleContent;
 }
 
 class AppDependenciesScope extends InheritedWidget {

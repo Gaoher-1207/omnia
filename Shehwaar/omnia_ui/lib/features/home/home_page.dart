@@ -10,6 +10,9 @@ import 'package:omnia_ui/features/plan/plan_item.dart';
 import 'package:omnia_ui/features/plan/revision_controller.dart';
 import 'package:omnia_ui/features/tasks/task_controller.dart';
 import 'package:omnia_ui/features/tasks/tasks_page.dart';
+import 'package:omnia_ui/features/study/study_page.dart';
+import 'package:omnia_ui/core/app_dependencies.dart';
+import 'package:omnia_ui/core/widgets/section_header.dart';
 import 'package:omnia_ui/features/track/activity_log_page.dart';
 import 'package:omnia_ui/features/track/sleep_log_page.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
@@ -23,9 +26,8 @@ import 'package:omnia_ui/features/home/widgets/category_card.dart';
 import 'package:omnia_ui/features/home/widgets/goals_preview.dart';
 
 class HomePage extends StatelessWidget {
-  const HomePage({super.key, required this.openPlan, required this.openTrack});
+  const HomePage({super.key, required this.openPlan});
   final VoidCallback openPlan;
-  final VoidCallback openTrack;
 
   /// A failed refresh keeps the day on screen, so say why it didn't update.
   static Future<void> _refresh(
@@ -42,6 +44,8 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final controller = DashboardScope.of(context);
+    // Mock mode's demo day; a real session never shows its sample plan.
+    final sample = AppDependenciesScope.of(context).sampleContent;
     final dashboard = controller.dashboard;
     final today = dashboard?.today;
     final sleep = today?.sleepMinutes;
@@ -55,7 +59,7 @@ class HomePage extends StatelessWidget {
         'No exams coming up.',
         'Upcoming exams will count down here.',
       ),
-      (Dashboard(nextExam: final exam?, sample: true), _) => (
+      (Dashboard(nextExam: final exam?), _) when sample => (
         examHeadline(exam),
         'Your plan includes a 45-minute revision session today. '
             'You can adjust it to fit your schedule.',
@@ -104,19 +108,12 @@ class HomePage extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 5),
-          Text(
-            switch (dashboard) {
-              null => controller.loading ? 'Loading today…' : '',
-              Dashboard(sample: true) =>
-                '${formatLongDate(dashboard.date)}  ·  SAMPLE DAY',
-              _ => formatLongDate(dashboard.date),
-            },
-            style: TextStyle(
-              fontSize: 12,
-              letterSpacing: .4,
-              color: context.foreground,
-            ),
-          ),
+          Text(switch (dashboard) {
+            null => controller.loading ? 'Loading today…' : '',
+            Dashboard(sample: true) =>
+              '${formatLongDate(dashboard.date)}  ·  SAMPLE DAY',
+            _ => formatLongDate(dashboard.date),
+          }, style: OmniaText.meta.copyWith(color: context.foreground)),
           const SizedBox(height: 18),
           HardCard(
             color: lilac,
@@ -158,17 +155,22 @@ class HomePage extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(detail, style: TextStyle(height: 1.35)),
                 ],
-                const SizedBox(height: 18),
-                Row(
-                  children: [
-                    if (dashboard == null && controller.loadError != null)
-                      Expanded(
-                        child: SolidAction(
-                          label: 'Try again',
-                          onTap: controller.load,
-                        ),
-                      )
-                    else ...[
+                if (dashboard == null && controller.loadError != null) ...[
+                  const SizedBox(height: 18),
+                  SolidAction(label: 'Try again', onTap: controller.load),
+                ] else if (dashboard?.nextExam != null && !sample) ...[
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    child: SolidAction(
+                      label: 'Open Study',
+                      onTap: () => StudyPage.open(context),
+                    ),
+                  ),
+                ] else if (sample) ...[
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
                       Expanded(
                         child: SolidAction(
                           label: "View today's plan",
@@ -195,8 +197,8 @@ class HomePage extends StatelessWidget {
                         child: Text('Why?'),
                       ),
                     ],
-                  ],
-                ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -217,7 +219,7 @@ class HomePage extends StatelessWidget {
                       ? 0
                       : towards(today.studyMinutes, today.studyGoalMinutes),
                   color: blue,
-                  onTap: openTrack,
+                  onTap: () => StudyPage.open(context),
                 ),
               ),
               SizedBox(width: 10),
@@ -230,14 +232,11 @@ class HomePage extends StatelessWidget {
                     return CategoryCard(
                       icon: Icons.task_alt,
                       title: 'Tasks',
-                      amount: '$done / $total',
-                      goal: 'completed',
+                      amount: tasks.loaded ? '$done / $total' : '—',
+                      goal: tasks.loaded ? 'completed' : '',
                       progress: total == 0 ? 0 : done / total,
                       color: yellow,
-                      onTap: () => Navigator.push<void>(
-                        context,
-                        MaterialPageRoute(builder: (_) => const TasksPage()),
-                      ),
+                      onTap: () => TasksPage.open(context),
                     );
                   },
                 ),
@@ -285,61 +284,45 @@ class HomePage extends StatelessWidget {
           const SizedBox(height: 20),
           const GoalsPreview(),
           const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: Semantics(
-                  header: true,
-                  child: Text.rich(
-                    TextSpan(
-                      text: 'Next up',
-                      children: [
-                        // Still the sample plan: say so once the rest of
-                        // Home is real. Inline, so large text wraps it.
-                        if (dashboard?.sample != true)
-                          const WidgetSpan(
-                            alignment: PlaceholderAlignment.middle,
-                            child: Padding(
-                              padding: EdgeInsets.only(left: 8),
-                              child: LabelTag(text: 'SAMPLE'),
-                            ),
-                          ),
-                      ],
-                    ),
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: openPlan,
-                child: Text('See all →', semanticsLabel: 'See all'),
-              ),
-            ],
+          SectionHeader(
+            'Next up',
+            action: sample
+                ? TextButton(
+                    onPressed: openPlan,
+                    child: Text('See all →', semanticsLabel: 'See all'),
+                  )
+                : null,
           ),
-          AgendaLine(
-            onTap: () => openPlanItem(context, samplePlan[2]),
-            time: '10:00',
-            title: RevisionScope.of(context).title,
-            duration: '45m',
-            icon: Icons.menu_book_outlined,
-            color: blue,
-          ),
-          AgendaLine(
-            onTap: () => openPlanItem(context, samplePlan[3]),
-            time: '11:00',
-            title: 'Complete Assignment',
-            duration: '1h',
-            icon: Icons.task_alt,
-            color: yellow,
-          ),
-          AgendaLine(
-            onTap: () => openPlanItem(context, samplePlan[5]),
-            time: '16:30',
-            title: 'Walk',
-            duration: '20m',
-            icon: Icons.directions_walk,
-            color: mint,
-          ),
+          if (sample) ...[
+            AgendaLine(
+              onTap: () => openPlanItem(context, samplePlan[2]),
+              time: '10:00',
+              title: RevisionScope.of(context).title,
+              duration: '45m',
+              icon: Icons.menu_book_outlined,
+              color: blue,
+            ),
+            AgendaLine(
+              onTap: () => openPlanItem(context, samplePlan[3]),
+              time: '11:00',
+              title: 'Complete Assignment',
+              duration: '1h',
+              icon: Icons.task_alt,
+              color: yellow,
+            ),
+            AgendaLine(
+              onTap: () => openPlanItem(context, samplePlan[5]),
+              time: '16:30',
+              title: 'Walk',
+              duration: '20m',
+              icon: Icons.directions_walk,
+              color: mint,
+            ),
+          ] else
+            const EmptyCard(
+              title: 'No plan yet.',
+              detail: 'Planning your day isn’t connected yet.',
+            ),
           const SizedBox(height: 18),
         ],
       ),

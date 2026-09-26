@@ -12,6 +12,8 @@ import 'package:omnia_ui/features/auth/auth_page.dart';
 import 'package:omnia_ui/features/home/dashboard_controller.dart';
 import 'package:omnia_ui/features/home/data/api_dashboard_repository.dart';
 import 'package:omnia_ui/features/home/home_page.dart';
+import 'package:omnia_ui/features/goals/goals_page.dart';
+import 'package:omnia_ui/features/study/study_page.dart';
 import 'package:omnia_ui/features/tasks/tasks_page.dart';
 import 'package:omnia_ui/features/track/activity_log_page.dart';
 import 'package:omnia_ui/features/track/data/api_track_repository.dart';
@@ -20,9 +22,10 @@ import 'package:omnia_ui/features/track/domain/track_repository.dart';
 import 'package:omnia_ui/features/track/domain/wellbeing.dart';
 import 'package:omnia_ui/features/track/sleep_log_page.dart';
 import 'package:omnia_ui/features/track/track_controller.dart';
-import 'package:omnia_ui/features/track/track_page.dart';
+import 'package:omnia_ui/features/areas/areas_page.dart';
 
 import 'support/fake_auth_backend.dart';
+import 'support/select.dart';
 
 const sam = 'sam@example.com', ada = 'ada@example.com';
 
@@ -123,8 +126,8 @@ Future<void> openSettings(WidgetTester tester) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> openTrackTab(WidgetTester tester) async {
-  await tester.tap(find.text('Track').last);
+Future<void> openAreasTab(WidgetTester tester) async {
+  await tester.tap(find.text('Areas').last);
   await tester.pumpAndSettle();
 }
 
@@ -143,15 +146,8 @@ Future<void> tapButton(WidgetTester tester, Finder button) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> pickWorkout(WidgetTester tester, String type) async {
-  final menu = find.byType(DropdownButtonFormField<String?>);
-  await tester.ensureVisible(menu);
-  await tester.pumpAndSettle();
-  await tester.tap(menu);
-  await tester.pumpAndSettle();
-  await tester.tap(find.text(type).last);
-  await tester.pumpAndSettle();
-}
+Future<void> pickWorkout(WidgetTester tester, String type) =>
+    pick(tester, 'Workout type', type);
 
 Future<void> save(WidgetTester tester) =>
     tapButton(tester, find.widgetWithText(SolidAction, 'Save'));
@@ -421,7 +417,8 @@ void main() {
 
       await tapCard(tester, 'Activity');
       expect(find.byType(ActivityLogPage), findsOneWidget);
-      expect(find.text('Today  ·  Thursday, September 24'), findsOneWidget);
+      expect(find.text('TODAY'), findsOneWidget);
+      expect(find.text('Thursday, September 24'), findsOneWidget);
       expect(find.text('4120'), findsOneWidget);
       expect(find.text('30'), findsOneWidget);
       expect(find.text('Run'), findsOneWidget);
@@ -625,32 +622,43 @@ void main() {
       expect(find.text('Not logged'), findsOneWidget);
     });
 
-    testWidgets('Track tiles open the log screens and Tasks', (tester) async {
+    testWidgets('Areas tiles open each area; hubs keep the tab bar', (
+      tester,
+    ) async {
       await startApp(tester, backend());
-      await openTrackTab(tester);
-      expect(find.byType(TrackPage), findsOneWidget);
-      await tapCard(tester, 'Activity', page: TrackPage);
+      await openAreasTab(tester);
+      expect(find.byType(AreasPage), findsOneWidget);
+      await tapCard(tester, 'Activity', page: AreasPage);
       expect(find.byType(ActivityLogPage), findsOneWidget);
       await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();
-      await tapCard(tester, 'Sleep', page: TrackPage);
+      await tapCard(tester, 'Sleep', page: AreasPage);
       expect(find.byType(SleepLogPage), findsOneWidget);
       await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();
-      await tapCard(tester, 'Tasks', page: TrackPage);
+      await tapCard(tester, 'Tasks', page: AreasPage);
       expect(find.byType(TasksPage), findsOneWidget);
+      expect(find.text('Areas').hitTestable(), findsOneWidget, reason: 'tabs');
+      await tester.tap(find.byTooltip('Back'));
+      await tester.pumpAndSettle();
+      await tapCard(tester, 'Goals', page: AreasPage);
+      expect(find.byType(GoalsPage), findsOneWidget);
+      await tester.tap(find.byTooltip('Back'));
+      await tester.pumpAndSettle();
+      await tapCard(tester, 'Study', page: AreasPage);
+      expect(find.byType(StudyPage), findsOneWidget);
     });
 
-    testWidgets('Home Tasks card opens Tasks; Study still opens Track', (
-      tester,
-    ) async {
+    testWidgets('Today cards open what they represent', (tester) async {
       await startApp(tester, backend());
       await tapCard(tester, 'Tasks');
       expect(find.byType(TasksPage), findsOneWidget);
       await tester.tap(find.byTooltip('Back'));
       await tester.pumpAndSettle();
       await tapCard(tester, 'Study');
-      expect(find.byType(TrackPage).hitTestable(), findsOneWidget);
+      expect(find.byType(StudyPage), findsOneWidget);
+      expect(find.byType(AreasPage), findsNothing, reason: 'no tab switch');
+      expect(find.text('Today').hitTestable(), findsOneWidget);
     });
 
     testWidgets('before today has loaded there is nothing to log against', (

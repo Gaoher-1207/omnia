@@ -1,13 +1,13 @@
 ---
 type: roadmap
-status: implemented-pending-manual-verification
+status: complete
 phase: 5B
 ---
 
 # Phase 5B - Activity and Sleep Logging
 
 > [!note] Status
-> **Implemented; automated verification passed; manual emulator verification pending.** Uncommitted on top of `e822b4b` at the time of writing. Second sub-phase of the sprint (5A → **5B** → 5C).
+> **Complete.** Automated verification passed and it was manually verified on the Android emulator against the real backend; committed as `0375257`. The workout type became a preset selector with Other (custom values preserved) before the checkpoint. Second sub-phase of the sprint (5A → **5B** → 5C).
 
 ## Goal
 
@@ -61,12 +61,12 @@ Study has no legitimate destination: the only study screen is the Revision detai
 - [x] Validation, offline, refresh failure, session expiry, user isolation, mock mode — automated
 - [x] 200% text on a 360 px phone, light and dark — automated
 - [x] Mutation checks: API wiring to the mock (9 failures), no dashboard reload (9), dropping bedtime (1) — automated
-- [ ] Real backend on the Android emulator — **manual pending**
+- [x] Real backend on the Android emulator — manual, passed
 
 ## Known limitations
 
 - Only today can be logged (no day picker); bedtime and wake time aren't editable.
-- Study card has no log screen (Study integration pending); no meals.
+- Study has no log screen (Study integration later); no meals. Since the UX architecture pass the Study card opens the Study screen and the Track tab is [[Areas]].
 - Backend tests: D9 clock issue now also affects three activity tests; all pass with `TZ=UTC0`.
 
 ## Out of scope

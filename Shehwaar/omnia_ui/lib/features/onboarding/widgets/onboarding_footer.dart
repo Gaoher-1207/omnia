@@ -37,12 +37,9 @@ class OnboardingFooter extends StatelessWidget {
         child: Text(
           'NOT JUST A PLANNER.\nA CALMER, MORE\nINTENTIONAL YOU.',
           textAlign: TextAlign.right,
-          style: TextStyle(
+          style: OmniaText.label.copyWith(
             color: context.mutedForeground,
-            fontSize: 11,
             height: 1.4,
-            fontWeight: FontWeight.w700,
-            letterSpacing: .8,
           ),
         ),
       ),

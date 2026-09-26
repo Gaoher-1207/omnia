@@ -51,7 +51,10 @@ class RevisionDetailPage extends StatelessWidget {
                           fontWeight: FontWeight.w900,
                         ),
                       ),
-                      Text('Tue, Sep 23  ·  10:00 – 10:45'),
+                      Text(
+                        'Tue, Sep 23  ·  10:00 – 10:45',
+                        style: OmniaText.meta,
+                      ),
                       Text(
                         '45 minutes',
                         style: TextStyle(fontWeight: FontWeight.bold),

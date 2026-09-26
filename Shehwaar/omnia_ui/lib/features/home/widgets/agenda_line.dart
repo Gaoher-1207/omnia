@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/core/widgets/accent_circle.dart';
 
 class AgendaLine extends StatelessWidget {
@@ -23,10 +24,7 @@ class AgendaLine extends StatelessWidget {
       constraints: const BoxConstraints(minHeight: 48),
       child: Row(
         children: [
-          SizedBox(
-            width: 54,
-            child: Text(time, style: const TextStyle(fontSize: 12)),
-          ),
+          SizedBox(width: 54, child: Text(time, style: OmniaText.meta)),
           AccentCircle(color: color, size: 28, icon: icon),
           const SizedBox(width: 8),
           Expanded(
@@ -37,7 +35,7 @@ class AgendaLine extends StatelessWidget {
               style: const TextStyle(fontSize: 13),
             ),
           ),
-          Text(duration, style: const TextStyle(fontSize: 12)),
+          Text(duration, style: OmniaText.meta),
         ],
       ),
     ),

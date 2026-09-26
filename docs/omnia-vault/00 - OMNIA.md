@@ -11,14 +11,14 @@ This vault is the internal map of the project: architecture, reasoning, relation
 
 > [!important] Two rules that the rest of the vault depends on
 > 1. **`Shehwaar/omnia_ui` is the canonical frontend.** `Fawaz/lib` is a donor/reference implementation built on an older frontend. See [[Canonical Frontend]].
-> 2. **"Backend has an endpoint" ≠ "frontend uses it".** Today only authentication and, in API mode, Tasks are connected. See [[Current Status]].
+> 2. **"Backend has an endpoint" ≠ "frontend uses it".** In API mode, authentication, Tasks, the profile, the day summary and activity/sleep logs are connected; nothing else is. See [[Current Status]].
 
 ## Where to start
 
 | If you want to know… | Open |
 |---|---|
 | What works today, and what is sample or local | [[Current Status]] |
-| How the app is put together | [[Architecture Overview]] |
+| How the app is put together | [[Architecture Overview]], [[Navigation and Information Architecture]] |
 | How sign-in and sessions work | [[Authentication Flow]], [[Session Architecture]] |
 | Which screen maps to which endpoint | [[Frontend Backend Integration]] |
 | What Fawaz's code can offer | [[Fawaz Donor Map]] |
@@ -36,7 +36,7 @@ flowchart LR
         F2[Goals]:::local
         F3[Focus]:::local
         F4[Study revision]:::local
-        F5[Home · Plan · Track · Insights]:::sample
+        F5[Today · Plan · Areas · Insights]:::sample
         F6[Auth + Settings account]:::api
     end
     subgraph Backend["Shared backend · Fawaz/backend"]
@@ -62,7 +62,7 @@ Green = API-connected · Yellow = works on local in-memory data · Grey = sample
 - Productivity: [[Tasks]] · [[Goals]] · [[Focus]] · [[Plan]]
 - Learning: [[Study]]
 - Body: [[Fitness and Activity]] · [[Sleep and Recovery]] · [[Nutrition]]
-- Overview screens: [[Dashboard]] · [[Track]] · [[Insights]]
+- Overview screens: [[Dashboard|Today]] · [[Areas]] · [[Insights]] (Track was replaced by Areas)
 - Account & app: [[Settings]]
 - Future: [[AI Assistant]] · [[Achievements and Life Timeline]]
 

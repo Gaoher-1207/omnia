@@ -15,16 +15,17 @@ The canonical frontend has two data modes, chosen at build time with a `--dart-d
 | Backend needed | No | Yes |
 | `UserSession` | One for app life | One per signed-in user ([[Session Architecture]]) |
 | Tasks | In-memory mock | **FastAPI `/tasks`** via `ApiTaskRepository` (user-scoped) |
-| Goals, Study | In-memory mocks | **Still in-memory mocks**, fresh per user |
-| Home / Track day summary | Sample day (`MockDashboardRepository`) | **FastAPI `/dashboard`** via `ApiDashboardRepository` (user-scoped) |
+| Goals | In-memory mock with sample goals | **In-memory, starts empty** per user; the screen says it isn't synced |
+| Study | Sample revision session | Dashboard figures only; the demo session is hidden |
+| Today / Areas day summary | Sample day (`MockDashboardRepository`) | **FastAPI `/dashboard`** via `ApiDashboardRepository` (user-scoped) |
 | Activity and sleep logging | `MockTrackRepository`, shared with the mock dashboard so a mock log shows on Home | **FastAPI `/activity/{day}`, `/sleep/{day}`** via `ApiTrackRepository` |
-| Plan, Insights, Home "Next up", Track "Today's activity" | Sample data | Sample data (labelled `SAMPLE` in API mode) |
+| Plan, Insights, Today "Next up" / "Why?" | Sample data (labelled) | **Empty states**: no sample data is ever shown (`AppDependencies.sampleContent` is false) |
 | Focus | App-wide, local | App-wide, local |
 | Settings → Account | Hidden | Shown when signed in |
 | Typical use | UI work, demos, automated tests | Auth and integration work |
 
 > [!warning] API mode is not "backend mode" yet
-> Today it means *real accounts + server-backed Tasks + the server's day summary on Home and Track + local data for every other feature*. Each feature moves to the backend in its own phase. See [[Mock First API Migration]] and [[Backend Integration Roadmap]].
+> Today it means *real accounts + server-backed Tasks, profile, day summary and activity/sleep logs + local Goals and Focus + honest empty states for everything else*. Each feature moves to the backend in its own phase. See [[Mock First API Migration]] and [[Backend Integration Roadmap]].
 
 ## Visual
 

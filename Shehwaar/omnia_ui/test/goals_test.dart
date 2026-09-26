@@ -10,6 +10,7 @@ import 'package:omnia_ui/features/goals/domain/goal_repository.dart';
 import 'package:omnia_ui/features/goals/goal_controller.dart';
 import 'package:omnia_ui/features/goals/goals_page.dart';
 
+import 'support/select.dart';
 import 'widget_test.dart' show startApp, tapText;
 
 /// Measurable by default; pass `target: null` for completion-only.
@@ -476,8 +477,9 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('6 / 10 chapters'), findsOneWidget);
         expect(tester.takeException(), isNull);
-        await tester.tap(find.text('Completion only'));
-        await tester.pumpAndSettle();
+        // At this size the two choices open as a list, not squeezed segments.
+        await pick(tester, 'Track progress', 'Completion only');
+        expect(find.text('6 / 10 chapters'), findsNothing);
         expect(tester.takeException(), isNull);
       });
     }

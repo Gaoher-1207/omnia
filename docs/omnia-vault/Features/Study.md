@@ -15,7 +15,7 @@ Today: one **revision session** with a checklist of sub-tasks. Long term: an **A
 
 ## Current Status
 
-`partial`. The revision session is interactive (check items, mark all, rename, reset) and saves to an in-memory repository. The subject, exam, notes and "AI explanation" text are **sample** content, and the screen labels them so.
+`partial`. Limited: the Study screen shows only the dashboard's figures (below). The mock-mode revision session is interactive (check items, mark all, rename, reset) and saves to an in-memory repository. The subject, exam, notes and "AI explanation" text are **sample** content, and the screen labels them so.
 
 ## Current Frontend
 
@@ -24,7 +24,7 @@ Today: one **revision session** with a checklist of sub-tasks. Long term: an **A
 - `features/study/domain/*`: `Subject`, `Exam`, `StudySession`, `RevisionItem`
 - Sample content: *DBMS Revision*, 3 items, DBMS exam, "DBMS Notes.pdf · Sample"
 
-There is no standalone Study screen in the canonical app.
+**Study screen** (`features/study/study_page.dart`), opened from the Today Study card and the [[Areas]] tile: today's study minutes against the daily target and the next exam (both from `/dashboard` in API mode), and the [[Focus]] timer. The sample revision session is listed there **in mock mode only**; API mode never shows it.
 
 ## State / Controller
 

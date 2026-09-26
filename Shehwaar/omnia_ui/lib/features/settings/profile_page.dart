@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:omnia_ui/core/widgets/select_field.dart';
 import 'package:flutter/services.dart';
 import 'package:omnia_ui/core/api/api_exception.dart';
 import 'package:omnia_ui/core/auth/auth_controller.dart';
@@ -182,7 +183,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ? commonTimezones
         : [_timezone, ...commonTimezones];
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile & daily targets')),
+      appBar: AppBar(title: const Text('Profile & targets')),
       body: Form(
         key: _form,
         child: ListView(
@@ -226,31 +227,23 @@ class _ProfilePageState extends State<ProfilePage> {
               },
             ),
             const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
+            SelectField<String>(
+              label: 'Time zone',
               initialValue: _timezone,
-              // Fits the field instead of the widest item.
-              isExpanded: true,
-              decoration: InputDecoration(
-                labelText: 'Time zone',
-                helperText: 'Decides when your day starts.',
-                helperMaxLines: 3,
-                errorText: _serverError('timezone'),
-              ),
-              items: [
+              helperText: 'Decides when your day starts.',
+              errorText: _serverError('timezone'),
+              searchable: true,
+              options: [
                 for (final zone in zones)
-                  DropdownMenuItem(
-                    value: zone,
-                    child: Text(zone.replaceAll('_', ' ')),
-                  ),
+                  SelectOption(zone, zone.replaceAll('_', ' ')),
               ],
-              onChanged: (value) =>
-                  setState(() => _timezone = value ?? _timezone),
+              onChanged: (value) => setState(() => _timezone = value),
             ),
             const SizedBox(height: 24),
             _heading('Daily targets'),
             const SizedBox(height: 4),
             const Text(
-              'What Home and Track measure each day. Your long-term Goals '
+              'What Today and Areas measure each day. Your long-term Goals '
               'are separate.',
             ),
             const SizedBox(height: 14),
@@ -287,26 +280,19 @@ class _ProfilePageState extends State<ProfilePage> {
               max: 10000,
             ),
             const SizedBox(height: 4),
-            DropdownButtonFormField<WorkoutTime>(
+            SelectField<WorkoutTime>(
+              label: 'Preferred workout time',
               initialValue: _workout,
-              isExpanded: true,
-              decoration: InputDecoration(
-                labelText: 'Preferred workout time',
-                helperText: 'Used when planning your day.',
-                helperMaxLines: 3,
-                errorText: _serverError('preferred_workout_time'),
-              ),
-              items: [
+              helperText: 'Used when planning your day.',
+              errorText: _serverError('preferred_workout_time'),
+              options: [
                 for (final time in WorkoutTime.values)
-                  DropdownMenuItem(
-                    value: time,
-                    child: Text(
-                      time.name[0].toUpperCase() + time.name.substring(1),
-                    ),
+                  SelectOption(
+                    time,
+                    time.name[0].toUpperCase() + time.name.substring(1),
                   ),
               ],
-              onChanged: (value) =>
-                  setState(() => _workout = value ?? _workout),
+              onChanged: (value) => setState(() => _workout = value),
             ),
             const SizedBox(height: 24),
             SolidAction(label: _saving ? 'Saving…' : 'Save', onTap: _save),

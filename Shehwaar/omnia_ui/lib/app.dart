@@ -17,7 +17,7 @@ import 'package:omnia_ui/core/theme/theme_controller.dart';
 import 'package:omnia_ui/features/home/home_page.dart';
 import 'package:omnia_ui/features/insights/insights_page.dart';
 import 'package:omnia_ui/features/plan/plan_page.dart';
-import 'package:omnia_ui/features/track/track_page.dart';
+import 'package:omnia_ui/features/areas/areas_page.dart';
 
 class OmniaApp extends StatefulWidget {
   const OmniaApp({super.key, this.dependencies, this.api});
@@ -193,6 +193,23 @@ class _MissingConfiguration extends StatelessWidget {
   );
 }
 
+/// The root tabs, in order. Their labels live only here, so renaming one
+/// ("Areas" is a working name) is a one-line change.
+enum RootTab {
+  today('Today', Icons.home_rounded),
+  plan('Plan', Icons.calendar_month_outlined),
+  areas('Areas', Icons.grid_view_rounded),
+  insights('Insights', Icons.pie_chart_outline);
+
+  const RootTab(this.label, this.icon);
+  final String label;
+  final IconData icon;
+}
+
+/// The signed-in shell. Each tab keeps its own navigation stack, so an
+/// area's screens (Tasks, Goals, Study…) open under the bottom bar and each
+/// tab is where it was left. Forms and editors are pushed on the app's root
+/// navigator instead and take the full screen.
 class OmniaHome extends StatefulWidget {
   const OmniaHome({super.key});
   @override
@@ -200,23 +217,49 @@ class OmniaHome extends StatefulWidget {
 }
 
 class _OmniaHomeState extends State<OmniaHome> {
-  int tab = 0;
+  var tab = RootTab.today;
+  final _stacks = {
+    for (final tab in RootTab.values) tab: GlobalKey<NavigatorState>(),
+  };
+
+  /// Choosing the open tab again returns it to its first screen.
+  void _select(RootTab next) {
+    if (next == tab) {
+      _stacks[next]!.currentState?.popUntil((route) => route.isFirst);
+    } else {
+      setState(() => tab = next);
+    }
+  }
+
+  Widget _root(RootTab tab) => switch (tab) {
+    RootTab.today => HomePage(openPlan: () => _select(RootTab.plan)),
+    RootTab.plan => const PlanPage(),
+    RootTab.areas => const AreasPage(),
+    RootTab.insights => const InsightsPage(),
+  };
+
   @override
   Widget build(BuildContext context) {
-    final pages = [
-      HomePage(
-        openPlan: () => setState(() => tab = 1),
-        openTrack: () => setState(() => tab = 2),
-      ),
-      const PlanPage(),
-      const TrackPage(),
-      const InsightsPage(),
-    ];
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       backgroundColor: context.colors.surface,
       body: SafeArea(
-        child: IndexedStack(index: tab, children: pages),
+        child: IndexedStack(
+          index: tab.index,
+          children: [
+            for (final option in RootTab.values)
+              // System back pops the visible tab's own stack first.
+              NavigatorPopHandler<Object?>(
+                enabled: option == tab,
+                onPopWithResult: (_) => _stacks[option]!.currentState?.maybePop(),
+                child: Navigator(
+                  key: _stacks[option],
+                  onGenerateRoute: (_) =>
+                      MaterialPageRoute(builder: (_) => _root(option)),
+                ),
+              ),
+          ],
+        ),
       ),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
@@ -226,20 +269,15 @@ class _OmniaHomeState extends State<OmniaHome> {
         child: SafeArea(
           top: false,
           child: Row(
-            children: [
-              _nav(0, Icons.home_rounded, 'Home', dark),
-              _nav(1, Icons.calendar_month_outlined, 'Plan', dark),
-              _nav(2, Icons.bar_chart_rounded, 'Track', dark),
-              _nav(3, Icons.pie_chart_outline, 'Insights', dark),
-            ],
+            children: [for (final option in RootTab.values) _nav(option, dark)],
           ),
         ),
       ),
     );
   }
 
-  Widget _nav(int index, IconData icon, String title, bool dark) {
-    final active = tab == index;
+  Widget _nav(RootTab option, bool dark) {
+    final active = tab == option;
     final color = context.foreground;
     return Expanded(
       // One merged node per tab: "Plan, selected, button".
@@ -248,7 +286,7 @@ class _OmniaHomeState extends State<OmniaHome> {
         button: true,
         selected: active,
         child: InkWell(
-          onTap: () => setState(() => tab = index),
+          onTap: () => _select(option),
           focusColor: color.withValues(alpha: .16),
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 9),
@@ -280,7 +318,7 @@ class _OmniaHomeState extends State<OmniaHome> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Icon(
-                      icon,
+                      option.icon,
                       size: 23,
                       color: active ? ink : color.withValues(alpha: .65),
                     ),
@@ -288,7 +326,7 @@ class _OmniaHomeState extends State<OmniaHome> {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  title,
+                  option.label,
                   style: TextStyle(
                     fontSize: 12,
                     color: color,
