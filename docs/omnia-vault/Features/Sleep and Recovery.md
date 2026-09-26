@@ -1,9 +1,9 @@
 ---
 type: feature
-status: sample
+status: partial
 frontend: canonical
 backend_available: true
-backend_connected: false
+backend_connected: true
 donor: true
 ---
 
@@ -11,9 +11,9 @@ donor: true
 
 ## Current Status
 
-`sample`. The canonical app shows a sample sleep tile on [[Track]] (`6h 42m / 8h goal`) and sample "Wind Down" items in [[Plan]]. There's no sleep logging.
+`partial`. Since [[Phase 5B - Activity and Sleep Logging]], tapping Sleep on [[Dashboard|Home]] or [[Track]] opens a log screen for the night ending **today**: hours and minutes plus an optional 1–5 quality, pre-filled from `GET /sleep/{day}`, saved with a whole-day `PUT` that sends any stored bedtime and wake time back unchanged, and removable (with confirmation) via `DELETE`, after which Home shows **Not logged**. Bedtime and wake time aren't editable yet. "Wind Down" items in [[Plan]] are still sample.
 
-## Backend (available, not connected)
+## Backend
 
 [[Sleep API]]: one `SleepLog` per night, keyed by the **day the night ends**, with `duration_minutes`, optional `quality`, `bedtime` and `wake_time`. Upsert with `PUT /sleep/{day}`.
 
@@ -26,7 +26,6 @@ The donor's `TrackRepository` and `log_pages.dart` log sleep ([[Fawaz Donor Map]
 
 ## Future Direction
 
-- Sleep logging in the canonical Track design.
 - Recovery context for training and workload recommendations (vision): see [[AI Roadmap]] and [[Fitness Roadmap]].
 
 ## Related

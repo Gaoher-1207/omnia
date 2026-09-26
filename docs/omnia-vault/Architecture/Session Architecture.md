@@ -25,6 +25,7 @@ flowchart TD
         GC["GoalController"]
         RC["RevisionController"]
         DC["DashboardController<br/>(Home + Track)"]
+        TK["TrackController<br/>(activity and sleep logging)"]
     end
     AppWide --> Session
     Session --> MA["MaterialApp → OmniaHome"]
@@ -37,6 +38,7 @@ flowchart TD
 | `ApiClient` | `GoalController` (`..load()` on creation) |
 | `AuthController` | `RevisionController` |
 | | `DashboardController` (`..load()` on creation, again on app resume) |
+| | `TrackController` (holds no figures; reloads the session's `DashboardController` after each stored change) |
 
 ## Lifecycle
 

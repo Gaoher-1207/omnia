@@ -6,6 +6,7 @@ import 'package:omnia_ui/features/study/domain/revision_item.dart';
 import 'package:omnia_ui/features/study/domain/study_session.dart';
 import 'package:omnia_ui/features/study/domain/subject.dart';
 import 'package:omnia_ui/features/tasks/domain/task.dart';
+import 'package:omnia_ui/features/track/domain/wellbeing.dart';
 
 /// Fixed demo data matching the existing September 23 sample day.
 /// Dates are UTC fixtures, not device-clock-dependent scheduling.
@@ -44,13 +45,20 @@ abstract final class MockData {
     Goal(id: 'goal-timetable', title: 'Set up a weekly study timetable',
         completed: true, category: OmniaCategory.study),
   ];
+  /// The sample day's logged activity and sleep; the mock dashboard reads
+  /// them through the same mock track repository the log screens write to.
+  static ActivityDay get activity =>
+      ActivityDay(day: DateTime(2025, 9, 23), steps: 6240);
+  static SleepEntry get sleep =>
+      SleepEntry(day: DateTime(2025, 9, 23), durationMinutes: 402);
+
   /// The sample day's figures, as Home and Track have always shown them.
   static Dashboard get dashboard => Dashboard(
     date: DateTime(2025, 9, 23), greeting: 'morning', displayName: 'Shew',
-    today: const TodaySummary(
+    today: TodaySummary(
       studyMinutes: 135, studyGoalMinutes: 240,
-      steps: 6240, stepGoal: 8000,
-      sleepMinutes: 402, sleepGoalMinutes: 480,
+      steps: activity.steps, stepGoal: 8000,
+      sleepMinutes: sleep.durationMinutes, sleepGoalMinutes: 480,
     ),
     nextExam: NextExam(title: 'DBMS exam', subjectName: 'DBMS',
         date: DateTime(2025, 10, 1), daysLeft: 8),

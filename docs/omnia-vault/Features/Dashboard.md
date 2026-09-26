@@ -26,6 +26,7 @@ A single view of the day: greeting, a highlighted exam countdown, category cards
 | Date line | "Tuesday, September 23 · SAMPLE DAY" | ✅ server `date`, no sample label |
 | Exam card headline and detail | sample DBMS exam + sample plan sentence, `SAMPLE` tag | ✅ `next_exam` ("today" / "tomorrow" / "in N days", title and date), or "No exams coming up." |
 | Study / Activity / Sleep cards | sample figures | ✅ `today` vs the profile's [[Daily Targets]]; sleep shows **Not logged** when null |
+| Card taps ([[Phase 5B - Activity and Sleep Logging]]) | Activity → activity log, Sleep → sleep log (mock state), Tasks → Tasks, Study → Track tab | same, against the server's day; Study → Track tab (no real study destination yet) |
 | Tasks card (`done / total`) | `TaskScope` | `TaskScope` (unchanged; not the dashboard's `tasks_completed`) |
 | Goals preview | `GoalScope` | `GoalScope` (unchanged) |
 | Next up agenda | sample | sample, with a `SAMPLE` tag |

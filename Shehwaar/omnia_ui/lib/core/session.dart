@@ -4,6 +4,7 @@ import 'package:omnia_ui/features/goals/goal_controller.dart';
 import 'package:omnia_ui/features/home/dashboard_controller.dart';
 import 'package:omnia_ui/features/plan/revision_controller.dart';
 import 'package:omnia_ui/features/tasks/task_controller.dart';
+import 'package:omnia_ui/features/track/track_controller.dart';
 
 /// State that belongs to one user. In API mode it is keyed by the signed-in
 /// user, so signing out (or in as someone else) disposes it and the next
@@ -32,6 +33,7 @@ class _UserSessionState extends State<UserSession> {
   late final tasks = TaskController(dependencies.tasks)..load();
   late final goals = GoalController(dependencies.goals)..load();
   late final dashboard = DashboardController(dependencies.dashboard)..load();
+  late final track = TrackController(dependencies.track, dashboard);
   late final AppLifecycleListener _lifecycle;
 
   @override
@@ -47,6 +49,7 @@ class _UserSessionState extends State<UserSession> {
     revision.dispose();
     tasks.dispose();
     goals.dispose();
+    track.dispose();
     dashboard.dispose();
     super.dispose();
   }
@@ -60,7 +63,10 @@ class _UserSessionState extends State<UserSession> {
         controller: tasks,
         child: GoalScope(
           controller: goals,
-          child: DashboardScope(controller: dashboard, child: widget.child),
+          child: DashboardScope(
+            controller: dashboard,
+            child: TrackScope(controller: track, child: widget.child),
+          ),
         ),
       ),
     ),

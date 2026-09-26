@@ -17,7 +17,7 @@ backend_connected: false
 
 Fields: `duration_minutes`, `quality` (optional), `bedtime`, `wake_time`.
 
-Consumers: the dashboard (vs `daily_sleep_goal_minutes`), the "Well rested" achievement and the **AI plan context** (`last_night_sleep`). The rules planner treats short or poor sleep, or a "tired" note, as a signal to lighten the day. See [[AI API]].
+Canonical frontend: `ApiTrackRepository` since [[Phase 5B - Activity and Sleep Logging]] (GET, whole-row PUT that sends `bedtime`/`wake_time` back unchanged, DELETE). Consumers: the dashboard (vs `daily_sleep_goal_minutes`), the "Well rested" achievement and the **AI plan context** (`last_night_sleep`). The rules planner treats short or poor sleep, or a "tired" note, as a signal to lighten the day. See [[AI API]].
 
 Frontend: [[Sleep and Recovery]] (sample only).
 

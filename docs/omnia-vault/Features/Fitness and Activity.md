@@ -1,9 +1,9 @@
 ---
 type: feature
-status: sample
+status: partial
 frontend: canonical
 backend_available: true
-backend_connected: false
+backend_connected: partial
 donor: true
 ---
 
@@ -11,9 +11,9 @@ donor: true
 
 ## Current Status
 
-`sample`. In the canonical app, activity appears only as sample figures on [[Track]] and [[Dashboard]] and as sample Plan items ("Walk", "Push Workout"). There are no workout or step-logging screens. The long-term [[Goals]] feature can hold a strength goal such as *Incline Dumbbell Press 22.5 / 30 kg*, but it's entered by hand.
+`partial`. Since [[Phase 5B - Activity and Sleep Logging]], tapping Activity on [[Dashboard|Home]] or [[Track]] opens a log screen for **today's** steps and workout (done, minutes, type), pre-filled from `GET /activity/{day}` and saved with a whole-day `PUT`; Home and Track then reload. Plan items ("Walk", "Push Workout") are still sample. The long-term [[Goals]] feature can hold a strength goal such as *Incline Dumbbell Press 22.5 / 30 kg*, but it's entered by hand.
 
-## Backend (available, not connected)
+## Backend
 
 [[Activity API]] stores **one row per day** (`ActivityDay`): `steps`, `workout_done`, `workout_minutes`, `workout_type`. `PUT /activity/{day}` creates or replaces it. Steps and workouts feed dashboard figures, streaks and achievements (e.g. "Ten workouts", step-goal days).
 
@@ -23,8 +23,8 @@ That's a daily summary, **not** a workout log. The backend has **no** exercises,
 
 | Capability | Now | Backend | Planned |
 |---|---|---|---|
-| Daily steps | sample | ✅ `/activity` | ✅ |
-| Workout done / minutes / type | sample | ✅ `/activity` | ✅ |
+| Daily steps | ✅ today (5B) | ✅ `/activity` | ✅ |
+| Workout done / minutes / type | ✅ today (5B) | ✅ `/activity` | ✅ |
 | Routines, exercises, sets/reps/weight | ❌ | ❌ | ✅ |
 | Workout history and previous-workout comparison | ❌ | ❌ | ✅ |
 | PRs, progression, strength charts | ❌ | ❌ | ✅ |

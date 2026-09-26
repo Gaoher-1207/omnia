@@ -6,9 +6,9 @@ import 'package:omnia_ui/core/api/api_client.dart';
 import 'package:omnia_ui/core/auth/timezones.dart';
 import 'package:omnia_ui/core/auth/token_store.dart';
 
-/// An in-memory stand-in for the backend's auth, profile, tasks and dashboard
-/// endpoints, speaking the same JSON and status codes as
-/// `Fawaz/backend/app/modules/{auth,users,tasks,dashboard}`.
+/// An in-memory stand-in for the backend's auth, profile, tasks, dashboard,
+/// activity and sleep endpoints, speaking the same JSON and status codes as
+/// `Fawaz/backend/app/modules/{auth,users,tasks,dashboard,activity,sleep}`.
 class FakeAuthBackend {
   /// The device's token storage, shared with every [client].
   final tokens = MemoryTokenStore();
@@ -29,6 +29,12 @@ class FakeAuthBackend {
   /// '2026-09-25'}`; everyone else gets [dashboardDate].
   final dateInZone = <String, String>{};
 
+  /// Makes every `/activity` and `/sleep` call answer 503.
+  bool trackDown = false;
+
+  /// Every activity or sleep PUT as "path body", in order.
+  final trackPuts = <String>[];
+
   /// Every `PATCH /profile` body, in order.
   final profilePatches = <Map<String, dynamic>>[];
 
@@ -37,6 +43,8 @@ class FakeAuthBackend {
   final _tasks = <String, Map<String, dynamic>>{}; // id → task + owner
   final _today = <String, Map<String, dynamic>>{}; // email → logged totals
   final _nextExam = <String, Map<String, dynamic>>{}; // email → exam
+  final _activity = <String, Map<String, dynamic>>{}; // "email day" → row
+  final _sleep = <String, Map<String, dynamic>>{}; // "email day" → row
   var _ids = 0;
 
   /// Stores a task for [email] as the server would; returns its id.
@@ -64,6 +72,51 @@ class FakeAuthBackend {
     'exam_date': date,
     'days_left': daysLeft,
   };
+
+  /// The server's "today" for [email], in their profile time zone.
+  String todayFor(String email) =>
+      dateInZone[profileOf(email)!['timezone']] ?? dashboardDate;
+
+  /// Stores [email]'s activity for [day] as the server would.
+  void logActivity(
+    String email,
+    String day, {
+    int steps = 0,
+    int? workoutMinutes,
+    String? workoutType,
+  }) => _activity['$email $day'] = {
+    'id': 'activity-uuid-${++_ids}',
+    'day': day,
+    'steps': steps,
+    'workout_done': workoutMinutes != null,
+    'workout_minutes': workoutMinutes ?? 0,
+    'workout_type': workoutType,
+    'updated_at': _now(),
+  };
+
+  /// Stores [email]'s sleep for the night ending on [day].
+  void logSleep(
+    String email,
+    String day, {
+    required int minutes,
+    int? quality,
+    String? bedtime,
+    String? wakeTime,
+  }) => _sleep['$email $day'] = {
+    'id': 'sleep-uuid-${++_ids}',
+    'day': day,
+    'duration_minutes': minutes,
+    'quality': quality,
+    'bedtime': bedtime,
+    'wake_time': wakeTime,
+    'logged': true,
+  };
+
+  /// [email]'s stored rows for [day], or null.
+  Map<String, dynamic>? activityOf(String email, String day) =>
+      _activity['$email $day'];
+  Map<String, dynamic>? sleepOf(String email, String day) =>
+      _sleep['$email $day'];
 
   /// [email]'s tasks as the API returns them.
   List<Map<String, dynamic>> tasksOf(String email) => [
@@ -200,6 +253,8 @@ class FakeAuthBackend {
         _tasks.removeWhere((_, task) => task['owner'] == email); // cascade
         _today.remove(email);
         _nextExam.remove(email);
+        _activity.removeWhere((key, _) => key.startsWith('$email '));
+        _sleep.removeWhere((key, _) => key.startsWith('$email '));
         return http.Response('', 204);
       case ('GET', '/profile'):
         return _json(profileOf(email)!);
@@ -211,6 +266,9 @@ class FakeAuthBackend {
           return _error(503, 'service_unavailable', 'Dashboard unavailable.');
         }
         return _json(_dashboard(email));
+    }
+    if (path.startsWith('/activity/') || path.startsWith('/sleep/')) {
+      return _handleTrack(request.method, path, body, email);
     }
     if (path == '/tasks' || path.startsWith('/tasks/')) {
       return _handleTasks(request.method, path, request.url, body, email);
@@ -358,8 +416,10 @@ class FakeAuthBackend {
         if (task['status'] == 'todo') task,
     ];
     const streak = {'current': 0, 'longest': 0, 'active_today': false};
+    final today = todayFor(email);
+    final activity = activityOf(email, today), sleep = sleepOf(email, today);
     return {
-      'date': dateInZone[profile['timezone']] ?? dashboardDate,
+      'date': today,
       'greeting': 'morning',
       'display_name': profile['display_name'],
       'today': {
@@ -367,11 +427,13 @@ class FakeAuthBackend {
         'study_goal_minutes': profile['daily_study_goal_minutes'],
         'tasks_completed': tasksOf(email).length - open.length,
         'task_goal': profile['daily_task_goal'],
-        'steps': 0,
+        'steps': activity?['steps'] ?? 0,
         'step_goal': profile['daily_step_goal'],
-        'workout_status': 'pending',
-        'workout_minutes': 0,
-        'sleep_minutes': null,
+        'workout_status': activity?['workout_done'] == true
+            ? 'done'
+            : 'pending',
+        'workout_minutes': activity?['workout_minutes'] ?? 0,
+        'sleep_minutes': sleep?['duration_minutes'],
         'sleep_goal_minutes': profile['daily_sleep_goal_minutes'],
         'calories': 0,
         'calorie_goal': profile['daily_calorie_goal'],
@@ -386,6 +448,142 @@ class FakeAuthBackend {
       'study_today': <Object>[],
       'ai_plan': null,
     };
+  }
+
+  /// `/activity/{day}` and `/sleep/{day}`: GET, whole-day PUT, and DELETE
+  /// for sleep, with the backend's validation and future-date rule.
+  http.Response _handleTrack(
+    String method,
+    String path,
+    Map<String, dynamic> body,
+    String email,
+  ) {
+    if (trackDown) {
+      return _error(503, 'service_unavailable', 'Tracking is unavailable.');
+    }
+    final activity = path.startsWith('/activity/');
+    final day = path.substring(path.lastIndexOf('/') + 1);
+    final key = '$email $day';
+    if (method == 'PUT') {
+      trackPuts.add('$path ${jsonEncode(body)}');
+      if (day.compareTo(todayFor(email)) > 0) {
+        return _json({
+          'error': {
+            'code': 'validation_error',
+            'message': activity
+                ? "Activity can't be saved for a future date"
+                : "This can't be saved for a future date",
+            'details': [
+              {'field': 'path.day', 'message': 'Date is in the future'},
+            ],
+          },
+        }, 422);
+      }
+    }
+    if (activity) {
+      switch (method) {
+        case 'GET':
+          return _json(
+            _activity[key] ??
+                {
+                  'id': null,
+                  'day': day,
+                  'steps': 0,
+                  'workout_done': false,
+                  'workout_minutes': 0,
+                  'workout_type': null,
+                  'updated_at': null,
+                },
+          );
+        case 'PUT':
+          const fields = {
+            'steps',
+            'workout_done',
+            'workout_minutes',
+            'workout_type',
+          };
+          for (final field in body.keys) {
+            if (!fields.contains(field)) {
+              return _invalid('body.$field', 'Extra inputs are not permitted');
+            }
+          }
+          final steps = body['steps'] as int? ?? 0;
+          final minutes = body['workout_minutes'] as int? ?? 0;
+          final type = (body['workout_type'] as String?)?.trim();
+          if (steps < 0 || steps > 200000) {
+            return _invalid('body.steps', 'Must be 0 to 200000');
+          }
+          if (minutes < 0 || minutes > 600) {
+            return _invalid('body.workout_minutes', 'Must be 0 to 600');
+          }
+          if (type != null && (type.isEmpty || type.length > 40)) {
+            return _invalid('body.workout_type', 'Enter 1 to 40 characters');
+          }
+          final done = body['workout_done'] as bool? ?? false;
+          logActivity(
+            email,
+            day,
+            steps: steps,
+            workoutMinutes: done ? minutes : null,
+            workoutType: done ? type : null,
+          );
+          return _json(_activity[key]!);
+      }
+    } else {
+      switch (method) {
+        case 'GET':
+          return _json(
+            _sleep[key] ??
+                {
+                  'id': null,
+                  'day': day,
+                  'duration_minutes': 0,
+                  'quality': null,
+                  'bedtime': null,
+                  'wake_time': null,
+                  'logged': false,
+                },
+          );
+        case 'PUT':
+          const fields = {
+            'duration_minutes',
+            'quality',
+            'bedtime',
+            'wake_time',
+          };
+          for (final field in body.keys) {
+            if (!fields.contains(field)) {
+              return _invalid('body.$field', 'Extra inputs are not permitted');
+            }
+          }
+          final minutes = body['duration_minutes'];
+          if (minutes is! int || minutes < 0 || minutes > 1440) {
+            return _invalid('body.duration_minutes', 'Must be 0 to 1440');
+          }
+          final quality = body['quality'] as int?;
+          if (quality != null && (quality < 1 || quality > 5)) {
+            return _invalid('body.quality', 'Must be 1 to 5');
+          }
+          String? time(Object? value) => value == null
+              ? null
+              : ('$value'.length == 5 ? '$value:00' : '$value');
+          logSleep(
+            email,
+            day,
+            minutes: minutes,
+            quality: quality,
+            bedtime: time(body['bedtime']),
+            wakeTime: time(body['wake_time']),
+          );
+          return _json(_sleep[key]!);
+        case 'DELETE':
+          if (_sleep.remove(key) == null) {
+            return _error(404, 'not_found', 'Sleep entry not found');
+          }
+          return http.Response('', 204);
+      }
+    }
+    return _error(405, 'method_not_allowed', 'Method not allowed');
   }
 
   Map<String, dynamic> _user(String email) => {

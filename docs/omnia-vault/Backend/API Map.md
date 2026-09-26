@@ -61,9 +61,9 @@ Every route registered in `Fawaz/backend/app/main.py`, all under the `/api` pref
 | Method | Path | Note |
 |---|---|---|
 | GET | `/activity` (`from`, `to`) | [[Activity API]] |
-| GET · PUT | `/activity/{day}` | upsert |
+| GET · PUT | `/activity/{day}` | upsert · ✅ `ApiTrackRepository` (whole-day PUT) |
 | GET | `/sleep` (`from`, `to`) | [[Sleep API]] |
-| GET · PUT · DELETE | `/sleep/{day}` | upsert |
+| GET · PUT · DELETE | `/sleep/{day}` | upsert · ✅ `ApiTrackRepository` (whole-day PUT, delete) |
 | GET (`day`) · POST | `/meals` | [[Nutrition API]] |
 | PATCH · DELETE | `/meals/{meal_id}` | |
 | GET | `/nutrition/summary` (`from`, `to`) | |

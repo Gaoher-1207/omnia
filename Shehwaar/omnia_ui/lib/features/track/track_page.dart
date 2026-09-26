@@ -5,6 +5,9 @@ import 'package:omnia_ui/core/widgets/label_tag.dart';
 import 'package:omnia_ui/features/home/dashboard_controller.dart';
 import 'package:omnia_ui/features/home/dashboard_format.dart';
 import 'package:omnia_ui/features/tasks/task_controller.dart';
+import 'package:omnia_ui/features/tasks/tasks_page.dart';
+import 'package:omnia_ui/features/track/activity_log_page.dart';
+import 'package:omnia_ui/features/track/sleep_log_page.dart';
 import 'package:omnia_ui/features/track/widgets/activity_line.dart';
 import 'package:omnia_ui/features/track/widgets/track_tile.dart';
 
@@ -54,6 +57,7 @@ class TrackPage extends StatelessWidget {
           goal: today == null ? '' : '${formatCount(today.stepGoal)} steps',
           progress: today == null ? 0 : towards(today.steps, today.stepGoal),
           color: mint,
+          onTap: () => ActivityLogPage.open(context),
         ),
         TrackTile(
           icon: Icons.dark_mode_outlined,
@@ -70,6 +74,7 @@ class TrackPage extends StatelessWidget {
               ? 0
               : towards(sleep, today.sleepGoalMinutes),
           color: lilac,
+          onTap: () => SleepLogPage.open(context),
         ),
         SizedBox(height: 15),
         Row(
@@ -133,6 +138,10 @@ class _TasksTile extends StatelessWidget {
       goal: 'tasks done',
       progress: total == 0 ? 0 : done / total,
       color: yellow,
+      onTap: () => Navigator.push<void>(
+        context,
+        MaterialPageRoute(builder: (_) => const TasksPage()),
+      ),
     );
   }
 }

@@ -12,32 +12,39 @@ import 'package:omnia_ui/features/study/domain/study_session.dart';
 import 'package:omnia_ui/features/tasks/data/api_task_repository.dart';
 import 'package:omnia_ui/features/tasks/data/mock_task_repository.dart';
 import 'package:omnia_ui/features/tasks/domain/task_repository.dart';
+import 'package:omnia_ui/features/track/data/api_track_repository.dart';
+import 'package:omnia_ui/features/track/data/mock_track_repository.dart';
+import 'package:omnia_ui/features/track/domain/track_repository.dart';
 
 /// The composition boundary. API adapters can be injected here later.
 /// initialRevisionSession must be a session already loaded from [study].
 class AppDependencies {
   const AppDependencies({
     required this.tasks, required this.goals, required this.study,
-    required this.dashboard, required this.initialRevisionSession,
+    required this.dashboard, required this.track,
+    required this.initialRevisionSession,
   });
 
   factory AppDependencies.mock() {
     final revision = MockData.revisionSession;
+    // One in-memory day for both: a mock log shows on the mock dashboard.
+    final track = MockTrackRepository();
     return AppDependencies(
       tasks: MockTaskRepository(), goals: MockGoalRepository(),
       study: MockStudyRepository(sessions: [revision]),
-      dashboard: MockDashboardRepository(),
+      dashboard: MockDashboardRepository(track: track), track: track,
       initialRevisionSession: revision,
     );
   }
 
-  /// API mode: tasks and the dashboard come from the backend; the other
-  /// features stay in-memory until their own integration phase.
+  /// API mode: tasks, the dashboard, activity and sleep come from the
+  /// backend; the other features stay in-memory until their own integration
+  /// phase.
   factory AppDependencies.api(ApiClient api) {
     final local = AppDependencies.mock();
     return AppDependencies(
       tasks: ApiTaskRepository(api), goals: local.goals, study: local.study,
-      dashboard: ApiDashboardRepository(api),
+      dashboard: ApiDashboardRepository(api), track: ApiTrackRepository(api),
       initialRevisionSession: local.initialRevisionSession,
     );
   }
@@ -46,6 +53,7 @@ class AppDependencies {
   final GoalRepository goals;
   final StudyRepository study;
   final DashboardRepository dashboard;
+  final TrackRepository track;
   final StudySession initialRevisionSession;
 }
 

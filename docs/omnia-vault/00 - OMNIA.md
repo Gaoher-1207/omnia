@@ -24,7 +24,7 @@ This vault is the internal map of the project: architecture, reasoning, relation
 | What Fawaz's code can offer | [[Fawaz Donor Map]] |
 | What the backend exposes | [[API Map]] |
 | Why things are the way they are | [[Architecture Decisions]] |
-| What comes next | [[Roadmap]], [[Phase 5A - Profile and Daily Targets]] |
+| What comes next | [[Roadmap]], [[Phase 5B - Activity and Sleep Logging]] |
 | Known problems and mismatches | [[Risks and Discrepancies]] |
 
 ## Map of the project

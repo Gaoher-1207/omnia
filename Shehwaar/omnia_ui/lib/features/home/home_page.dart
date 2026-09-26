@@ -10,6 +10,8 @@ import 'package:omnia_ui/features/plan/plan_item.dart';
 import 'package:omnia_ui/features/plan/revision_controller.dart';
 import 'package:omnia_ui/features/tasks/task_controller.dart';
 import 'package:omnia_ui/features/tasks/tasks_page.dart';
+import 'package:omnia_ui/features/track/activity_log_page.dart';
+import 'package:omnia_ui/features/track/sleep_log_page.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/core/widgets/hard_card.dart';
@@ -255,7 +257,7 @@ class HomePage extends StatelessWidget {
                       ? 0
                       : towards(today.steps, today.stepGoal),
                   color: mint,
-                  onTap: openTrack,
+                  onTap: () => ActivityLogPage.open(context),
                 ),
               ),
               SizedBox(width: 10),
@@ -275,7 +277,7 @@ class HomePage extends StatelessWidget {
                       ? 0
                       : towards(sleep, today.sleepGoalMinutes),
                   color: lilac,
-                  onTap: openTrack,
+                  onTap: () => SleepLogPage.open(context),
                 ),
               ),
             ],

@@ -11,16 +11,21 @@ class TrackTile extends StatelessWidget {
     required this.goal,
     required this.progress,
     required this.color,
+    this.onTap,
   });
   final IconData icon;
   final String name, amount, goal;
   final double progress;
   final Color color;
+
+  /// Opens the feature behind the tile, if it has one.
+  final VoidCallback? onTap;
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 10),
     child: HardCard(
       color: color,
+      onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

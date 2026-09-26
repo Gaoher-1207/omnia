@@ -33,7 +33,7 @@ Order so far: API infrastructure (`10e8ad2`) → authentication and sessions (`7
 
 ```mermaid
 flowchart LR
-    P1["API infra ✅"] --> P2["Auth + sessions ✅"] --> P3["Tasks ✅"] --> P4["Dashboard ✅"] --> P5["5A Profile + targets ✅"] --> P5B["5B Activity / Sleep ⏭"] --> P5C["5C Plan"] --> P6["Study"] --> P9["Insights"]
+    P1["API infra ✅"] --> P2["Auth + sessions ✅"] --> P3["Tasks ✅"] --> P4["Dashboard ✅"] --> P5["5A Profile + targets ✅"] --> P5B["5B Activity / Sleep ✅*<br/>(manual check pending)"] --> P5C["5C Plan ⏭"] --> P6["Study"] --> P9["Insights"]
     P3 -.-> PX["Long-term Goals backend<br/>(independent, needs new module)"]
 ```
 

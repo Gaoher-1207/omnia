@@ -1,6 +1,6 @@
 ---
 type: status
-verified_against: Phase 5A checkpoint (Profile and daily targets), after fc125e2
+verified_against: Phase 5B working tree (Activity and sleep logging) on e822b4b (uncommitted)
 ---
 
 # Current Status
@@ -8,9 +8,9 @@ verified_against: Phase 5A checkpoint (Profile and daily targets), after fc125e2
 A snapshot verified against the source, not against the README. Back to [[00 - OMNIA|OMNIA]].
 
 > [!summary] In one line
-> **In API mode, authentication, Tasks and the Home/Track day summary (`/dashboard`) are real (FastAPI); every other feature's data is still local.** In mock mode, nothing talks to a server.
+> **In API mode, authentication, Tasks, the profile and daily targets, the Home/Track day summary (`/dashboard`) and today's activity and sleep logs are real (FastAPI); every other feature's data is still local.** In mock mode, nothing talks to a server.
 >
-> Phase 3 (Tasks) is complete and manually verified. Phase 4 (Dashboard, read-only) is complete: automated verification passed and it was manually verified on the Android emulator against the real backend. Phase 5A (Profile and daily targets editor) is complete: automated verification passed and it was manually verified on the Android emulator against the real backend.
+> Phase 3 (Tasks) is complete and manually verified. Phase 4 (Dashboard, read-only) is complete: automated verification passed and it was manually verified on the Android emulator against the real backend. Phase 5A (Profile and daily targets editor) is complete: automated verification passed and it was manually verified on the Android emulator against the real backend. Phase 5B (Activity and sleep logging) passed automated verification; **manual emulator verification pending**.
 
 ## Feature integration map
 
@@ -24,7 +24,7 @@ flowchart LR
         STUDY["Study revision 🟡"]
         HOME["Home ✅🟡 summary via API"]
         PLAN["Plan ⚪"]
-        TRACK["Track ✅🟡 tiles via API"]
+        TRACK["Track ✅🟡 tiles + logging via API"]
         INS["Insights ⚪"]
     end
     subgraph Local["In-memory (lost on restart)"]
@@ -65,7 +65,7 @@ flowchart LR
 
     STUDY -.-|exists, models differ| S1
     PLAN -.-|exists, not connected| P1
-    TRACK -.-|exists, not connected| TR
+    TRACK ==>|API mode: activity, sleep| TR
     INS -.-|exists, not connected| PR
 ```
 
@@ -82,7 +82,7 @@ Thick arrow = wired today. Dotted arrows to the backend = the backend endpoint e
 | [[Study]] (revision session) | `partial` | `MockStudyRepository`, one sample session | [[Study API]] | Frontend and backend models differ |
 | [[Dashboard]] (Home) | `partial` | API mode: greeting, name, date, next exam and Study/Activity/Sleep from `/dashboard`. Mock mode: `MockDashboardRepository` (the sample day). Tasks card and Goals preview unchanged. Next up and "Why?" still sample (labelled in API mode). | [[Profile and Dashboard API]] | [[Phase 4 - Dashboard API Integration]]: complete (automated + manual emulator verification) |
 | [[Plan]] | `sample` | `samplePlan` constant | [[AI API]] | Revision item and Focus entry are live |
-| [[Track]] | `partial` | Study/Activity/Sleep tiles from the same dashboard as Home (API mode); live Tasks tile; "Today's activity" still sample (labelled in API mode) | `/dashboard`; [[Activity API]], [[Sleep API]], [[Nutrition API]] for logging | No logging UI yet |
+| [[Track]] | `partial` | Study/Activity/Sleep tiles from the same dashboard as Home (API mode); Activity and Sleep open today's log screens ([[Phase 5B - Activity and Sleep Logging]]: automated checks pass; manual emulator verification pending); Tasks tile opens Tasks; "Today's activity" still sample (labelled in API mode) | `/dashboard`; [[Activity API]], [[Sleep API]], [[Nutrition API]] for logging | No logging UI yet |
 | [[Insights]] | `sample` | Hard-coded | [[Progress API]] | |
 | [[Settings]] | `api-connected` (account section) | Theme local; account and profile via `AuthController` | [[Authentication API]], [[Profile and Dashboard API]] | Account section and "Profile & daily targets" only in API mode |
 | [[Daily Targets]] | `api-connected` (API mode) | Edited in Settings → "Profile & daily targets" (`PATCH /profile`); shown as the card and tile targets from `/dashboard` | `/profile`, `/dashboard` | [[Phase 5A - Profile and Daily Targets]]: complete (automated + manual emulator verification) |
@@ -101,7 +101,8 @@ See [[Mock vs API Mode]].
 | Tasks | In-memory, one session for app life | **FastAPI `/tasks`**, scoped to the signed-in user |
 | Goals / Study | In-memory, one session for app life | In-memory, **fresh per signed-in user** |
 | Focus | App-wide, local | App-wide, local |
-| Home / Track day summary | Sample (`MockDashboardRepository`) | **FastAPI `/dashboard`**, per user |
+| Home / Track day summary | Sample (`MockDashboardRepository`, steps and sleep from the shared mock track state) | **FastAPI `/dashboard`**, per user |
+| Today's activity and sleep logs | In-memory `MockTrackRepository` (seeded with the sample day) | **FastAPI `/activity/{day}`, `/sleep/{day}`**, per user |
 | Everything else | Sample | Sample |
 
 ## What "verified" means here

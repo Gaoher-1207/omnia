@@ -17,6 +17,7 @@ The canonical frontend has two data modes, chosen at build time with a `--dart-d
 | Tasks | In-memory mock | **FastAPI `/tasks`** via `ApiTaskRepository` (user-scoped) |
 | Goals, Study | In-memory mocks | **Still in-memory mocks**, fresh per user |
 | Home / Track day summary | Sample day (`MockDashboardRepository`) | **FastAPI `/dashboard`** via `ApiDashboardRepository` (user-scoped) |
+| Activity and sleep logging | `MockTrackRepository`, shared with the mock dashboard so a mock log shows on Home | **FastAPI `/activity/{day}`, `/sleep/{day}`** via `ApiTrackRepository` |
 | Plan, Insights, Home "Next up", Track "Today's activity" | Sample data | Sample data (labelled `SAMPLE` in API mode) |
 | Focus | App-wide, local | App-wide, local |
 | Settings → Account | Hidden | Shown when signed in |
@@ -36,7 +37,7 @@ flowchart TB
     subgraph Api["flutter run --dart-define=OMNIA_DATA=api"]
         direction TB
         a1["AuthController + ApiClient"] ==> a0[("FastAPI")]
-        a1 --> a2["UserSession keyed by user.id"] --> a3["ApiTaskRepository, ApiDashboardRepository ⇒ FastAPI<br/>+ mock Goals / Study"]
+        a1 --> a2["UserSession keyed by user.id"] --> a3["ApiTaskRepository, ApiDashboardRepository,<br/>ApiTrackRepository ⇒ FastAPI<br/>+ mock Goals / Study"]
     end
 ```
 
