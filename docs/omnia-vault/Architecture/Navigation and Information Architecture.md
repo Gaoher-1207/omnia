@@ -60,7 +60,7 @@ In API mode (`AppDependencies.sampleContent == false`) no screen shows demo data
 | Areas | Real tiles only (see [[Areas]]). |
 | Insights | "No insights yet". Nothing computed. |
 | Goals | Starts empty; says it isn't synced ([[Goals]] are still local-only). |
-| Study | Dashboard study minutes, next exam or "No exams coming up.", Focus timer. The demo revision session is not shown. |
+| Study | Dashboard study minutes; the user's upcoming exams and subjects (or "No exams yet." / "No subjects yet."); Focus timer. The demo revision session is not shown. |
 
 Mock mode keeps the labelled sample day for development and tests. See [[Mock vs API Mode]].
 
@@ -86,7 +86,7 @@ See [[Preserve OMNIA Design System]] for typography (Archivo + Space Mono) and t
 
 - **Plan** has no real plan until Phase 5C (daily plan; see [[Plan]]) connects `/ai/daily-plan`.
 - **Goals** are local-only in API mode (in memory, cleared when OMNIA closes).
-- **Study** is limited to the dashboard's figures and the Focus timer; no subjects, exams or sessions of its own yet.
+- **Study** manages subjects and exams; backlog, logged sessions and the study plan aren't shown yet.
 - **Insights** shows no real insights yet.
 
 Related: [[Flutter Architecture]] · [[Current Status]] · [[Areas]] · [[Dashboard]]

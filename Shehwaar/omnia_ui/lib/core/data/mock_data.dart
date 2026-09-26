@@ -15,8 +15,8 @@ abstract final class MockData {
     Subject(id: 'subject-dbms', name: 'DBMS'),
   ];
   static List<Exam> get exams => [
-    Exam(id: 'exam-dbms', subjectId: 'subject-dbms', title: 'DBMS exam',
-        scheduledAt: DateTime.utc(2025, 10, 1)),
+    Exam(id: 'exam-dbms', subjectId: 'subject-dbms', subjectName: 'DBMS',
+        title: 'DBMS exam', date: DateTime(2025, 10, 1), daysLeft: 8),
   ];
   static List<Task> get tasks => [
     Task(id: 'task-assignment', title: 'Complete Assignment',

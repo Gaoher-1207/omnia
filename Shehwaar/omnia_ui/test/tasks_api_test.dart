@@ -14,6 +14,7 @@ import 'package:omnia_ui/core/widgets/solid_action.dart';
 import 'package:omnia_ui/features/auth/auth_page.dart';
 import 'package:omnia_ui/features/goals/data/mock_goal_repository.dart';
 import 'package:omnia_ui/features/home/home_page.dart';
+import 'package:omnia_ui/features/study/data/api_study_repository.dart';
 import 'package:omnia_ui/features/study/data/mock_study_repository.dart';
 import 'package:omnia_ui/features/tasks/data/api_task_repository.dart';
 import 'package:omnia_ui/features/tasks/data/mock_task_repository.dart';
@@ -337,12 +338,13 @@ void main() {
       expect(AppDependencies.mock().tasks, isA<MockTaskRepository>());
     });
 
-    test('API dependencies use the API for tasks only', () async {
+    test('API dependencies use the API for tasks and study', () async {
       final s = await signedIn();
       final deps = AppDependencies.api(s.api);
       expect(deps.tasks, isA<ApiTaskRepository>());
       expect(deps.goals, isA<MockGoalRepository>());
-      expect(deps.study, isA<MockStudyRepository>());
+      expect(deps.study, isA<ApiStudyRepository>());
+      expect(deps.revision, isA<MockStudyRepository>(), reason: 'demo only');
     });
 
     testWidgets('mock mode wires MockTaskRepository into the app', (

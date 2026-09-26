@@ -3,6 +3,7 @@ import 'package:omnia_ui/core/app_dependencies.dart';
 import 'package:omnia_ui/features/goals/goal_controller.dart';
 import 'package:omnia_ui/features/home/dashboard_controller.dart';
 import 'package:omnia_ui/features/plan/revision_controller.dart';
+import 'package:omnia_ui/features/study/study_controller.dart';
 import 'package:omnia_ui/features/tasks/task_controller.dart';
 import 'package:omnia_ui/features/track/track_controller.dart';
 
@@ -28,12 +29,14 @@ class _UserSessionState extends State<UserSession> {
   late final dependencies = widget.dependencies();
   late final revision = RevisionController(
     session: dependencies.initialRevisionSession,
-    repository: dependencies.study,
+    repository: dependencies.revision,
   );
   late final tasks = TaskController(dependencies.tasks)..load();
   late final goals = GoalController(dependencies.goals)..load();
   late final dashboard = DashboardController(dependencies.dashboard)..load();
   late final track = TrackController(dependencies.track, dashboard);
+  // Loaded when Study opens, not at sign-in.
+  late final study = StudyController(dependencies.study, dashboard);
   late final AppLifecycleListener _lifecycle;
 
   @override
@@ -50,6 +53,7 @@ class _UserSessionState extends State<UserSession> {
     tasks.dispose();
     goals.dispose();
     track.dispose();
+    study.dispose();
     dashboard.dispose();
     super.dispose();
   }
@@ -65,7 +69,10 @@ class _UserSessionState extends State<UserSession> {
           controller: goals,
           child: DashboardScope(
             controller: dashboard,
-            child: TrackScope(controller: track, child: widget.child),
+            child: TrackScope(
+              controller: track,
+              child: StudyScope(controller: study, child: widget.child),
+            ),
           ),
         ),
       ),

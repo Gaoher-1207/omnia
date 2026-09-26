@@ -224,7 +224,9 @@ void main() {
       await startApp(tester, server);
       await tapCard(tester, 'Study');
       expect(find.byType(StudyPage), findsOneWidget);
-      expect(find.text('Your Biology exam is in 8 days.'), findsOneWidget);
+      expect(find.text('Unit test'), findsOneWidget, reason: 'the exam');
+      expect(find.text('IN 8 DAYS'), findsOneWidget);
+      expect(find.text('Biology'), findsOneWidget, reason: 'its subject');
       expect(find.text('DBMS Revision'), findsNothing);
       expect(find.text('SAMPLE'), findsNothing);
     });
@@ -232,7 +234,8 @@ void main() {
     testWidgets('Study with no exam says so', (tester) async {
       await startApp(tester, backend());
       await tapCard(tester, 'Study');
-      expect(find.text('No exams coming up.'), findsOneWidget);
+      expect(find.text('No exams yet.'), findsOneWidget);
+      expect(find.text('No subjects yet.'), findsOneWidget);
     });
 
     testWidgets('Today with an exam offers Study, never a sample "Why?"', (

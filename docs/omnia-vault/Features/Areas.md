@@ -33,7 +33,7 @@ The activity and sleep logging stack (`TrackController`, `TrackRepository`) keep
 
 ## Not here yet
 
-Nutrition and other future areas are not shown until they work. Study has no subjects, exams or sessions of its own yet ([[Study]]).
+Nutrition and other future areas are not shown until they work. Study manages subjects and exams; its backlog and logged sessions aren't shown yet ([[Study]]).
 
 ## Related
 

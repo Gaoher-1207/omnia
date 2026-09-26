@@ -7,8 +7,9 @@ import 'package:omnia_ui/core/auth/timezones.dart';
 import 'package:omnia_ui/core/auth/token_store.dart';
 
 /// An in-memory stand-in for the backend's auth, profile, tasks, dashboard,
-/// activity and sleep endpoints, speaking the same JSON and status codes as
-/// `Fawaz/backend/app/modules/{auth,users,tasks,dashboard,activity,sleep}`.
+/// activity, sleep and study (subjects, exams) endpoints, speaking the same
+/// JSON and status codes as
+/// `Fawaz/backend/app/modules/{auth,users,tasks,dashboard,activity,sleep,study}`.
 class FakeAuthBackend {
   /// The device's token storage, shared with every [client].
   final tokens = MemoryTokenStore();
@@ -35,6 +36,13 @@ class FakeAuthBackend {
   /// Every activity or sleep PUT as "path body", in order.
   final trackPuts = <String>[];
 
+  /// Makes every `/study` call answer 503.
+  bool studyDown = false;
+
+  /// Every `/study` write as ("METHOD /study/…", body), ids replaced by
+  /// `{id}`, in order.
+  final studyWrites = <(String, Map<String, dynamic>)>[];
+
   /// Every `PATCH /profile` body, in order.
   final profilePatches = <Map<String, dynamic>>[];
 
@@ -42,7 +50,8 @@ class FakeAuthBackend {
   final _sessions = <String, String>{}; // token → email
   final _tasks = <String, Map<String, dynamic>>{}; // id → task + owner
   final _today = <String, Map<String, dynamic>>{}; // email → logged totals
-  final _nextExam = <String, Map<String, dynamic>>{}; // email → exam
+  final _subjects = <String, Map<String, dynamic>>{}; // id → subject + owner
+  final _exams = <String, Map<String, dynamic>>{}; // id → exam + owner
   final _activity = <String, Map<String, dynamic>>{}; // "email day" → row
   final _sleep = <String, Map<String, dynamic>>{}; // "email day" → row
   var _ids = 0;
@@ -58,20 +67,100 @@ class FakeAuthBackend {
   void setToday(String email, Map<String, dynamic> values) =>
       (_today[email] ??= {}).addAll(values);
 
-  /// [email]'s nearest upcoming exam, or none.
+  /// Stores a subject for [email]; returns its id.
+  String addSubject(String email, String name) {
+    final id = 'subject-uuid-${++_ids}';
+    _subjects[id] = {
+      'id': id,
+      'name': name,
+      'color': null,
+      'created_at': '2026-09-01T09:00:00Z',
+      'owner': email,
+    };
+    return id;
+  }
+
+  /// Stores an exam for [email] on [date] (`YYYY-MM-DD`); returns its id.
+  String addExam(
+    String email,
+    String subjectId,
+    String title,
+    String date, {
+    String? notes,
+  }) {
+    final id = 'exam-uuid-${++_ids}';
+    _exams[id] = {
+      'id': id,
+      'subject_id': subjectId,
+      'title': title,
+      'exam_date': date,
+      'notes': notes,
+      'owner': email,
+    };
+    return id;
+  }
+
+  /// Stores an upcoming exam (and its subject, if new) for [email]. The
+  /// dashboard's `next_exam` is always derived from the stored exams, as on
+  /// the server; [daysLeft] must match [date] against [todayFor].
   void setNextExam(
     String email, {
     required String subject,
     required String title,
     required String date,
     required int daysLeft,
-  }) => _nextExam[email] = {
-    'id': 'exam-uuid-${++_ids}',
-    'title': title,
-    'subject_name': subject,
-    'exam_date': date,
-    'days_left': daysLeft,
-  };
+  }) {
+    final existing = subjectsOf(email).where((s) => s['name'] == subject);
+    addExam(
+      email,
+      existing.isEmpty ? addSubject(email, subject) : existing.first['id'],
+      title,
+      date,
+    );
+    assert(_daysBetween(todayFor(email), date) == daysLeft);
+  }
+
+  /// [email]'s subjects as the API returns them, by name.
+  List<Map<String, dynamic>> subjectsOf(String email) => [
+    for (final subject in _subjects.values)
+      if (subject['owner'] == email)
+        {
+          for (final MapEntry(:key, :value) in subject.entries)
+            if (key != 'owner') key: value,
+        },
+  ]..sort((a, b) => (a['name'] as String).compareTo(b['name'] as String));
+
+  /// [email]'s upcoming exams as the API returns them, nearest first.
+  List<Map<String, dynamic>> examsOf(String email) {
+    final today = todayFor(email);
+    return [
+      for (final exam in _exams.values)
+        if (exam['owner'] == email &&
+            (exam['exam_date'] as String).compareTo(today) >= 0)
+          _examOut(exam, today),
+    ]..sort(
+      (a, b) => (a['exam_date'] as String).compareTo(b['exam_date'] as String),
+    );
+  }
+
+  Map<String, dynamic> _examOut(Map<String, dynamic> exam, String today) {
+    final subject = _subjects[exam['subject_id']]!;
+    return {
+      'id': exam['id'],
+      'title': exam['title'],
+      'exam_date': exam['exam_date'],
+      'notes': exam['notes'],
+      'subject': {
+        'id': subject['id'],
+        'name': subject['name'],
+        'color': subject['color'],
+      },
+      'days_left': _daysBetween(today, exam['exam_date'] as String),
+    };
+  }
+
+  static int _daysBetween(String from, String to) =>
+      DateTime.parse(to).difference(DateTime.parse(from)).inDays;
 
   /// The server's "today" for [email], in their profile time zone.
   String todayFor(String email) =>
@@ -252,7 +341,8 @@ class FakeAuthBackend {
         _users.remove(email);
         _tasks.removeWhere((_, task) => task['owner'] == email); // cascade
         _today.remove(email);
-        _nextExam.remove(email);
+        _exams.removeWhere((_, exam) => exam['owner'] == email);
+        _subjects.removeWhere((_, subject) => subject['owner'] == email);
         _activity.removeWhere((key, _) => key.startsWith('$email '));
         _sleep.removeWhere((key, _) => key.startsWith('$email '));
         return http.Response('', 204);
@@ -269,6 +359,9 @@ class FakeAuthBackend {
     }
     if (path.startsWith('/activity/') || path.startsWith('/sleep/')) {
       return _handleTrack(request.method, path, body, email);
+    }
+    if (path.startsWith('/study/')) {
+      return _handleStudy(request.method, path, body, email);
     }
     if (path == '/tasks' || path.startsWith('/tasks/')) {
       return _handleTasks(request.method, path, request.url, body, email);
@@ -443,7 +536,16 @@ class FakeAuthBackend {
         for (final kind in ['study', 'tasks', 'fitness', 'balance'])
           kind: streak,
       },
-      'next_exam': _nextExam[email],
+      'next_exam': switch (examsOf(email)) {
+        [final exam, ...] => {
+          'id': exam['id'],
+          'title': exam['title'],
+          'subject_name': (exam['subject'] as Map)['name'],
+          'exam_date': exam['exam_date'],
+          'days_left': exam['days_left'],
+        },
+        _ => null,
+      },
       'upcoming_tasks': open.take(5).toList(),
       'study_today': <Object>[],
       'ai_plan': null,
@@ -664,6 +766,117 @@ class FakeAuthBackend {
     'expires_in': 43200,
     'user': _user(email),
   };
+
+  /// `/study/subjects[/{id}]` and `/study/exams[/{id}]`, with the backend's
+  /// validation, per-user name uniqueness, ownership (another user's id is
+  /// "not found") and subject → exams cascade.
+  http.Response _handleStudy(
+    String method,
+    String path,
+    Map<String, dynamic> body,
+    String email,
+  ) {
+    if (studyDown) {
+      return _error(503, 'service_unavailable', 'Study is unavailable.');
+    }
+    final parts = path.split('/'); // ['', 'study', kind, id?]
+    if (method != 'GET') {
+      final route = parts.length > 3 ? '/study/${parts[2]}/{id}' : path;
+      studyWrites.add(('$method $route', body));
+    }
+    final kind = parts[2], id = parts.length > 3 ? parts[3] : null;
+    http.Response? extra(Set<String> allowed) {
+      for (final field in body.keys) {
+        if (!allowed.contains(field)) {
+          return _invalid('body.$field', 'Extra inputs are not permitted');
+        }
+      }
+      return null;
+    }
+
+    if (kind == 'subjects') {
+      final subject = id == null ? null : _subjects[id];
+      if (id != null && subject?['owner'] != email) {
+        return _error(404, 'not_found', 'Subject not found');
+      }
+      switch ((method, id)) {
+        case ('GET', null):
+          return _json(subjectsOf(email));
+        case ('POST', null) || ('PATCH', _):
+          if (extra({'name', 'color'}) case final refused?) return refused;
+          final name = (body['name'] as String?)?.trim();
+          if ((method == 'POST' || body.containsKey('name')) &&
+              (name == null || name.isEmpty || name.length > 60)) {
+            return _invalid('body.name', 'Enter 1 to 60 characters');
+          }
+          if (name != null &&
+              subjectsOf(email)
+                  .any((s) => s['name'] == name && s['id'] != id)) {
+            return _error(
+              409,
+              'conflict',
+              'You already have a subject with this name',
+            );
+          }
+          if (method == 'POST') {
+            final created = addSubject(email, name!);
+            return _json(
+              subjectsOf(email).firstWhere((s) => s['id'] == created),
+              201,
+            );
+          }
+          if (name != null) subject!['name'] = name;
+          return _json(subjectsOf(email).firstWhere((s) => s['id'] == id));
+        case ('DELETE', _):
+          _subjects.remove(id);
+          _exams.removeWhere((_, exam) => exam['subject_id'] == id); // cascade
+          return http.Response('', 204);
+      }
+    }
+    if (kind == 'exams') {
+      final exam = id == null ? null : _exams[id];
+      if (id != null && exam?['owner'] != email) {
+        return _error(404, 'not_found', 'Exam not found');
+      }
+      switch ((method, id)) {
+        case ('GET', null):
+          return _json(examsOf(email));
+        case ('POST', null) || ('PATCH', _):
+          if (extra({'subject_id', 'title', 'exam_date', 'notes'})
+              case final refused?) {
+            return refused;
+          }
+          final creating = method == 'POST';
+          final subjectId = body['subject_id'] as String?;
+          if ((creating || body.containsKey('subject_id')) &&
+              _subjects[subjectId]?['owner'] != email) {
+            return _error(404, 'not_found', 'Subject not found');
+          }
+          final title = (body['title'] as String?)?.trim();
+          if ((creating || body.containsKey('title')) &&
+              (title == null || title.isEmpty || title.length > 120)) {
+            return _invalid('body.title', 'Enter 1 to 120 characters');
+          }
+          final date = body['exam_date'] as String?;
+          if ((creating || body.containsKey('exam_date')) &&
+              (date == null || DateTime.tryParse(date) == null)) {
+            return _invalid('body.exam_date', 'Enter a valid date');
+          }
+          final row = creating
+              ? _exams[addExam(email, subjectId!, title!, date!)]!
+              : exam!;
+          if (body.containsKey('subject_id')) row['subject_id'] = subjectId;
+          if (title != null) row['title'] = title;
+          if (date != null) row['exam_date'] = date;
+          if (body.containsKey('notes')) row['notes'] = body['notes'];
+          return _json(_examOut(row, todayFor(email)), creating ? 201 : 200);
+        case ('DELETE', _):
+          _exams.remove(id);
+          return http.Response('', 204);
+      }
+    }
+    return _error(404, 'not_found', 'Not found');
+  }
 
   static http.Response _json(Object body, [int status = 200]) =>
       http.Response.bytes(

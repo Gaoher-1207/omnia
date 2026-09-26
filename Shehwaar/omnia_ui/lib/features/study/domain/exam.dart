@@ -1,18 +1,34 @@
+/// An exam for one of the user's subjects, on a calendar day (no time).
 class Exam {
   const Exam({
-    required this.id, required this.subjectId,
-    required this.title, required this.scheduledAt,
+    required this.id,
+    required this.subjectId,
+    required this.subjectName,
+    required this.title,
+    required this.date,
+    required this.daysLeft,
+    this.notes,
   });
-  final String id, subjectId, title;
-  final DateTime scheduledAt;
+  final String id, subjectId, subjectName, title;
 
-  factory Exam.fromJson(Map<String, dynamic> json) => Exam(
-    id: json['id'] as String, subjectId: json['subjectId'] as String,
-    title: json['title'] as String,
-    scheduledAt: DateTime.parse(json['scheduledAt'] as String),
-  );
-  Map<String, dynamic> toJson() => {
-    'id': id, 'subjectId': subjectId, 'title': title,
-    'scheduledAt': scheduledAt.toUtc().toIso8601String(),
-  };
+  /// A calendar day (local midnight), not an instant.
+  final DateTime date;
+
+  /// Days from the server's today (0 = today), so the device clock and time
+  /// zone never decide it.
+  final int daysLeft;
+  final String? notes;
+}
+
+/// What a user enters to create or change an exam.
+class ExamDraft {
+  const ExamDraft({
+    required this.subjectId,
+    required this.title,
+    required this.date,
+    this.notes,
+  });
+  final String subjectId, title;
+  final DateTime date;
+  final String? notes;
 }

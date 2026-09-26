@@ -21,6 +21,7 @@ Swagger (`<base>/docs` on the reference backend) or any HTTP client:
 - [ ] `GET /dashboard` returns `date`, `greeting`, `display_name`, `today.*` and `next_exam` (object or `null`); `today.sleep_minutes` is `null` before any sleep is logged.
 - [ ] `GET /tasks?limit=200&offset=0` returns `{ items, total }`; `POST`, `PATCH` (including `{ "status": "done" }`) and `DELETE /tasks/{id}` work.
 - [ ] `GET /activity/{today}` on an empty day returns zeros (not `404`); `PUT` with all four fields replaces the day; `PUT` for tomorrow is refused with `422` and a `details` entry.
+- [ ] `POST /study/subjects` then `GET /study/subjects` lists it; the same name again is refused with `409`; `POST /study/exams` for that subject appears in `GET /study/exams` (with `days_left`) and as `next_exam` on `GET /dashboard`; deleting the subject removes its exams.
 - [ ] `GET /sleep/{today}` on an empty night returns `"logged": false`; `PUT` then `GET` returns `"logged": true`; `DELETE` removes it.
 - [ ] Errors use the `{ "error": { code, message, details[] } }` envelope, with `details[].field` naming the input (e.g. `body.steps`).
 - [ ] Two accounts never see each other's tasks, activity, sleep or profile.
@@ -35,6 +36,7 @@ Start with `.\integration\run_frontend.ps1 -Api -BaseUrl <base>` (or the `flutte
 - [ ] Tasks: add (with a preset estimate and a due date), complete, edit, delete. Counts on Today and Areas follow.
 - [ ] Activity: log steps and a workout (preset type, then Other); Today updates at once; reopen: values kept.
 - [ ] Sleep: log `7h 30m`, quality 4; remove it; Today shows **Not logged**.
+- [ ] Areas → Study: add a subject, then an exam for it (subject picked, not typed). Today shows the exam; after a relaunch, both are still there. Delete the exam: Today says "No exams coming up."
 - [ ] Plan says "No plan yet."; Insights says "No insights yet"; Goals starts empty and says it isn't synced.
 - [ ] Turn the backend off: the app shows "Can't reach OMNIA…" errors and keeps what you typed; turn it on and retry.
 - [ ] Revoke the session (e.g. Sign out everywhere from another device): the next request returns you to sign-in.
@@ -43,7 +45,7 @@ Start with `.\integration\run_frontend.ps1 -Api -BaseUrl <base>` (or the `flutte
 
 - Plan has no real plan until `/ai/daily-plan` is connected (Phase 5C).
 - Long-term Goals are local only: no backend endpoint exists.
-- Study shows only the dashboard's study minutes and next exam.
+- Study manages subjects and exams only; backlog, logged sessions and the study plan aren't shown yet.
 - Insights doesn't read `/progress` yet.
 - iOS and macOS API mode are untested and need platform network settings (see README).
 

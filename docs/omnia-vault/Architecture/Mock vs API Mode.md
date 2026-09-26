@@ -16,7 +16,7 @@ The canonical frontend has two data modes, chosen at build time with a `--dart-d
 | `UserSession` | One for app life | One per signed-in user ([[Session Architecture]]) |
 | Tasks | In-memory mock | **FastAPI `/tasks`** via `ApiTaskRepository` (user-scoped) |
 | Goals | In-memory mock with sample goals | **In-memory, starts empty** per user; the screen says it isn't synced |
-| Study | Sample revision session | Dashboard figures only; the demo session is hidden |
+| Study | Sample subject, exam and revision session | **FastAPI `/study/subjects`, `/study/exams`** via `ApiStudyRepository`; the demo revision session is hidden |
 | Today / Areas day summary | Sample day (`MockDashboardRepository`) | **FastAPI `/dashboard`** via `ApiDashboardRepository` (user-scoped) |
 | Activity and sleep logging | `MockTrackRepository`, shared with the mock dashboard so a mock log shows on Home | **FastAPI `/activity/{day}`, `/sleep/{day}`** via `ApiTrackRepository` |
 | Plan, Insights, Today "Next up" / "Why?" | Sample data (labelled) | **Empty states**: no sample data is ever shown (`AppDependencies.sampleContent` is false) |
@@ -38,7 +38,7 @@ flowchart TB
     subgraph Api["flutter run --dart-define=OMNIA_DATA=api"]
         direction TB
         a1["AuthController + ApiClient"] ==> a0[("FastAPI")]
-        a1 --> a2["UserSession keyed by user.id"] --> a3["ApiTaskRepository, ApiDashboardRepository,<br/>ApiTrackRepository ⇒ FastAPI<br/>+ mock Goals / Study"]
+        a1 --> a2["UserSession keyed by user.id"] --> a3["ApiTaskRepository, ApiDashboardRepository,<br/>ApiTrackRepository, ApiStudyRepository ⇒ FastAPI<br/>+ mock Goals"]
     end
 ```
 

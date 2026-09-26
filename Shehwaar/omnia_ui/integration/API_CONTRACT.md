@@ -129,8 +129,33 @@ It is reloaded after every activity, sleep or profile change and when the app re
 
 `PUT` replaces the entry. The app has no bedtime/wake-time inputs; it sends back whatever `GET` returned, so the backend must accept its own values. Future days must be refused.
 
+## Study: subjects and exams
+
+| Call | Request | Success response |
+|---|---|---|
+| `GET /study/subjects` | — | `[Subject]`, by name |
+| `POST /study/subjects` | `{ "name": string }` (1–60, trimmed) | `Subject` (`201`) |
+| `PATCH /study/subjects/{id}` | `{ "name": string }` | `Subject` |
+| `DELETE /study/subjects/{id}` | — | ignored (`204`); **also deletes the subject's exams** |
+| `GET /study/exams` | — | `[Exam]`, **upcoming only** (today or later in the user's time zone), nearest first |
+| `POST /study/exams` | `ExamBody` | `Exam` (`201`) |
+| `PATCH /study/exams/{id}` | `ExamBody` (all four fields) | `Exam` |
+| `DELETE /study/exams/{id}` | — | ignored (`204`) |
+
+`Subject` (read): `id` string, `name` string. `color` may be present and is ignored.
+
+`Exam` (read): `id` string, `title` string, `exam_date` day, `notes` string?, `days_left` int (from the **server's** today; 0 = today), `subject` `{ "id": string, "name": string }`.
+
+`ExamBody` (sent): `subject_id` (one of the user's subjects), `title` (1–120), `exam_date` day, `notes` (≤ 2000, or `null` to clear). Exams have no time or type.
+
+Rules the frontend relies on:
+
+- A duplicate subject name for the same user is refused with `409` (`error.message` is shown under the name field).
+- Another user's subject or exam id answers `404`, like a missing one; deleting something already gone is treated as done.
+- `GET /dashboard` `next_exam` is the first of `GET /study/exams`, so after any study change the app reloads the dashboard and Today follows.
+
 ## Not used by the frontend (yet)
 
-Present in the reference backend, not called: `/study/*`, `/ai/daily-plan` (Phase 5C), `/progress`, `/achievements`, `/meals` and nutrition, `/social/*`, `/integrations/*`. Long-term Goals have **no endpoint anywhere**; the app keeps them in memory.
+Present in the reference backend, not called: `/study/backlog`, `/study/sessions` (study minutes arrive through `/dashboard`), `/study/plan`, `/ai/daily-plan` (Phase 5C), `/progress`, `/achievements`, `/meals` and nutrition, `/social/*`, `/integrations/*`. Long-term Goals have **no endpoint anywhere**; the app keeps them in memory.
 
 Optional but recommended: `GET /health` → `{ "status": "ok" }`. The app doesn't call it; `run_frontend.ps1` and the checklist use it.

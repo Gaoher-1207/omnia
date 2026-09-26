@@ -21,7 +21,7 @@ flowchart LR
         TASKS["Tasks ✅ API mode"]
         GOALS["Long-term Goals 🟡"]
         FOCUS["Focus ✅ local"]
-        STUDY["Study revision 🟡"]
+        STUDY["Study ✅🟡 subjects + exams via API"]
         HOME["Today ✅🟡 summary via API"]
         PLAN["Plan ⚪ empty until 5C"]
         TRACK["Areas ✅🟡 tiles + logging via API"]
@@ -77,7 +77,7 @@ Thick arrow = wired today. Dotted arrows to the backend = the backend endpoint e
 | [[Tasks]] | `api-connected` (API mode) | `ApiTaskRepository` (API mode) · `MockTaskRepository` (mock mode) | [[Tasks API]] full CRUD | [[Phase 3 - Tasks API Integration]]: complete (automated + manual emulator verification) |
 | [[Goals]] (long-term) | `local-functional` | `MockGoalRepository` (API mode: starts empty, labelled "not synced") | ❌ none | Not the same as [[Daily Targets]] |
 | [[Focus]] | `local-functional` | `FocusTimerController` (app-wide, not stored) | `/study/sessions` could log time | Intentionally app-wide |
-| [[Study]] | `partial` | Study screen: dashboard study minutes and next exam, Focus timer. Sample revision session in mock mode only | [[Study API]] | Frontend and backend models differ |
+| [[Study]] | `partial` | API mode: subjects and upcoming exams via `/study/subjects`, `/study/exams` (Study V1, uncommitted); study minutes and next exam from `/dashboard`. Sample data and the revision session in mock mode only | [[Study API]] | Backlog, sessions and plan not wired |
 | [[Dashboard]] (Today) | `partial` | API mode: greeting, name, date, next exam and Study/Activity/Sleep from `/dashboard`. Mock mode: `MockDashboardRepository` (the sample day). Tasks card and Goals preview unchanged. API mode: Next up says "No plan yet.", no "Why?"; mock mode keeps the labelled sample. | [[Profile and Dashboard API]] | [[Phase 4 - Dashboard API Integration]]: complete (automated + manual emulator verification) |
 | [[Plan]] | `sample` (mock) · empty (API) | Mock: `samplePlan` constant. API: "No plan yet." + Focus entry | [[AI API]] | Real plan is Phase 5C |
 | [[Areas]] (was Track) | `partial` | Study/Tasks/Goals/Activity/Sleep tiles from the session controllers; each opens its area ([[Phase 5B - Activity and Sleep Logging]] for the logs) | `/dashboard`; [[Activity API]], [[Sleep API]] | No meals logging |
@@ -98,7 +98,7 @@ See [[Mock vs API Mode]].
 | Sign-in | None | Real (FastAPI) |
 | Tasks | In-memory, one session for app life | **FastAPI `/tasks`**, scoped to the signed-in user |
 | Goals | In-memory sample goals, one session for app life | In-memory, **starts empty** per signed-in user |
-| Study | Sample revision session | Dashboard figures only (revision session hidden) |
+| Study | Sample subject, exam and revision session (labelled) | **FastAPI `/study/subjects`, `/study/exams`**, per user; revision session hidden |
 | Focus | App-wide, local | App-wide, local |
 | Today / Areas day summary | Sample (`MockDashboardRepository`, steps and sleep from the shared mock track state) | **FastAPI `/dashboard`**, per user |
 | Today's activity and sleep logs | In-memory `MockTrackRepository` (seeded with the sample day) | **FastAPI `/activity/{day}`, `/sleep/{day}`**, per user |

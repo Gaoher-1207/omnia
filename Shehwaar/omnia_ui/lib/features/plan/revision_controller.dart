@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:omnia_ui/features/study/domain/study_repository.dart';
+import 'package:omnia_ui/features/study/domain/revision_repository.dart';
 import 'package:omnia_ui/features/study/domain/study_session.dart';
 
 /// App-owned state for one study session, retained across route changes.
@@ -11,7 +11,7 @@ class RevisionController extends ChangeNotifier {
   });
 
   StudySession _session;
-  final StudyRepository _repository;
+  final RevisionRepository _repository;
 
   StudySession get session => _session;
   String get title => _session.title;
