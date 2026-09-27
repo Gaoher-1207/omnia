@@ -1,3 +1,6 @@
+import 'package:omnia_ui/features/plan/data/api_plan_repository.dart';
+import 'package:omnia_ui/features/plan/data/mock_plan_repository.dart';
+import 'package:omnia_ui/features/plan/domain/plan_repository.dart';
 import 'package:flutter/widgets.dart';
 import 'package:omnia_ui/core/api/api_client.dart';
 import 'package:omnia_ui/core/data/mock_data.dart';
@@ -25,9 +28,15 @@ import 'package:omnia_ui/features/track/domain/track_repository.dart';
 /// initialRevisionSession must be a session already loaded from [revision].
 class AppDependencies {
   const AppDependencies({
-    required this.tasks, required this.goals, required this.study,
-    required this.dashboard, required this.track, required this.revision,
-    required this.assistant, required this.initialRevisionSession,
+    required this.tasks,
+    required this.goals,
+    required this.study,
+    required this.dashboard,
+    required this.track,
+    required this.revision,
+    required this.assistant,
+    required this.initialRevisionSession,
+    required this.plan,
     this.sampleContent = false,
   });
 
@@ -38,11 +47,16 @@ class AppDependencies {
     final track = MockTrackRepository();
     final study = MockStudyRepository(sessions: [revision]);
     return AppDependencies(
-      tasks: MockTaskRepository(), goals: MockGoalRepository(),
-      study: study, revision: study,
+      tasks: MockTaskRepository(),
+      goals: MockGoalRepository(),
+      study: study,
+      revision: study,
       dashboard: MockDashboardRepository(track: track, study: study),
-      track: track, assistant: MockAssistantRepository(),
-      initialRevisionSession: revision, sampleContent: true,
+      track: track,
+      assistant: MockAssistantRepository(),
+      plan: MockPlanRepository(),
+      initialRevisionSession: revision,
+      sampleContent: true,
     );
   }
 
@@ -55,14 +69,19 @@ class AppDependencies {
   factory AppDependencies.api(ApiClient api) {
     final local = AppDependencies.mock();
     return AppDependencies(
-      tasks: ApiTaskRepository(api), goals: MockGoalRepository(seed: const []),
-      study: ApiStudyRepository(api), revision: local.revision,
-      dashboard: ApiDashboardRepository(api), track: ApiTrackRepository(api),
+      tasks: ApiTaskRepository(api),
+      goals: MockGoalRepository(seed: const []),
+      study: ApiStudyRepository(api),
+      revision: local.revision,
+      dashboard: ApiDashboardRepository(api),
+      track: ApiTrackRepository(api),
       assistant: ApiAssistantRepository(api),
+      plan: ApiPlanRepository(api),
       initialRevisionSession: local.initialRevisionSession,
     );
   }
 
+  final PlanRepository plan;
   final TaskRepository tasks;
   final GoalRepository goals;
   final StudyRepository study;
@@ -79,12 +98,15 @@ class AppDependencies {
 
 class AppDependenciesScope extends InheritedWidget {
   const AppDependenciesScope({
-    super.key, required this.dependencies, required super.child,
+    super.key,
+    required this.dependencies,
+    required super.child,
   });
   final AppDependencies dependencies;
 
-  static AppDependencies of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<AppDependenciesScope>()!.dependencies;
+  static AppDependencies of(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<AppDependenciesScope>()!
+      .dependencies;
 
   @override
   bool updateShouldNotify(AppDependenciesScope oldWidget) =>

@@ -17,6 +17,9 @@ from typing import Protocol
 import httpx
 from pydantic import ValidationError
 
+from app.modules.ai.constraints import DAY_END, DEFAULT_TASK_MINUTES, task_deadline, window_start
+from app.modules.ai.constraints import hhmm as _fmt
+from app.modules.ai.constraints import minutes as _parse
 from app.modules.ai.schemas import AIPlanContent, PlanContext, PlanItem
 
 logger = logging.getLogger("omnia.ai")
@@ -36,21 +39,10 @@ class PlanProvider(Protocol):
 
 # --------------------------------------------------------------------------- rules
 
-DAY_START = 8 * 60
-DAY_END = 22 * 60
 LUNCH = (13 * 60, 13 * 60 + 45)
 WORKOUT_SLOTS = {"morning": 8 * 60, "afternoon": 16 * 60, "evening": 18 * 60}
 SHORT_SLEEP_MINUTES = 6 * 60
 TIRED_WORDS = ("tired", "exhausted", "sleep", "slept", "sick", "drained", "low energy")
-
-
-def _fmt(minutes: int) -> str:
-    return f"{minutes // 60:02d}:{minutes % 60:02d}"
-
-
-def _parse(hhmm: str) -> int:
-    hours, minutes = hhmm.split(":")
-    return int(hours) * 60 + int(minutes)
 
 
 def _exam_phrase(days: int) -> str:
@@ -65,8 +57,7 @@ class RulesProvider:
     name = "rules"
 
     def generate(self, context: PlanContext) -> AIPlanContent:
-        now = _parse(context.current_time)
-        start = max(DAY_START, math.ceil(now / 15) * 15)
+        start = window_start(context)
         note = (context.note or "").lower()
         sleep = context.last_night_sleep
         short_sleep = sleep is not None and (sleep.minutes < SHORT_SLEEP_MINUTES or (sleep.quality or 3) <= 2)
@@ -81,7 +72,7 @@ class RulesProvider:
         adjustments: list[str] = []
         tips = self._tips(context, tired)
 
-        if start > DAY_END - 30:
+        if start >= DAY_END or (start > DAY_END - 30 and not context.open_tasks and not context.study_blocks):
             return AIPlanContent(
                 summary="The day is nearly over. Rest up; tomorrow's plan will pick up from here.",
                 items=[],
@@ -93,49 +84,35 @@ class RulesProvider:
         if start < LUNCH[0]:
             fixed.append(PlanItem(start=_fmt(LUNCH[0]), end=_fmt(LUNCH[1]), category="break", title="Lunch break"))
 
+        if tired and context.study_blocks:
+            adjustments.append(f"{why_tired}, so study is split into shorter 35-minute blocks.")
+        queue = self._flexible_queue(context, tired, exam.days_left if exam else None, adjustments)
+        items, _unplaced = self._place(queue, fixed, start)
+
         workout_at = None
-        if not context.today.workout_done:
+        if not context.today.workout_done and len(items) < 20:
             duration, title = 45, "Workout"
             if tired:
                 duration, title = 20, "Light stretch or easy walk"
                 adjustments.append(f"{why_tired}, so today's workout is a light 20-minute session.")
             elif context.account_age_days > 0 and not context.yesterday.workout_done:
                 duration, title = 30, "Workout (easy restart)"
-                adjustments.append(
-                    "Yesterday's workout was missed, so today has a shorter 30-minute session to get back on track."
-                )
+                adjustments.append("Yesterday's workout was missed, so today has a shorter 30-minute session.")
             preferred = WORKOUT_SLOTS.get(context.preferred_workout_time, WORKOUT_SLOTS["evening"])
-            slot = preferred
-            if slot < start:
-                slot = WORKOUT_SLOTS["evening"] if WORKOUT_SLOTS["evening"] >= start else start
-                adjustments.append(
-                    f"Your {context.preferred_workout_time} workout slot has passed, so it's at {_fmt(slot)}."
-                )
-            slot = self._free_slot(slot, duration, fixed) or self._free_slot(start, duration, fixed)
+            slot = self._free_slot(max(start, preferred), duration, items)
+            if slot is None:
+                slot = self._free_slot(start, duration, items)
             if slot is not None:
-                fixed.append(
-                    PlanItem(
-                        start=_fmt(slot),
-                        end=_fmt(slot + duration),
-                        category="fitness",
-                        title=title,
-                    )
-                )
+                items.append(PlanItem(start=_fmt(slot), end=_fmt(slot + duration), category="fitness", title=title))
                 workout_at = slot
-
-        if tired and context.study_blocks:
-            adjustments.append(f"{why_tired}, so study is split into shorter 35-minute blocks.")
-        queue = self._flexible_queue(context, tired, exam.days_left if exam else None, adjustments)
-        items, unplaced = self._place(queue, fixed, start)
-        if unplaced:
-            more = "…" if len(unplaced) > 3 else ""
-            adjustments.append(f"Didn't fit today: {', '.join(unplaced[:3])}{more}. Try these first tomorrow.")
+            else:
+                adjustments.append("The workout did not fit after work and study; it has not been scheduled.")
 
         study_total = sum(_parse(i.end) - _parse(i.start) for i in items if i.category == "study")
         task_count = sum(1 for i in items if i.category == "task")
         return AIPlanContent(
             summary=self._summary(exam, study_total, task_count, workout_at),
-            items=items[:20],
+            items=items,
             tips=tips,
             adjustments=adjustments[:6],
         )
@@ -150,10 +127,17 @@ class RulesProvider:
             base, extra = divmod(block.minutes, pieces)
             for n in range(pieces):
                 minutes = base + (1 if n < extra else 0)
-                study.append(("study", minutes, f"{block.subject}: {block.title}", block.reason, None))
-        task_limit = 2 if exam_days is not None and exam_days <= 3 else 3
+                study.append(("study", minutes, f"{block.subject}: {block.title}", block.reason, block.ref, DAY_END))
         tasks = [
-            ("task", 30, t.title, f"{t.priority.capitalize()} priority", t.ref) for t in context.open_tasks[:task_limit]
+            (
+                "task",
+                t.estimated_minutes or DEFAULT_TASK_MINUTES,
+                t.title,
+                f"{t.priority.capitalize()} priority",
+                t.ref,
+                task_deadline(t),
+            )
+            for t in context.open_tasks
         ]
         yesterday_goal = context.goals.get("study_minutes", 0)
         if (
@@ -166,7 +150,10 @@ class RulesProvider:
                 f"Yesterday's study was lighter than planned ({context.yesterday.study_minutes} of "
                 f"{yesterday_goal} min), so study starts early today."
             )
-        queue = []
+        # Deadlines today/tomorrow precede elective study and fitness.
+        urgent_refs = {t.ref for t in context.open_tasks if t.due_in_days is not None and t.due_in_days <= 1}
+        queue = [t for t in tasks if t[4] in urgent_refs]
+        tasks = [t for t in tasks if t[4] not in urgent_refs]
         if exam_days is not None and exam_days <= 7:
             queue.extend(study[:2])
             study = study[2:]
@@ -177,7 +164,7 @@ class RulesProvider:
                 queue.append(tasks.pop(0))
         step_goal = context.goals.get("steps", 0)
         if step_goal and context.today.steps < step_goal / 2 and not tired:
-            queue.insert(min(len(queue), 3), ("fitness", 20, "Walk to boost your steps", None, None))
+            queue.append(("fitness", 20, "Walk to boost your steps", None, None, DAY_END))
         return queue
 
     @staticmethod
@@ -195,9 +182,9 @@ class RulesProvider:
         placed = list(fixed)
         unplaced: list[str] = []
         cursor = start
-        for category, duration, title, detail, ref in queue:
+        for category, duration, title, detail, ref, deadline in queue:
             slot = self._free_slot(cursor, duration, placed)
-            if slot is None:
+            if slot is None or slot + duration > deadline or len(placed) >= 20:
                 unplaced.append(title)
                 continue
             placed.append(
@@ -207,7 +194,8 @@ class RulesProvider:
                     category=category,
                     title=title[:120],
                     detail=detail,
-                    task_ref=ref,
+                    task_ref=ref if category == "task" else None,
+                    study_ref=ref if category == "study" else None,
                 )
             )
             cursor = slot + duration + (10 if category == "study" else 5)
@@ -217,9 +205,9 @@ class RulesProvider:
     @staticmethod
     def _summary(exam, study_total: int, task_count: int, workout_at: int | None) -> str:
         if not study_total and not task_count and workout_at is None:
-            return "Nothing urgent today. Add tasks or study topics, or use the time to recover."
+            return "No work was scheduled. Review any remaining work, or use the time to recover."
         if exam and exam.days_left <= 7:
-            lead = f"{exam.subject} exam {_exam_phrase(exam.days_left)}, so study comes first today."
+            lead = f"{exam.subject} exam {_exam_phrase(exam.days_left)}; revision and urgent deadlines take priority."
         else:
             lead = "A balanced day across study, tasks and fitness."
         parts = []
@@ -256,10 +244,17 @@ SYSTEM_PROMPT = """You are OMNIA's planning assistant. You build a realistic pla
 the user's day that balances study, tasks and fitness.
 
 Rules:
-- Only plan from current_time until 22:30. Use 24-hour HH:MM times. Items must not overlap.
+- Only plan from current_time (or 08:00, whichever is later) until 22:00.
+Use 24-hour HH:MM times. Items must not overlap.
 - Exams that are close come first. Keep study blocks at 60 minutes or less with breaks.
 - Use the provided study_blocks and open_tasks. For a task item, set task_ref to that task's \
-ref exactly (for example "t2"); never invent refs.
+ref exactly (for example "t2"); never invent refs. Study items MUST set study_ref to a
+provided study block ref (for example "b1"). Never infer references from titles.
+- Tasks due today or tomorrow precede optional work. A task gets its estimated_minutes,
+or 30 minutes if missing; do not split or duplicate tasks. Finish by due_time if due today.
+Do not schedule overdue tasks as if their deadlines can still be met.
+- Study allocations must not exceed each provided block's minutes. Omit work that cannot
+fit; the backend reports remaining work. Workout time is a preference, not a reservation.
 - If yesterday's workout or study was missed, adapt gently instead of doubling the load. If \
 account_age_days is 0 the user signed up today, so don't comment on yesterday.
 - If the note says the user is tired or unwell, or last_night_sleep is under 6 hours or quality \
@@ -270,7 +265,7 @@ is 1-2, lighten the day and say why.
 Reply with only a JSON object, no prose and no code fences, in this shape:
 {"summary": str, "items": [{"start": "HH:MM", "end": "HH:MM", "category": \
 "study|task|fitness|break|recovery|other", "title": str, "detail": str|null, \
-"task_ref": str|null}], "tips": [str], "adjustments": [str]}"""
+"task_ref": str|null, "study_ref": str|null}], "tips": [str], "adjustments": [str]}"""
 
 
 def _extract_json(text: str) -> dict:

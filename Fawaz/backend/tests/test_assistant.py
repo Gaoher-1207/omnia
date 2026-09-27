@@ -188,7 +188,16 @@ def test_answers_from_the_users_own_context(app, client, headers):
     assert ctx["last_night_sleep"] == {"minutes": 300, "quality": 2}
     assert ctx["subjects"] == ["DBMS"]
     assert ctx["upcoming_exams"] == [{"subject": "DBMS", "title": "Midterm", "days_left": 3}]
-    assert ctx["open_tasks"] == [{"ref": "t1", "title": "Networks assignment", "priority": "high", "due_in_days": 1}]
+    assert ctx["open_tasks"] == [
+        {
+            "ref": "t1",
+            "title": "Networks assignment",
+            "priority": "high",
+            "due_in_days": 1,
+            "due_time": None,
+            "estimated_minutes": None,
+        }
+    ]
     assert any(b["subject"] == "DBMS" for b in ctx["study_plan_today"])
     assert set(ctx["streaks_in_days"]) == {"study", "tasks", "fitness", "balance"}
     assert ctx["todays_plan"]["summary"] and all(

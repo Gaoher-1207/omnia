@@ -8,6 +8,14 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.rate_limit import limiter
 from app.core.time import local_now
+from app.modules.ai.constraints import (
+    DAY_END,
+    DEFAULT_TASK_MINUTES,
+    hhmm,
+    minutes,
+    validate_candidate,
+    window_start,
+)
 from app.modules.ai.context import build_context
 from app.modules.ai.models import AIPlan
 from app.modules.ai.providers import (
@@ -16,8 +24,7 @@ from app.modules.ai.providers import (
     ProviderError,
     RulesProvider,
 )
-from app.modules.ai.schemas import AIPlanContent, AIPlanOut, DailyPlanRequest, PlanItemOut
-from app.modules.study.service import list_subjects
+from app.modules.ai.schemas import AIPlanContent, AIPlanOut, DailyPlanRequest, PlanContext, PlanItemOut
 from app.modules.users.models import User
 
 logger = logging.getLogger("omnia.ai")
@@ -56,24 +63,20 @@ def plan_out(plan: AIPlan) -> AIPlanOut:
         items=[PlanItemOut.model_validate(item) for item in content["items"]],
         tips=content["tips"],
         adjustments=content["adjustments"],
+        validation_version=content.get("validation_version", 0),
+        window_start=content.get("window_start"),
+        window_end=content.get("window_end"),
+        assumptions=content.get("assumptions", []),
+        unscheduled=content.get("unscheduled", []),
     )
 
 
-def _subject_for(title: str, subjects: dict[str, uuid.UUID]) -> uuid.UUID | None:
-    """Match a study item to a subject by name (longest name first, case-insensitive)."""
-    lowered = title.lower()
-    for name in sorted(subjects, key=len, reverse=True):
-        if name.lower() in lowered:
-            return subjects[name]
-    return None
-
-
-def _to_stored(content: AIPlanContent, refs: dict[str, uuid.UUID], subjects: dict[str, uuid.UUID]) -> dict:
-    """Swap task refs back to real task ids; drop refs the provider made up; link study items to subjects."""
+def _to_stored(content: AIPlanContent, refs: dict[str, uuid.UUID], context: PlanContext) -> dict:
+    """Persist only validated links. Unscheduled work is calculated, never model-authored."""
     items = []
     for item in content.items:
-        task_id = refs.get(item.task_ref) if item.task_ref else None
-        subject_id = _subject_for(item.title, subjects) if item.category == "study" else None
+        task_id = refs[item.task_ref] if item.task_ref else None
+        subject_id = refs[item.study_ref] if item.study_ref else None
         items.append(
             PlanItemOut(
                 start=item.start,
@@ -85,7 +88,54 @@ def _to_stored(content: AIPlanContent, refs: dict[str, uuid.UUID], subjects: dic
                 subject_id=subject_id,
             ).model_dump(mode="json")
         )
+    unscheduled = []
+    for task in context.open_tasks:
+        if not any(i.task_ref == task.ref for i in content.items):
+            unscheduled.append(
+                {
+                    "title": task.title,
+                    "category": "task",
+                    "task_id": str(refs[task.ref]),
+                    "remaining_minutes": task.estimated_minutes or DEFAULT_TASK_MINUTES,
+                    "reason": "deadline_passed"
+                    if task.due_in_days is not None
+                    and (
+                        task.due_in_days < 0
+                        or (
+                            task.due_in_days == 0
+                            and task.due_time is not None
+                            and minutes(task.due_time) <= minutes(context.current_time)
+                        )
+                    )
+                    else "not_scheduled",
+                }
+            )
+    for block in context.study_blocks:
+        allocated = sum(minutes(i.end) - minutes(i.start) for i in content.items if i.study_ref == block.ref)
+        if allocated < block.minutes:
+            unscheduled.append(
+                {
+                    "title": f"{block.subject}: {block.title}",
+                    "category": "study",
+                    "subject_id": str(refs[block.ref]),
+                    "remaining_minutes": block.minutes - allocated,
+                    "reason": "not_scheduled",
+                }
+            )
+    assumptions = ["Assumes time is free from the planning start until 22:00; calendar commitments are not included."]
+    if any(t.estimated_minutes is None for t in context.open_tasks):
+        assumptions.append("Tasks without an estimate use 30 minutes; tasks are scheduled as whole blocks.")
+    if context.omitted_tasks:
+        assumptions.append(
+            f"Only the first {len(context.open_tasks)} open tasks were considered; "
+            f"{context.omitted_tasks} additional tasks are outside this suggestion."
+        )
     return {
+        "validation_version": 1,
+        "window_start": hhmm(window_start(context)),
+        "window_end": hhmm(DAY_END),
+        "assumptions": assumptions,
+        "unscheduled": unscheduled,
         "summary": content.summary,
         "items": items,
         "tips": content.tips,
@@ -108,12 +158,15 @@ def generate_daily_plan(
 
     source, fallback_reason = provider.name, None
     try:
-        content = provider.generate(context)
+        try:
+            content = validate_candidate(provider.generate(context), context)
+        except ValueError as exc:
+            raise ProviderError("invalid_plan") from exc
     except ProviderError as exc:
         if provider.name == RulesProvider.name:
             raise
         logger.warning("AI provider %s failed (%s); using rules fallback", provider.name, exc.reason)
-        content = RulesProvider().generate(context)
+        content = validate_candidate(RulesProvider().generate(context), context)
         source, fallback_reason = RulesProvider.name, exc.reason
 
     plan = AIPlan(
@@ -122,7 +175,7 @@ def generate_daily_plan(
         source=source,
         is_fallback=fallback_reason is not None,
         fallback_reason=fallback_reason,
-        content=_to_stored(content, refs, {s.name: s.id for s in list_subjects(db, user.id)}),
+        content=_to_stored(content, refs, context),
     )
     db.add(plan)
     db.commit()

@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.common.schemas import InputModel, Text
 
@@ -35,6 +35,8 @@ class ContextTask(BaseModel):
     title: str
     priority: str
     due_in_days: int | None
+    due_time: str | None = Field(default=None, pattern=_HHMM)
+    estimated_minutes: int | None = Field(default=None, ge=1, le=1440)
 
 
 class ContextExam(BaseModel):
@@ -44,6 +46,7 @@ class ContextExam(BaseModel):
 
 
 class ContextStudyBlock(BaseModel):
+    ref: str = ""
     subject: str
     title: str
     minutes: int
@@ -65,18 +68,21 @@ class PlanContext(BaseModel):
     note: str | None = None
     account_age_days: int = Field(default=30, description="0 on sign-up day, so 'yesterday' means nothing yet")
     last_night_sleep: ContextSleep | None = None
+    omitted_tasks: int = 0
 
 
 # ---- What a provider must return (validated before it reaches the app) ----
 
 
 class PlanItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     start: str = Field(pattern=_HHMM)
     end: str = Field(pattern=_HHMM)
     category: Category
     title: str = Field(min_length=1, max_length=120)
     detail: str | None = Field(default=None, max_length=280)
     task_ref: str | None = Field(default=None, max_length=10)
+    study_ref: str | None = Field(default=None, max_length=10)
 
     @model_validator(mode="after")
     def _end_after_start(self):
@@ -86,6 +92,7 @@ class PlanItem(BaseModel):
 
 
 class AIPlanContent(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     summary: str = Field(min_length=1, max_length=500)
     items: list[PlanItem] = Field(default_factory=list, max_length=20)
     tips: list[str] = Field(default_factory=list, max_length=5)
@@ -147,6 +154,15 @@ class PlanItemOut(BaseModel):
     subject_id: uuid.UUID | None = Field(default=None, description="For study items: the subject it belongs to")
 
 
+class UnscheduledItem(BaseModel):
+    title: str
+    category: Literal["task", "study"]
+    remaining_minutes: int
+    reason: Literal["deadline_passed", "not_scheduled"]
+    task_id: uuid.UUID | None = None
+    subject_id: uuid.UUID | None = None
+
+
 class AIPlanOut(BaseModel):
     id: uuid.UUID
     plan_date: date
@@ -157,3 +173,9 @@ class AIPlanOut(BaseModel):
     items: list[PlanItemOut]
     tips: list[str]
     adjustments: list[str]
+    # Older persisted plans remain readable, but must not claim the new checks.
+    validation_version: int = 0
+    window_start: str | None = None
+    window_end: str | None = None
+    assumptions: list[str] = Field(default_factory=list)
+    unscheduled: list[UnscheduledItem] = Field(default_factory=list)

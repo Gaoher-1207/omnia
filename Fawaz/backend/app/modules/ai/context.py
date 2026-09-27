@@ -26,7 +26,7 @@ from app.modules.progress.service import compute_streaks, daily_facts
 from app.modules.progress.streaks import DayFacts
 from app.modules.sleep.service import get_day as sleep_on
 from app.modules.study import service as study_service
-from app.modules.tasks.service import open_tasks_for_planning
+from app.modules.tasks.service import list_tasks
 from app.modules.users.models import User
 
 MAX_TASKS = 10
@@ -59,14 +59,19 @@ def build_context(
     ][:MAX_EXAMS]
 
     plan_today = study_service.study_plan(db, user, days=1).days[0]
+    refs: dict[str, uuid.UUID] = {f"b{n}": b.subject_id for n, b in enumerate(plan_today.blocks, start=1)}
     study_blocks = [
-        ContextStudyBlock(subject=b.subject_name, title=b.title[:TITLE_LIMIT], minutes=b.minutes, reason=b.reason)
-        for b in plan_today.blocks
+        ContextStudyBlock(
+            ref=f"b{n}", subject=b.subject_name, title=b.title[:TITLE_LIMIT], minutes=b.minutes, reason=b.reason
+        )
+        for n, b in enumerate(plan_today.blocks, start=1)
     ]
 
-    refs: dict[str, uuid.UUID] = {}
     tasks = []
-    for n, task in enumerate(open_tasks_for_planning(db, user.id, limit=MAX_TASKS), start=1):
+    selected, total = list_tasks(
+        db, user.id, status="todo", priority=None, due_on_or_before=None, limit=MAX_TASKS, offset=0
+    )
+    for n, task in enumerate(selected, start=1):
         ref = f"t{n}"
         refs[ref] = task.id
         tasks.append(
@@ -75,6 +80,8 @@ def build_context(
                 title=task.title[:TITLE_LIMIT],
                 priority=task.priority,
                 due_in_days=(task.due_date - today).days if task.due_date else None,
+                due_time=task.due_time.strftime("%H:%M") if task.due_time else None,
+                estimated_minutes=task.estimated_minutes,
             )
         )
 
@@ -105,5 +112,6 @@ def build_context(
         note=note.strip() if note and note.strip() else None,
         account_age_days=(today - to_local_date(user.created_at, profile.timezone)).days,
         last_night_sleep=ContextSleep(minutes=sleep.duration_minutes, quality=sleep.quality) if sleep else None,
+        omitted_tasks=max(0, total - len(selected)),
     )
     return context, refs

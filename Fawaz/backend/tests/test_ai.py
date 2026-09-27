@@ -169,7 +169,7 @@ def _reply(obj):
     return httpx.Response(200, json={"content": [{"type": "text", "text": json.dumps(obj)}]})
 
 
-def test_anthropic_success_maps_task_refs_and_drops_invented_ones(app, client, headers, user):
+def test_anthropic_success_maps_explicit_refs(app, client, headers, user):
     tasks = seed(client, headers)
     sent = {}
 
@@ -180,15 +180,20 @@ def test_anthropic_success_maps_task_refs_and_drops_invented_ones(app, client, h
             {
                 "summary": "Physics first.",
                 "items": [
-                    {"start": "09:00", "end": "09:50", "category": "study", "title": "Thermodynamics"},
+                    {
+                        "start": "09:00",
+                        "end": "09:50",
+                        "category": "study",
+                        "title": "Thermodynamics",
+                        "study_ref": "b1",
+                    },
                     {
                         "start": "10:00",
                         "end": "10:30",
                         "category": "task",
-                        "title": "Email professor",
+                        "title": "Model invented a different title",
                         "task_ref": "t1",
                     },
-                    {"start": "11:00", "end": "11:30", "category": "task", "title": "Made up", "task_ref": "t99"},
                 ],
                 "tips": ["Drink water"],
                 "adjustments": [],
@@ -201,7 +206,8 @@ def test_anthropic_success_maps_task_refs_and_drops_invented_ones(app, client, h
     plan = response.json()
     assert plan["source"] == "anthropic" and plan["is_fallback"] is False
     assert plan["items"][1]["task_id"] == tasks[0]["id"]
-    assert plan["items"][2]["task_id"] is None
+    assert plan["items"][1]["title"] == tasks[0]["title"]
+    assert plan["items"][0]["subject_id"] is not None
 
     assert sent["headers"]["x-api-key"] == "test-key"
     payload = sent["body"]["messages"][0]["content"]

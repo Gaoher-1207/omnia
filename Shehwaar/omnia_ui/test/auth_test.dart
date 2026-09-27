@@ -99,7 +99,11 @@ void main() {
     expect(find.byType(OnboardingPage), findsNothing);
     expect(find.byType(HomePage), findsOneWidget);
     // The session loads this user's data only after the account is known.
-    expect(backend.requests, ['GET /auth/me', 'GET /dashboard', 'GET /tasks']);
+    expect(backend.requests.first, 'GET /auth/me');
+    expect(
+      backend.requests.skip(1),
+      unorderedEquals(['GET /dashboard', 'GET /tasks', 'GET /ai/daily-plan']),
+    );
 
     await openSettings(tester);
     expect(find.text('Account'), findsOneWidget);

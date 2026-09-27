@@ -49,6 +49,9 @@ class FakeAuthBackend {
   /// Every `POST /ai/chat` as (signed-in email, body), in order.
   final chats = <(String, Map<String, dynamic>)>[];
 
+  /// Persisted plan fixtures keyed by authenticated account.
+  final plans = <String, Map<String, dynamic>>{};
+
   /// Every `PATCH /profile` body, in order.
   final profilePatches = <Map<String, dynamic>>[];
 
@@ -323,6 +326,11 @@ class FakeAuthBackend {
     switch ((request.method, path)) {
       case ('GET', '/auth/me'):
         return _json(_user(email));
+      case ('GET', '/ai/daily-plan'):
+        final plan = plans[email];
+        return plan == null
+            ? _error(404, 'not_found', 'Plan not found')
+            : _json(plan);
       case ('POST', '/auth/logout-all'):
         endSessions(email);
         return http.Response('', 204);

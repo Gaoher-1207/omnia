@@ -1,3 +1,4 @@
+import 'package:omnia_ui/features/plan/widgets/daily_plan_view.dart';
 import 'package:flutter/material.dart';
 import 'package:omnia_ui/core/app_dependencies.dart';
 import 'package:omnia_ui/core/widgets/section_header.dart';
@@ -30,7 +31,9 @@ class _PlanPageState extends State<PlanPage> {
   @override
   Widget build(BuildContext context) {
     final sample = AppDependenciesScope.of(context).sampleContent;
-    // Phase 5C replaces this with the day's plan from the backend.
+    if (!sample) {
+      return DailyPlanView(today: DashboardScope.of(context).dashboard?.date);
+    }
     final items = sample ? samplePlan : const <PlanItem>[];
     final day = DashboardScope.of(context).dashboard?.date;
     return ListView(
