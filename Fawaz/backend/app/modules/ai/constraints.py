@@ -1,14 +1,13 @@
 """Deterministic checks shared by model proposals and the rules fallback.
 
-This slice assumes one free window ending at 22:00. Calendar availability and
-accepted/locked items must become explicit inputs before adaptive replanning.
+The profile window bounds the day; manual commitments are subtracted before
+either provider proposes work. Accepted/locked items remain future work.
 """
 
 from collections import Counter
 
 from app.modules.ai.schemas import AIPlanContent, ContextTask, PlanContext
 
-DAY_START = 8 * 60
 DAY_END = 22 * 60
 DEFAULT_TASK_MINUTES = 30
 
@@ -23,15 +22,15 @@ def hhmm(value: int) -> str:
 
 
 def window_start(context: PlanContext) -> int:
-    return min(DAY_END, max(DAY_START, minutes(context.current_time)))
+    return min(context.planning_end_minutes, max(context.planning_start_minutes, minutes(context.current_time)))
 
 
-def task_deadline(task: ContextTask) -> int:
+def task_deadline(task: ContextTask, day_end: int = DAY_END) -> int:
     if task.due_in_days is not None and task.due_in_days < 0:
         return 0
     if task.due_in_days == 0 and task.due_time:
-        return min(DAY_END, minutes(task.due_time))
-    return DAY_END
+        return min(day_end, minutes(task.due_time))
+    return day_end
 
 
 def validate_candidate(content: AIPlanContent, context: PlanContext) -> AIPlanContent:
@@ -42,13 +41,20 @@ def validate_candidate(content: AIPlanContent, context: PlanContext) -> AIPlanCo
     used: Counter[str] = Counter()
     for item in checked.items:
         start, end = minutes(item.start), minutes(item.end)
-        if start < window_start(context) or end > DAY_END:
+        if start < window_start(context) or end > context.planning_end_minutes:
             raise ValueError("outside_available_window")
+        intervals = context.free_intervals
+        if intervals is not None and not any(
+            start >= interval.start_minutes and end <= interval.end_minutes for interval in intervals
+        ):
+            raise ValueError("overlaps_commitment")
         if item.category == "task":
             task = tasks.get(item.task_ref)
             if task is None or item.study_ref is not None or used[task.ref]:
                 raise ValueError("invalid_task_reference")
-            if end > task_deadline(task) or end - start != (task.estimated_minutes or DEFAULT_TASK_MINUTES):
+            if end > task_deadline(task, context.planning_end_minutes) or end - start != (
+                task.estimated_minutes or DEFAULT_TASK_MINUTES
+            ):
                 raise ValueError("task_duration_or_deadline")
             used[task.ref] += end - start
             item.title = task.title

@@ -7,7 +7,8 @@ class MockPlanRepository implements PlanRepository {
   MockPlanRepository([this.plan]);
   final DailyPlan? plan;
   @override
-  Future<DailyPlan?> getToday() async => plan;
+  Future<DailyPlan?> getToday({DateTime? date}) async =>
+      date == null || plan?.date == date ? plan : null;
   @override
   Future<DailyPlan> generate() async =>
       plan ?? (throw StateError('Plan generation requires API mode.'));

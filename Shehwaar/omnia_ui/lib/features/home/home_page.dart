@@ -1,13 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:omnia_ui/core/api/api_exception.dart';
+import 'package:omnia_ui/core/auth/auth_controller.dart';
 import 'package:omnia_ui/core/widgets/info_dialog.dart';
 import 'package:omnia_ui/core/widgets/state_views.dart';
 import 'package:omnia_ui/features/assistant/assistant_page.dart';
 import 'package:omnia_ui/features/home/dashboard_controller.dart';
 import 'package:omnia_ui/features/home/dashboard_format.dart';
 import 'package:omnia_ui/features/home/domain/dashboard.dart';
+import 'package:omnia_ui/features/home/next_up.dart';
 import 'package:omnia_ui/features/settings/settings_page.dart';
 import 'package:omnia_ui/features/plan/plan_item.dart';
+import 'package:omnia_ui/features/plan/plan_controller.dart';
+import 'package:omnia_ui/features/plan/domain/daily_plan.dart';
+import 'package:omnia_ui/features/plan/plan_time.dart';
 import 'package:omnia_ui/features/plan/revision_controller.dart';
 import 'package:omnia_ui/features/tasks/task_controller.dart';
 import 'package:omnia_ui/features/tasks/tasks_page.dart';
@@ -48,6 +55,7 @@ class HomePage extends StatelessWidget {
     // Mock mode's demo day; a real session never shows its sample plan.
     final sample = AppDependenciesScope.of(context).sampleContent;
     final dashboard = controller.dashboard;
+    final planController = PlanScope.of(context);
     final today = dashboard?.today;
     final sleep = today?.sleepMinutes;
     final (headline, detail) = switch ((dashboard, controller.loadError)) {
@@ -289,12 +297,10 @@ class HomePage extends StatelessWidget {
           const SizedBox(height: 10),
           SectionHeader(
             'Next up',
-            action: sample
-                ? TextButton(
-                    onPressed: openPlan,
-                    child: Text('See all →', semanticsLabel: 'See all'),
-                  )
-                : null,
+            action: TextButton(
+              onPressed: openPlan,
+              child: const Text('See all →', semanticsLabel: 'See all'),
+            ),
           ),
           if (sample) ...[
             AgendaLine(
@@ -321,10 +327,21 @@ class HomePage extends StatelessWidget {
               icon: Icons.directions_walk,
               color: mint,
             ),
-          ] else
-            const EmptyCard(
-              title: 'No plan yet.',
-              detail: 'Planning your day isn’t connected yet.',
+          ] else if (dashboard == null)
+            EmptyCard(
+              title: controller.loadError == null
+                  ? 'Loading your plan…'
+                  : "Couldn't load your plan.",
+              action: controller.loadError == null
+                  ? null
+                  : SolidAction(label: 'Try again', onTap: controller.load),
+            )
+          else
+            _TodayNextUp(
+              dashboard: dashboard,
+              plan: planController.todayPlan,
+              format: AuthScope.maybeOf(context)?.user?.profile.timeFormat ?? '24h',
+              openPlan: openPlan,
             ),
           const SizedBox(height: 18),
         ],
@@ -333,7 +350,89 @@ class HomePage extends StatelessWidget {
   }
 }
 
-/// Opens Ask Omnia, the read-only assistant for questions about today.
+class _TodayNextUp extends StatefulWidget {
+  const _TodayNextUp({
+    required this.dashboard,
+    required this.plan,
+    required this.format,
+    required this.openPlan,
+  });
+  final Dashboard dashboard;
+  final DailyPlan? plan;
+  final String format;
+  final VoidCallback openPlan;
+
+  @override
+  State<_TodayNextUp> createState() => _TodayNextUpState();
+}
+
+class _TodayNextUpState extends State<_TodayNextUp> {
+  late final Timer _clock;
+
+  @override
+  void initState() {
+    super.initState();
+    _clock = Timer.periodic(const Duration(minutes: 1), (_) => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _clock.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final plan = widget.plan;
+    if (plan == null) {
+      return EmptyCard(
+        title: 'No plan yet.',
+        detail: 'Generate a suggested plan from your Omnia data.',
+        action: SolidAction(label: 'Open Plan', onTap: widget.openPlan),
+      );
+    }
+    final upcoming = nextUp(widget.dashboard, plan, DateTime.now().toUtc());
+    if (upcoming == null) {
+      return EmptyCard(
+        title: 'No more planned blocks today.',
+        detail: 'Your saved suggestion is still available in Plan.',
+        action: SolidAction(label: 'Open Plan', onTap: widget.openPlan),
+      );
+    }
+    final item = upcoming.item;
+    final start = formatPlanTime(item.start, widget.format);
+    final end = formatPlanTime(item.end, widget.format);
+    return Semantics(
+      button: true,
+      label: '${item.title}, $start to $end. Open Plan.',
+      child: HardCard(
+        color: switch (item.category) {
+          'task' => yellow,
+          'study' => blue,
+          'fitness' => mint,
+          _ => lilac,
+        },
+        shadowOffset: const Offset(2, 3),
+        onTap: widget.openPlan,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              upcoming.inProgress ? 'IN PROGRESS' : 'UP NEXT',
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 4),
+            Text(item.title, style: const TextStyle(fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            Text('$start–$end', style: OmniaText.meta),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Opens Ask OmniAI, the read-only assistant for questions about today.
 class _AskOmniaEntry extends StatelessWidget {
   const _AskOmniaEntry();
 
@@ -353,7 +452,7 @@ class _AskOmniaEntry extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Ask Omnia',
+                  'Ask OmniAI',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
                 ),
                 const SizedBox(height: 2),

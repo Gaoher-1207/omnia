@@ -59,3 +59,10 @@ def test_dashboard_reflects_today(client, headers):
 
 def test_dashboard_requires_auth(client):
     assert client.get("/api/dashboard").status_code == 401
+
+
+def test_dashboard_clock_offset_uses_profile_timezone(client, headers):
+    response = client.patch("/api/profile", json={"timezone": "Asia/Kolkata"}, headers=headers)
+    assert response.status_code == 200
+    data = client.get("/api/dashboard", headers=headers).json()
+    assert data["timezone_offset_minutes"] == 330

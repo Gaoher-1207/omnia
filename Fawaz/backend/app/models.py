@@ -3,6 +3,7 @@
 from app.db.base import Base
 from app.modules.activity.models import ActivityDay
 from app.modules.ai.models import AIPlan
+from app.modules.commitments.models import Commitment
 from app.modules.integrations.models import CalendarFeed
 from app.modules.nutrition.models import Meal
 from app.modules.sleep.models import SleepLog
@@ -26,6 +27,7 @@ __all__ = [
     "BacklogItem",
     "Base",
     "CalendarFeed",
+    "Commitment",
     "Challenge",
     "ChallengeParticipant",
     "Exam",

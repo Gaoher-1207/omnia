@@ -7,7 +7,7 @@ import 'package:omnia_ui/core/auth/timezones.dart';
 import 'package:omnia_ui/core/auth/token_store.dart';
 
 /// An in-memory stand-in for the backend's auth, profile, tasks, dashboard,
-/// activity, sleep, study (subjects, exams) and Ask Omnia endpoints,
+/// activity, sleep, study (subjects, exams) and Ask OmniAI endpoints,
 /// speaking the same JSON and status codes as
 /// `Fawaz/backend/app/modules/{auth,users,tasks,dashboard,activity,sleep,study,ai}`.
 class FakeAuthBackend {
@@ -25,6 +25,7 @@ class FakeAuthBackend {
   /// The server's "today" (in the profile timezone), independent of the
   /// device clock.
   String dashboardDate = '2026-09-24';
+  int dashboardOffsetMinutes = 0;
 
   /// "Today" for users in other time zones, e.g. `{'Pacific/Auckland':
   /// '2026-09-25'}`; everyone else gets [dashboardDate].
@@ -63,6 +64,7 @@ class FakeAuthBackend {
   final _exams = <String, Map<String, dynamic>>{}; // id → exam + owner
   final _activity = <String, Map<String, dynamic>>{}; // "email day" → row
   final _sleep = <String, Map<String, dynamic>>{}; // "email day" → row
+  final _commitments = <String, Map<String, dynamic>>{};
   var _ids = 0;
 
   /// Stores a task for [email] as the server would; returns its id.
@@ -328,7 +330,8 @@ class FakeAuthBackend {
         return _json(_user(email));
       case ('GET', '/ai/daily-plan'):
         final plan = plans[email];
-        return plan == null
+        final date = request.url.queryParameters['date'];
+        return plan == null || plan['plan_date'] != (date ?? todayFor(email))
             ? _error(404, 'not_found', 'Plan not found')
             : _json(plan);
       case ('POST', '/auth/logout-all'):
@@ -359,6 +362,7 @@ class FakeAuthBackend {
         _subjects.removeWhere((_, subject) => subject['owner'] == email);
         _activity.removeWhere((key, _) => key.startsWith('$email '));
         _sleep.removeWhere((key, _) => key.startsWith('$email '));
+        _commitments.removeWhere((_, row) => row['owner'] == email);
         return http.Response('', 204);
       case ('GET', '/profile'):
         return _json(profileOf(email)!);
@@ -396,8 +400,122 @@ class FakeAuthBackend {
     if (path == '/tasks' || path.startsWith('/tasks/')) {
       return _handleTasks(request.method, path, request.url, body, email);
     }
+    if (path == '/commitments' || path.startsWith('/commitments/')) {
+      return _handleCommitments(request.method, path, request.url, body, email);
+    }
     // Any other signed-in request (features not on the backend yet).
     return _json(<String, dynamic>{});
+  }
+
+  List<Map<String, dynamic>> commitmentsOf(String email) => [
+    for (final row in _commitments.values)
+      if (row['owner'] == email)
+        {
+          for (final entry in row.entries)
+            if (entry.key != 'owner') entry.key: entry.value,
+        },
+  ];
+
+  http.Response _handleCommitments(
+    String method,
+    String path,
+    Uri url,
+    Map<String, dynamic> body,
+    String email,
+  ) {
+    if (path == '/commitments/availability' && method == 'GET') {
+      final day = url.queryParameters['day'] ?? todayFor(email);
+      final weekday = DateTime.parse(day).weekday - 1;
+      final rows = [
+        for (final row in commitmentsOf(email))
+          if (row['enabled'] == true &&
+              (row['kind'] == 'one_off'
+                  ? row['day'] == day
+                  : (row['weekdays'] as List).contains(weekday)))
+            row,
+      ];
+      final profile = profileOf(email)!;
+      final start = profile['planning_start_minutes'] as int? ?? 480;
+      final end = profile['planning_end_minutes'] as int? ?? 1320;
+      final busy = [
+        for (final row in rows)
+          (
+            (row['start_minutes'] as int).clamp(start, end),
+            (row['end_minutes'] as int).clamp(start, end),
+          ),
+      ]..sort((a, b) => a.$1.compareTo(b.$1));
+      final merged = <(int, int)>[];
+      for (final slot in busy) {
+        if (slot.$1 >= slot.$2) continue;
+        if (merged.isNotEmpty && slot.$1 <= merged.last.$2) {
+          final previous = merged.removeLast();
+          merged.add((
+            previous.$1,
+            slot.$2 > previous.$2 ? slot.$2 : previous.$2,
+          ));
+        } else {
+          merged.add(slot);
+        }
+      }
+      var cursor = start;
+      final free = <Map<String, int>>[];
+      for (final slot in merged) {
+        if (cursor < slot.$1) {
+          free.add({'start_minutes': cursor, 'end_minutes': slot.$1});
+        }
+        cursor = slot.$2;
+      }
+      if (cursor < end) free.add({'start_minutes': cursor, 'end_minutes': end});
+      return _json({
+        'day': day,
+        'planning_start_minutes': start,
+        'planning_end_minutes': end,
+        'commitments': rows,
+        'busy_intervals': [
+          for (final slot in merged)
+            {'start_minutes': slot.$1, 'end_minutes': slot.$2},
+        ],
+        'free_intervals': free,
+      });
+    }
+    if (path == '/commitments') {
+      if (method == 'GET') return _json(commitmentsOf(email));
+      if (method == 'POST') {
+        if ((body['start_minutes'] as int) >= (body['end_minutes'] as int)) {
+          return _invalid('body.end_minutes', 'End must be after start');
+        }
+        final row = {
+          ...body,
+          'id': 'commitment-uuid-${++_ids}',
+          'created_at': _now(),
+          'updated_at': _now(),
+          'owner': email,
+        };
+        _commitments[row['id'] as String] = row;
+        return _json({
+          for (final entry in row.entries)
+            if (entry.key != 'owner') entry.key: entry.value,
+        }, 201);
+      }
+    }
+    final id = path.replaceFirst('/commitments/', '');
+    final row = _commitments[id];
+    if (row == null || row['owner'] != email) {
+      return _error(404, 'not_found', 'Commitment not found');
+    }
+    if (method == 'DELETE') {
+      _commitments.remove(id);
+      return http.Response('', 204);
+    }
+    if (method == 'PUT') {
+      row.addAll(body);
+      row['updated_at'] = _now();
+      return _json({
+        for (final entry in row.entries)
+          if (entry.key != 'owner') entry.key: entry.value,
+      });
+    }
+    return _error(405, 'method_not_allowed', 'Method not allowed');
   }
 
   static const _taskFields = {
@@ -543,6 +661,7 @@ class FakeAuthBackend {
     final activity = activityOf(email, today), sleep = sleepOf(email, today);
     return {
       'date': today,
+      'timezone_offset_minutes': dashboardOffsetMinutes,
       'greeting': 'morning',
       'display_name': profile['display_name'],
       'today': {
@@ -578,7 +697,7 @@ class FakeAuthBackend {
       },
       'upcoming_tasks': open.take(5).toList(),
       'study_today': <Object>[],
-      'ai_plan': null,
+      'ai_plan': plans[email]?['plan_date'] == today ? plans[email] : null,
     };
   }
 
@@ -741,6 +860,9 @@ class FakeAuthBackend {
       'timezone',
       'username',
       'preferred_workout_time',
+      'planning_start_minutes',
+      'planning_end_minutes',
+      'time_format',
       ..._targets.keys,
     };
     for (final MapEntry(:key, :value) in body.entries) {

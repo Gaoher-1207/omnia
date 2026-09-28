@@ -26,6 +26,12 @@ class Profile(TimestampMixin, Base):
 
     __tablename__ = "profiles"
     __table_args__ = (
+        CheckConstraint(
+            "planning_start_minutes >= 0 AND planning_end_minutes <= 1439 "
+            "AND planning_start_minutes < planning_end_minutes",
+            name="planning_window",
+        ),
+        CheckConstraint("time_format IN ('12h', '24h')", name="time_format"),
         CheckConstraint("daily_study_goal_minutes BETWEEN 0 AND 960", name="study_goal_range"),
         CheckConstraint("daily_step_goal BETWEEN 0 AND 100000", name="step_goal_range"),
         CheckConstraint("daily_task_goal BETWEEN 0 AND 50", name="task_goal_range"),
@@ -33,6 +39,14 @@ class Profile(TimestampMixin, Base):
         CheckConstraint("daily_sleep_goal_minutes BETWEEN 0 AND 960", name="sleep_goal_range"),
         CheckConstraint("daily_calorie_goal BETWEEN 0 AND 10000", name="calorie_goal_range"),
     )
+
+    planning_start_minutes: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=480, server_default=text("480")
+    )
+    planning_end_minutes: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1320, server_default=text("1320")
+    )
+    time_format: Mapped[str] = mapped_column(String(3), nullable=False, default="24h", server_default="24h")
 
     user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     display_name: Mapped[str] = mapped_column(String(60), nullable=False)

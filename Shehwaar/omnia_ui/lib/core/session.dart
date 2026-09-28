@@ -1,9 +1,11 @@
 import 'package:omnia_ui/features/plan/plan_controller.dart';
+import 'package:omnia_ui/features/plan/commitment_controller.dart';
 import 'package:flutter/widgets.dart';
 import 'package:omnia_ui/core/app_dependencies.dart';
 import 'package:omnia_ui/features/assistant/assistant_controller.dart';
 import 'package:omnia_ui/features/goals/goal_controller.dart';
 import 'package:omnia_ui/features/home/dashboard_controller.dart';
+import 'package:omnia_ui/features/home/domain/dashboard.dart';
 import 'package:omnia_ui/features/plan/revision_controller.dart';
 import 'package:omnia_ui/features/study/study_controller.dart';
 import 'package:omnia_ui/features/tasks/task_controller.dart';
@@ -33,10 +35,12 @@ class _UserSessionState extends State<UserSession> {
     session: dependencies.initialRevisionSession,
     repository: dependencies.revision,
   );
-  late final plan = PlanController(dependencies.plan);
+  late final plan = PlanController(dependencies.plan, loadsWithDashboard: true);
+  late final commitments = CommitmentController(dependencies.commitments);
   late final tasks = TaskController(dependencies.tasks)..load();
   late final goals = GoalController(dependencies.goals)..load();
-  late final dashboard = DashboardController(dependencies.dashboard)..load();
+  late final dashboard = DashboardController(dependencies.dashboard);
+  Dashboard? _syncedDashboard;
   late final track = TrackController(dependencies.track, dashboard);
   // Loaded when Study opens, not at sign-in.
   late final study = StudyController(dependencies.study, dashboard);
@@ -47,19 +51,33 @@ class _UserSessionState extends State<UserSession> {
   @override
   void initState() {
     super.initState();
+    dashboard.addListener(_syncTodayPlan);
+    dashboard.load();
     // The day may have changed while the app was in the background.
     _lifecycle = AppLifecycleListener(
       onResume: () {
         dashboard.load();
-        if (plan.loaded) plan.load();
+        if (plan.selectedDate != null) plan.load();
       },
     );
+  }
+
+  void _syncTodayPlan() {
+    final result = dashboard.dashboard;
+    if (result == null && dashboard.loadError != null) {
+      plan.seedTodayError(dashboard.loadError!);
+    }
+    if (result == null || identical(result, _syncedDashboard)) return;
+    _syncedDashboard = result;
+    plan.seedToday(result.date, result.aiPlan);
   }
 
   @override
   void dispose() {
     _lifecycle.dispose();
+    dashboard.removeListener(_syncTodayPlan);
     plan.dispose();
+    commitments.dispose();
     revision.dispose();
     tasks.dispose();
     goals.dispose();
@@ -87,7 +105,13 @@ class _UserSessionState extends State<UserSession> {
                 controller: study,
                 child: AssistantScope(
                   controller: assistant,
-                  child: PlanScope(controller: plan, child: widget.child),
+                  child: PlanScope(
+                    controller: plan,
+                    child: CommitmentScope(
+                      controller: commitments,
+                      child: widget.child,
+                    ),
+                  ),
                 ),
               ),
             ),

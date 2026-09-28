@@ -185,7 +185,7 @@ void main() {
       await startApp(tester, backend());
       await openTab(tester, 'Plan');
       expect(find.byType(PlanPage), findsOneWidget);
-      expect(find.text('No plan yet.'), findsOneWidget);
+      expect(find.text('No plan for this date.'), findsOneWidget);
       expect(find.byType(TimelineRow), findsNothing);
       expect(find.textContaining('SAMPLE'), findsNothing);
       expect(find.text('Thursday, September 24'), findsOneWidget);

@@ -46,6 +46,7 @@ def dashboard(db: Session, user: User) -> DashboardOut:
     activity = activity_on(db, user.id, today)
     return DashboardOut(
         date=today,
+        timezone_offset_minutes=int(now.utcoffset().total_seconds() // 60),
         greeting=_greeting(now.hour),
         display_name=profile.display_name,
         today=TodaySummary(

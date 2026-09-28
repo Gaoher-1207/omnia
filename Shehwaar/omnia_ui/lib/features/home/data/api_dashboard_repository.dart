@@ -2,6 +2,7 @@ import 'package:omnia_ui/core/api/api_client.dart';
 import 'package:omnia_ui/core/api/json.dart';
 import 'package:omnia_ui/features/home/domain/dashboard.dart';
 import 'package:omnia_ui/features/home/domain/dashboard_repository.dart';
+import 'package:omnia_ui/features/plan/domain/daily_plan.dart';
 
 /// `GET /api/dashboard`: one call for everything Home and Track summarise.
 class ApiDashboardRepository implements DashboardRepository {
@@ -13,12 +14,16 @@ class ApiDashboardRepository implements DashboardRepository {
       dashboardFromApi(asMap(await _api.get('/dashboard')));
 }
 
-/// Backend `DashboardOut` → [Dashboard]. Fields not used yet are ignored.
+/// Backend `DashboardOut` → [Dashboard].
 Dashboard dashboardFromApi(Map<String, dynamic> json) {
   final today = asMap(json['today']);
   final exam = json['next_exam'] == null ? null : asMap(json['next_exam']);
   return Dashboard(
     date: parseDay(json['date'] as String),
+    timezoneOffsetMinutes: json['timezone_offset_minutes'] as int? ?? 0,
+    aiPlan: json['ai_plan'] == null
+        ? null
+        : DailyPlan.fromJson(asMap(json['ai_plan'])),
     greeting: json['greeting'] as String,
     displayName: json['display_name'] as String,
     today: TodaySummary(

@@ -218,6 +218,7 @@ class OmniaHome extends StatefulWidget {
 
 class _OmniaHomeState extends State<OmniaHome> {
   var tab = RootTab.today;
+  final _visited = <RootTab>{RootTab.today};
   final _stacks = {
     for (final tab in RootTab.values) tab: GlobalKey<NavigatorState>(),
   };
@@ -227,7 +228,10 @@ class _OmniaHomeState extends State<OmniaHome> {
     if (next == tab) {
       _stacks[next]!.currentState?.popUntil((route) => route.isFirst);
     } else {
-      setState(() => tab = next);
+      setState(() {
+        tab = next;
+        _visited.add(next);
+      });
     }
   }
 
@@ -249,15 +253,19 @@ class _OmniaHomeState extends State<OmniaHome> {
           children: [
             for (final option in RootTab.values)
               // System back pops the visible tab's own stack first.
-              NavigatorPopHandler<Object?>(
-                enabled: option == tab,
-                onPopWithResult: (_) => _stacks[option]!.currentState?.maybePop(),
-                child: Navigator(
-                  key: _stacks[option],
-                  onGenerateRoute: (_) =>
-                      MaterialPageRoute(builder: (_) => _root(option)),
-                ),
-              ),
+              if (_visited.contains(option))
+                NavigatorPopHandler<Object?>(
+                  enabled: option == tab,
+                  onPopWithResult: (_) =>
+                      _stacks[option]!.currentState?.maybePop(),
+                  child: Navigator(
+                    key: _stacks[option],
+                    onGenerateRoute: (_) =>
+                        MaterialPageRoute(builder: (_) => _root(option)),
+                  ),
+                )
+              else
+                const SizedBox.shrink(),
           ],
         ),
       ),

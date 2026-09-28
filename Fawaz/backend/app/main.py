@@ -9,6 +9,7 @@ from app.core.logging import RequestContextMiddleware, configure_logging
 from app.modules.activity.router import router as activity_router
 from app.modules.ai.router import router as ai_router
 from app.modules.auth.router import router as auth_router
+from app.modules.commitments.router import router as commitments_router
 from app.modules.dashboard.router import router as dashboard_router
 from app.modules.integrations.router import router as integrations_router
 from app.modules.nutrition.router import router as nutrition_router
@@ -76,6 +77,7 @@ def create_app() -> FastAPI:
         social_router,
         integrations_router,
         ai_router,
+        commitments_router,
     ):
         api.include_router(router)
     app.include_router(api)

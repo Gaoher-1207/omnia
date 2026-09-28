@@ -5,6 +5,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.common.schemas import InputModel, Text
+from app.modules.commitments.schemas import IntervalOut
 
 Category = Literal["study", "task", "fitness", "break", "recovery", "other"]
 _HHMM = r"^([01]\d|2[0-3]):[0-5]\d$"
@@ -53,7 +54,19 @@ class ContextStudyBlock(BaseModel):
     reason: str
 
 
+class ContextCommitment(BaseModel):
+    title: str
+    category: str
+    start_minutes: int
+    end_minutes: int
+
+
 class PlanContext(BaseModel):
+    planning_start_minutes: int = 480
+    planning_end_minutes: int = 1320
+    # None keeps older direct-provider test contexts compatible; [] means no capacity.
+    free_intervals: list[IntervalOut] | None = None
+    commitments: list[ContextCommitment] = Field(default_factory=list)
     date: date
     weekday: str
     current_time: str
@@ -163,6 +176,14 @@ class UnscheduledItem(BaseModel):
     subject_id: uuid.UUID | None = None
 
 
+class PlanExplanationOut(BaseModel):
+    """Server-derived hierarchy from validated items and trusted context."""
+
+    headline: str = Field(max_length=180)
+    key_reasons: list[str] = Field(max_length=3)
+    supporting_context: list[str] = Field(default_factory=list, max_length=3)
+
+
 class AIPlanOut(BaseModel):
     id: uuid.UUID
     plan_date: date
@@ -174,8 +195,11 @@ class AIPlanOut(BaseModel):
     tips: list[str]
     adjustments: list[str]
     # Older persisted plans remain readable, but must not claim the new checks.
+    planning_start_minutes: int | None = None
+    planning_end_minutes: int | None = None
     validation_version: int = 0
     window_start: str | None = None
     window_end: str | None = None
     assumptions: list[str] = Field(default_factory=list)
     unscheduled: list[UnscheduledItem] = Field(default_factory=list)
+    explanation: PlanExplanationOut | None = None

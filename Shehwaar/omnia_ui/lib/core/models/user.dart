@@ -39,8 +39,13 @@ class Profile {
     required this.calorieGoal,
     required this.workoutTime,
     this.username,
+    this.planningStartMinutes = 480,
+    this.planningEndMinutes = 1320,
+    this.timeFormat = '24h',
   });
 
+  final int planningStartMinutes, planningEndMinutes;
+  final String timeFormat;
   final String displayName;
 
   /// IANA name; decides when the user's day starts.
@@ -53,6 +58,9 @@ class Profile {
   final WorkoutTime workoutTime;
 
   factory Profile.fromJson(Map<String, dynamic> json) => Profile(
+    planningStartMinutes: json['planning_start_minutes'] as int? ?? 480,
+    planningEndMinutes: json['planning_end_minutes'] as int? ?? 1320,
+    timeFormat: json['time_format'] as String? ?? '24h',
     displayName: json['display_name'] as String,
     timezone: json['timezone'] as String,
     username: json['username'] as String?,
@@ -67,6 +75,9 @@ class Profile {
   );
 
   Map<String, Object?> toJson() => {
+    'planning_start_minutes': planningStartMinutes,
+    'planning_end_minutes': planningEndMinutes,
+    'time_format': timeFormat,
     'display_name': displayName,
     'timezone': timezone,
     'username': username,

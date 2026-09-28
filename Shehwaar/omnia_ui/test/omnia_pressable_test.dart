@@ -198,11 +198,11 @@ void main() {
             color: blue,
             shadowOffset: const Offset(2, 3),
             onTap: () => taps++,
-            child: const Text('Ask Omnia'),
+            child: const Text('Ask OmniAI'),
           ),
         ),
       );
-      final text = find.text('Ask Omnia');
+      final text = find.text('Ask OmniAI');
       final rest = at(tester, text);
       final finger = await tester.startGesture(tester.getCenter(text));
       await settled(tester);
@@ -356,11 +356,11 @@ void main() {
       expect(at(tester, target), rest, reason: 'back up');
     }
 
-    testWidgets('Today: Ask Omnia and the area cards are tactile', (
+    testWidgets('Today: Ask OmniAI and the area cards are tactile', (
       tester,
     ) async {
       await startApp(tester, null);
-      final ask = find.text('Ask Omnia');
+      final ask = find.text('Ask OmniAI');
       await reveal(tester, HomePage, ask);
       await expectPresses(tester, ask);
       final study = find.descendant(
@@ -387,7 +387,7 @@ void main() {
       tester,
     ) async {
       await startApp(tester, null);
-      final ask = find.text('Ask Omnia');
+      final ask = find.text('Ask OmniAI');
       await reveal(tester, HomePage, ask);
       await tester.tap(ask);
       await tester.pumpAndSettle();

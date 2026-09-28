@@ -9,9 +9,16 @@ class ApiPlanRepository implements PlanRepository {
   final ApiClient _api;
 
   @override
-  Future<DailyPlan?> getToday() async {
+  Future<DailyPlan?> getToday({DateTime? date}) async {
     try {
-      return DailyPlan.fromJson(asMap(await _api.get('/ai/daily-plan')));
+      return DailyPlan.fromJson(
+        asMap(
+          await _api.get(
+            '/ai/daily-plan',
+            query: {'date': date == null ? null : formatDay(date)},
+          ),
+        ),
+      );
     } on ApiException catch (error) {
       if (error.isNotFound) return null;
       rethrow;

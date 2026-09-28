@@ -70,7 +70,7 @@ Widget host(
 Finder get composer => find.byType(TextField);
 
 Future<void> openAssistant(WidgetTester tester) async {
-  final entry = find.text('Ask Omnia');
+  final entry = find.text('Ask OmniAI');
   await reveal(tester, HomePage, entry);
   await tester.tap(entry);
   await tester.pumpAndSettle();
@@ -238,37 +238,38 @@ void main() {
   });
 
   group('mock mode', () {
-    testWidgets('Today opens Ask Omnia; a suggestion is answered as a sample', (
-      tester,
-    ) async {
-      await startApp(tester, null);
-      await openAssistant(tester);
-      expect(find.byType(AssistantPage), findsOneWidget);
-      expect(find.text('SAMPLE'), findsOneWidget);
-      expect(find.textContaining('sample answers'), findsOneWidget);
-      for (final question in AssistantPage.suggestions) {
-        expect(find.text(question), findsOneWidget);
-      }
+    testWidgets(
+      'Today opens Ask OmniAI; a suggestion is answered as a sample',
+      (tester) async {
+        await startApp(tester, null);
+        await openAssistant(tester);
+        expect(find.byType(AssistantPage), findsOneWidget);
+        expect(find.text('SAMPLE'), findsOneWidget);
+        expect(find.textContaining('sample answers'), findsOneWidget);
+        for (final question in AssistantPage.suggestions) {
+          expect(find.text(question), findsOneWidget);
+        }
 
-      await tester.tap(find.text('What exams do I have coming up?'));
-      await tester.pump();
-      expect(find.text('Omnia is thinking…'), findsOneWidget);
-      expect(tester.widget<TextField>(composer).enabled, isFalse);
-      expect(
-        tester
-            .widget<IconButton>(
-              find.widgetWithIcon(IconButton, Icons.arrow_upward_rounded),
-            )
-            .onPressed,
-        isNull,
-      );
+        await tester.tap(find.text('What exams do I have coming up?'));
+        await tester.pump();
+        expect(find.text('OmniAI is thinking…'), findsOneWidget);
+        expect(tester.widget<TextField>(composer).enabled, isFalse);
+        expect(
+          tester
+              .widget<IconButton>(
+                find.widgetWithIcon(IconButton, Icons.arrow_upward_rounded),
+              )
+              .onPressed,
+          isNull,
+        );
 
-      await tester.pumpAndSettle();
-      expect(find.text('Omnia is thinking…'), findsNothing);
-      expect(find.text('What exams do I have coming up?'), findsOneWidget);
-      expect(find.textContaining('DBMS exam in 8 days'), findsOneWidget);
-      expect(tester.widget<TextField>(composer).enabled, isTrue);
-    });
+        await tester.pumpAndSettle();
+        expect(find.text('OmniAI is thinking…'), findsNothing);
+        expect(find.text('What exams do I have coming up?'), findsOneWidget);
+        expect(find.textContaining('DBMS exam in 8 days'), findsOneWidget);
+        expect(tester.widget<TextField>(composer).enabled, isTrue);
+      },
+    );
 
     testWidgets(
       'typed questions are sent; the conversation stays for the session',
@@ -303,13 +304,86 @@ void main() {
   });
 
   group('page states', () {
+    testWidgets('simple answer stays one conversational line', (tester) async {
+      final repo = ScriptedAssistant();
+      final controller = AssistantController(repo);
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(host(controller));
+      await type(tester, 'How much did I study?');
+      repo.answer("You've logged 45 minutes of study today.");
+      await tester.pumpAndSettle();
+      expect(
+        find.text("You've logged 45 minutes of study today."),
+        findsOneWidget,
+      );
+      expect(find.byType(SelectableText), findsNothing);
+    });
+
+    testWidgets(
+      'structured reply shows restrained headings, lists and emphasis',
+      (tester) async {
+        final repo = ScriptedAssistant();
+        final controller = AssistantController(repo);
+        addTearDown(controller.dispose);
+        await tester.pumpWidget(host(controller));
+        await type(tester, 'What should I focus on tonight?');
+        repo.answer(
+          '**Tonight\'s priorities**\n\n1. **Assignment 2**\nDue tonight.\n2. **DBMS revision**\nExam tomorrow.\n\n## Why this order?\nThe assignment has the closest deadline.',
+        );
+        await tester.pumpAndSettle();
+        expect(find.text("Tonight's priorities"), findsOneWidget);
+        expect(find.text('Why this order?'), findsOneWidget);
+        expect(find.textContaining('Assignment 2'), findsOneWidget);
+        expect(find.textContaining('DBMS revision'), findsOneWidget);
+        expect(find.textContaining('**'), findsNothing);
+        expect(find.byType(SelectableText), findsWidgets);
+      },
+    );
+
+    testWidgets('malformed and unsupported markup remains visible text', (
+      tester,
+    ) async {
+      final repo = ScriptedAssistant();
+      final controller = AssistantController(repo);
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(host(controller));
+      await type(tester, 'What next?');
+      repo.answer('Try **unfinished emphasis and <script>alert(1)</script>.');
+      await tester.pumpAndSettle();
+      expect(find.textContaining('**unfinished'), findsOneWidget);
+      expect(find.textContaining('<script>alert(1)</script>'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('long formatted answer scrolls at 200% on a narrow phone', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(360, 740);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final repo = ScriptedAssistant();
+      final controller = AssistantController(repo);
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(host(controller, scale: 2));
+      await type(tester, 'What should I do?');
+      repo.answer(
+        '**Priorities**\n\n${List.generate(12, (index) => '${index + 1}. **Item ${index + 1}**\nReview the work.').join('\n')}',
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Priorities'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.drag(find.byType(ListView).last, const Offset(0, -400));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets(
       'unavailable, network and other failures each offer Try again',
       (tester) async {
         for (final (error, title) in [
-          (offline, "Omnia's assistant is unavailable"),
-          (ApiException.network(), 'No answer from OMNIA'),
-          (failed, "Omnia couldn't answer"),
+          (offline, "OmniAI is unavailable"),
+          (ApiException.network(), 'No answer from OmniAI'),
+          (failed, "OmniAI couldn't answer"),
         ]) {
           final repo = ScriptedAssistant();
           final controller = AssistantController(repo);
@@ -324,7 +398,7 @@ void main() {
           await tester.tap(find.text('Try again'));
           await tester.pump();
           expect(find.text(title), findsNothing);
-          expect(find.text('Omnia is thinking…'), findsOneWidget);
+          expect(find.text('OmniAI is thinking…'), findsOneWidget);
           repo.answer('Hello there');
           await tester.pumpAndSettle();
           expect(find.text('Hello there'), findsOneWidget);
@@ -407,14 +481,14 @@ void main() {
 
         await type(tester, 'Hi');
         expect(
-          tester.getSemantics(find.text('Omnia is thinking…')),
+          tester.getSemantics(find.text('OmniAI is thinking…')),
           isSemantics(isLiveRegion: true),
         );
         repo.answer('Hello');
         await tester.pumpAndSettle();
         expect(find.bySemanticsLabel(RegExp(r'^YOU\nHi$')), findsOneWidget);
         expect(
-          find.bySemanticsLabel(RegExp(r'^OMNIA\nHello$')),
+          find.bySemanticsLabel(RegExp(r'^OmniAI\nHello$')),
           findsOneWidget,
         );
         expect(

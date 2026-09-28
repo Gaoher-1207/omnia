@@ -140,14 +140,14 @@ void main() {
       await openAssistant(tester);
       await type(tester, 'Hi');
       await tester.pumpAndSettle();
-      expect(find.text("Omnia's assistant is unavailable"), findsOneWidget);
+      expect(find.text("OmniAI is unavailable"), findsOneWidget);
       expect(find.textContaining('offline right now'), findsOneWidget);
 
       server.assistantDown = false;
       await tester.tap(find.widgetWithText(SolidAction, 'Try again'));
       await tester.pumpAndSettle();
       expect(find.text('Answer to: Hi'), findsOneWidget);
-      expect(find.text("Omnia's assistant is unavailable"), findsNothing);
+      expect(find.text("OmniAI is unavailable"), findsNothing);
     });
 
     testWidgets('no connection is reported as a network problem', (
@@ -159,7 +159,7 @@ void main() {
       server.offline = true;
       await type(tester, 'Hi');
       await tester.pumpAndSettle();
-      expect(find.text('No answer from OMNIA'), findsOneWidget);
+      expect(find.text('No answer from OmniAI'), findsOneWidget);
       expect(find.textContaining("Can't reach OMNIA"), findsOneWidget);
       expect(tester.widget<TextField>(composer).enabled, isTrue);
     });

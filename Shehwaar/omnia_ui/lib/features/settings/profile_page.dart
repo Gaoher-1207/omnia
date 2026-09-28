@@ -65,6 +65,9 @@ class _ProfilePageState extends State<ProfilePage> {
       sleepGoalMinutes: int.parse(_sleep.text),
       calorieGoal: int.parse(_calories.text),
       workoutTime: _workout,
+      planningStartMinutes: _initial.planningStartMinutes,
+      planningEndMinutes: _initial.planningEndMinutes,
+      timeFormat: _initial.timeFormat,
     );
   }
 

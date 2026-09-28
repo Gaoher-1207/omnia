@@ -10,10 +10,11 @@ import 'package:omnia_ui/core/widgets/omnia_mark.dart';
 import 'package:omnia_ui/core/widgets/section_header.dart';
 import 'package:omnia_ui/core/widgets/solid_action.dart';
 import 'package:omnia_ui/features/assistant/assistant_controller.dart';
+import 'package:omnia_ui/features/assistant/assistant_rich_text.dart';
 import 'package:omnia_ui/features/assistant/domain/assistant_message.dart';
 import 'package:omnia_ui/features/assistant/domain/assistant_repository.dart';
 
-/// Ask Omnia: questions about the user's day, answered from their OMNIA data.
+/// Ask OmniAI: questions about the user's day, answered from their OMNIA data.
 /// Read-only; the conversation belongs to the session's [AssistantController].
 class AssistantPage extends StatefulWidget {
   const AssistantPage({super.key});
@@ -57,7 +58,7 @@ class _AssistantPageState extends State<AssistantPage> {
     final sample = AppDependenciesScope.of(context).sampleContent;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Ask Omnia'),
+        title: const Text('Ask OmniAI'),
         actions: [
           if (sample)
             const Padding(
@@ -129,7 +130,7 @@ class _Intro extends StatelessWidget {
                   ? 'These are sample answers about the demo day. Sign in to '
                         'ask about your own tasks, exams, study, activity and '
                         'sleep.'
-                  : 'Omnia answers from your tasks, exams, study, activity '
+                  : 'OmniAI answers from your tasks, exams, study, activity '
                         "and sleep in OMNIA. It can't change anything for you.",
               style: const TextStyle(height: 1.35),
             ),
@@ -219,9 +220,12 @@ class _Bubble extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(user ? 'YOU' : 'OMNIA', style: OmniaText.label),
+                    Text(user ? 'YOU' : 'OmniAI', style: OmniaText.label),
                     const SizedBox(height: 4),
-                    Text(message.text, style: const TextStyle(height: 1.35)),
+                    if (user)
+                      Text(message.text, style: const TextStyle(height: 1.35))
+                    else
+                      AssistantRichText(message.text),
                   ],
                 ),
               ),
@@ -257,7 +261,7 @@ class _Thinking extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              const Flexible(child: Text('Omnia is thinking…')),
+              const Flexible(child: Text('OmniAI is thinking…')),
             ],
           ),
         ),
@@ -273,9 +277,9 @@ class _FailureCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final title = switch (controller.failure) {
-      AssistantFailure.unavailable => "Omnia's assistant is unavailable",
-      AssistantFailure.network => 'No answer from OMNIA',
-      _ => "Omnia couldn't answer",
+      AssistantFailure.unavailable => "OmniAI is unavailable",
+      AssistantFailure.network => 'No answer from OmniAI',
+      _ => "OmniAI couldn't answer",
     };
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -332,7 +336,7 @@ class _Composer extends StatelessWidget {
               textInputAction: TextInputAction.send,
               onSubmitted: onSend,
               decoration: const InputDecoration(
-                hintText: 'Ask Omnia about your day',
+                hintText: 'Ask OmniAI about your day',
                 counterText: '',
               ),
             ),

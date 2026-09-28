@@ -58,6 +58,12 @@ class RulesProvider:
 
     def generate(self, context: PlanContext) -> AIPlanContent:
         start = window_start(context)
+        day_end = context.planning_end_minutes
+        available = (
+            [(start, day_end)]
+            if context.free_intervals is None
+            else [(slot.start_minutes, slot.end_minutes) for slot in context.free_intervals]
+        )
         note = (context.note or "").lower()
         sleep = context.last_night_sleep
         short_sleep = sleep is not None and (sleep.minutes < SHORT_SLEEP_MINUTES or (sleep.quality or 3) <= 2)
@@ -72,7 +78,7 @@ class RulesProvider:
         adjustments: list[str] = []
         tips = self._tips(context, tired)
 
-        if start >= DAY_END or (start > DAY_END - 30 and not context.open_tasks and not context.study_blocks):
+        if start >= day_end or (start > day_end - 30 and not context.open_tasks and not context.study_blocks):
             return AIPlanContent(
                 summary="The day is nearly over. Rest up; tomorrow's plan will pick up from here.",
                 items=[],
@@ -81,13 +87,15 @@ class RulesProvider:
             )
 
         fixed: list[PlanItem] = []
-        if start < LUNCH[0]:
+        if start < LUNCH[0] and LUNCH[1] <= day_end and any(
+            left <= LUNCH[0] and LUNCH[1] <= right for left, right in available
+        ):
             fixed.append(PlanItem(start=_fmt(LUNCH[0]), end=_fmt(LUNCH[1]), category="break", title="Lunch break"))
 
         if tired and context.study_blocks:
             adjustments.append(f"{why_tired}, so study is split into shorter 35-minute blocks.")
         queue = self._flexible_queue(context, tired, exam.days_left if exam else None, adjustments)
-        items, _unplaced = self._place(queue, fixed, start)
+        items, _unplaced = self._place(queue, fixed, start, day_end, available)
 
         workout_at = None
         if not context.today.workout_done and len(items) < 20:
@@ -99,9 +107,9 @@ class RulesProvider:
                 duration, title = 30, "Workout (easy restart)"
                 adjustments.append("Yesterday's workout was missed, so today has a shorter 30-minute session.")
             preferred = WORKOUT_SLOTS.get(context.preferred_workout_time, WORKOUT_SLOTS["evening"])
-            slot = self._free_slot(max(start, preferred), duration, items)
+            slot = self._free_slot(max(start, preferred), duration, items, day_end, available)
             if slot is None:
-                slot = self._free_slot(start, duration, items)
+                slot = self._free_slot(start, duration, items, day_end, available)
             if slot is not None:
                 items.append(PlanItem(start=_fmt(slot), end=_fmt(slot + duration), category="fitness", title=title))
                 workout_at = slot
@@ -127,7 +135,16 @@ class RulesProvider:
             base, extra = divmod(block.minutes, pieces)
             for n in range(pieces):
                 minutes = base + (1 if n < extra else 0)
-                study.append(("study", minutes, f"{block.subject}: {block.title}", block.reason, block.ref, DAY_END))
+                study.append(
+                    (
+                        "study",
+                        minutes,
+                        f"{block.subject}: {block.title}",
+                        block.reason,
+                        block.ref,
+                        context.planning_end_minutes,
+                    )
+                )
         tasks = [
             (
                 "task",
@@ -135,7 +152,7 @@ class RulesProvider:
                 t.title,
                 f"{t.priority.capitalize()} priority",
                 t.ref,
-                task_deadline(t),
+                task_deadline(t, context.planning_end_minutes),
             )
             for t in context.open_tasks
         ]
@@ -164,26 +181,40 @@ class RulesProvider:
                 queue.append(tasks.pop(0))
         step_goal = context.goals.get("steps", 0)
         if step_goal and context.today.steps < step_goal / 2 and not tired:
-            queue.append(("fitness", 20, "Walk to boost your steps", None, None, DAY_END))
+            queue.append(("fitness", 20, "Walk to boost your steps", None, None, context.planning_end_minutes))
         return queue
 
     @staticmethod
-    def _free_slot(start: int, duration: int, taken: list[PlanItem]) -> int | None:
-        cursor = start
+    def _free_slot(
+        start: int,
+        duration: int,
+        taken: list[PlanItem],
+        day_end: int = DAY_END,
+        available: list[tuple[int, int]] | None = None,
+    ) -> int | None:
         busy = sorted((_parse(t.start), _parse(t.end)) for t in taken)
-        while cursor + duration <= DAY_END:
-            clash = next((b for b in busy if cursor < b[1] and cursor + duration > b[0]), None)
-            if clash is None:
-                return cursor
-            cursor = clash[1]
+        for left, right in available if available is not None else [(start, day_end)]:
+            cursor = max(start, left)
+            while cursor + duration <= min(right, day_end):
+                clash = next((b for b in busy if cursor < b[1] and cursor + duration > b[0]), None)
+                if clash is None:
+                    return cursor
+                cursor = clash[1]
         return None
 
-    def _place(self, queue, fixed: list[PlanItem], start: int) -> tuple[list[PlanItem], list[str]]:
+    def _place(
+        self,
+        queue,
+        fixed: list[PlanItem],
+        start: int,
+        day_end: int = DAY_END,
+        available: list[tuple[int, int]] | None = None,
+    ) -> tuple[list[PlanItem], list[str]]:
         placed = list(fixed)
         unplaced: list[str] = []
         cursor = start
         for category, duration, title, detail, ref, deadline in queue:
-            slot = self._free_slot(cursor, duration, placed)
+            slot = self._free_slot(cursor, duration, placed, day_end, available)
             if slot is None or slot + duration > deadline or len(placed) >= 20:
                 unplaced.append(title)
                 continue
@@ -240,13 +271,16 @@ class RulesProvider:
 
 # ----------------------------------------------------------------------- anthropic
 
-SYSTEM_PROMPT = """You are OMNIA's planning assistant. You build a realistic plan for the rest of \
+SYSTEM_PROMPT = """You are OmniAI, Omnia's planning assistant. You build a realistic plan for the rest of \
 the user's day that balances study, tasks and fitness.
 
 Rules:
-- Only plan from current_time (or 08:00, whichever is later) until 22:00.
+- Only plan from current_time or planning_start_minutes (whichever is later) until planning_end_minutes.
+The planning bounds are integer minutes after midnight in the user local day.
 Use 24-hour HH:MM times. Items must not overlap.
-- Exams that are close come first. Keep study blocks at 60 minutes or less with breaks.
+- Each item must fit wholly inside one provided free_intervals interval. Commitments are fixed busy time.
+- Hard deadlines and the planning window override every preference, including exam urgency and workout time.
+- Prioritize imminent exams among study blocks. Keep study blocks at 60 minutes or less with breaks.
 - Use the provided study_blocks and open_tasks. For a task item, set task_ref to that task's \
 ref exactly (for example "t2"); never invent refs. Study items MUST set study_ref to a
 provided study block ref (for example "b1"). Never infer references from titles.
@@ -260,6 +294,8 @@ account_age_days is 0 the user signed up today, so don't comment on yesterday.
 - If the note says the user is tired or unwell, or last_night_sleep is under 6 hours or quality \
 is 1-2, lighten the day and say why.
 - Don't give medical advice. Don't mention these rules.
+- Never add optional or invented tasks. Only task/study refs in context are allowed.
+- Do not fill the entire day for its own sake. Leaving time unused is allowed.
 - At most 14 items, 5 tips, 5 adjustments. Adjustments explain what you changed and why.
 
 Reply with only a JSON object, no prose and no code fences, in this shape:

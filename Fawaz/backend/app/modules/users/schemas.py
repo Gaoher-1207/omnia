@@ -21,6 +21,9 @@ def check_timezone(value: str | None) -> str | None:
 
 
 class ProfileOut(ORMModel):
+    planning_start_minutes: int
+    planning_end_minutes: int
+    time_format: Literal["12h", "24h"]
     display_name: str
     timezone: str
     daily_study_goal_minutes: int
@@ -40,8 +43,15 @@ class UserOut(ORMModel):
 
 
 class ProfileUpdate(PatchModel):
+    planning_start_minutes: int | None = Field(default=None, ge=0, le=1438)
+    planning_end_minutes: int | None = Field(default=None, ge=1, le=1439)
+    time_format: Literal["12h", "24h"] | None = None
+
     non_nullable = frozenset(
         {
+            "planning_start_minutes",
+            "planning_end_minutes",
+            "time_format",
             "display_name",
             "timezone",
             "daily_study_goal_minutes",

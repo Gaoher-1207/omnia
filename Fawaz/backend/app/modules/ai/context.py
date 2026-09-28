@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.core.time import to_local_date
 from app.modules.ai.schemas import (
+    ContextCommitment,
     ContextExam,
     ContextSleep,
     ContextStreak,
@@ -22,6 +23,7 @@ from app.modules.ai.schemas import (
     DayStats,
     PlanContext,
 )
+from app.modules.commitments.service import availability
 from app.modules.progress.service import compute_streaks, daily_facts
 from app.modules.progress.streaks import DayFacts
 from app.modules.sleep.service import get_day as sleep_on
@@ -86,7 +88,26 @@ def build_context(
         )
 
     sleep = sleep_on(db, user.id, today)
+    applicable, _busy, free = availability(
+        db,
+        user.id,
+        today,
+        max(profile.planning_start_minutes, now_local.hour * 60 + now_local.minute),
+        profile.planning_end_minutes,
+    )
     context = PlanContext(
+        planning_start_minutes=profile.planning_start_minutes,
+        planning_end_minutes=profile.planning_end_minutes,
+        free_intervals=free,
+        commitments=[
+            ContextCommitment(
+                title=row.title,
+                category=row.category,
+                start_minutes=row.start_minutes,
+                end_minutes=row.end_minutes,
+            )
+            for row in applicable
+        ],
         date=today,
         weekday=today.strftime("%A"),
         current_time=now_local.strftime("%H:%M"),

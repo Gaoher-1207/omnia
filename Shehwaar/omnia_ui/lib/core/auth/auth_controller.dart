@@ -103,11 +103,12 @@ class AuthController extends ChangeNotifier {
   /// the same. Throws [ApiException] on a refusal.
   Future<void> updateProfile(Map<String, Object?> changes) async {
     if (changes.isEmpty) return;
+    final originalUser = _user;
     final profile = Profile.fromJson(
       asMap(await _api.patch('/profile', body: changes)),
     );
     final user = _user;
-    if (user == null) return; // signed out while the request was in flight
+    if (user == null || !identical(user, originalUser)) return;
     _user = user.withProfile(profile);
     _notify();
   }

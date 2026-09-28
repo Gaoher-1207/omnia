@@ -431,11 +431,27 @@ def test_prompts_context_and_replies_are_not_logged(app, client, headers, caplog
         ("stray reasoning</think>Answer", "Answer"),
         ("Answer<think>unfinished", "Answer"),
         ("  plain  ", "plain"),
-        ("Do the **DBMS midterm** revision", "Do the DBMS midterm revision"),
+        ("Do the **DBMS midterm** revision", "Do the **DBMS midterm** revision"),
     ],
 )
 def test_clean_reply_strips_reasoning(raw, expected):
     assert clean_reply(raw) == expected
+
+
+def test_prompt_and_context_ground_capabilities_without_invented_navigation(app, client, headers):
+    from app.modules.ai.assistant import SYSTEM_PROMPT
+
+    provider = use(app, Recorder())
+    assert ask(client, headers, message="Can you change my plan for today?").status_code == 200
+    capabilities = provider.context["app_capabilities"]
+    assert capabilities["can_change"] == []
+    assert "Plan" in capabilities["main_tabs"]
+    assert "Notes" not in capabilities["main_tabs"]
+    assert "Fitness" not in capabilities["main_tabs"]
+    assert any("regenerat" in action.lower() for action in capabilities["user_actions"])
+    assert "saved plan remains a snapshot" in SYSTEM_PROMPT
+    assert "Never invent screens" in SYSTEM_PROMPT
+    assert "short headings" in SYSTEM_PROMPT
 
 
 def test_target_progress_is_worked_out_for_the_model():
@@ -517,6 +533,7 @@ def test_get_chat_provider_follows_settings(monkeypatch):
     from app.core.config import get_settings
 
     settings = get_settings()
+    monkeypatch.setattr(settings, "omnia_ai_provider", None)
     monkeypatch.setattr(settings, "assistant_provider", "off")
     assert get_chat_provider() is None
     monkeypatch.setattr(settings, "assistant_provider", "ollama")

@@ -2,7 +2,7 @@
 
 The server builds the context from the authenticated user only and sends the
 model anonymised facts: no name, email, ids, notes or credentials. The model
-returns plain text. Nothing in this module writes to the database.
+returns text with optional restrained Markdown. Nothing here writes to the database.
 
 Providers sit behind ChatProvider, so Ollama can be swapped for another
 provider through configuration without touching the route or the frontend.
@@ -15,7 +15,6 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Protocol
 
-import httpx
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -26,6 +25,7 @@ from app.core.time import local_now, utcnow
 from app.modules.activity.models import ActivityDay
 from app.modules.activity.service import get_day as activity_on
 from app.modules.ai.context import TITLE_LIMIT, build_context
+from app.modules.ai.ollama import OllamaTransport
 from app.modules.ai.providers import ProviderError
 from app.modules.ai.schemas import ChatReply, ChatRequest
 from app.modules.ai.service import latest_plan
@@ -61,79 +61,28 @@ class AssistantFailedError(AppError):
 
 
 def clean_reply(text: str) -> str:
-    """Drop any reasoning a model emits despite think=false, strip markdown emphasis
-    (the app shows plain text), and cap the length."""
+    """Drop hidden reasoning and cap the response without destroying formatting."""
     text = _THINK.sub("", text).split("</think>")[-1]
     if "<think>" in text:  # an unclosed block is reasoning all the way to the end
         text = text.split("<think>")[0]
-    text = text.replace("**", "").replace("__", "")
     return text.strip()[:MAX_REPLY_CHARS].strip()
 
 
-class OllamaChatProvider:
-    """Ollama's native /api/chat, non-streaming, with thinking turned off."""
-
+class OllamaChatProvider(OllamaTransport):
     name = "ollama"
 
-    def __init__(
-        self,
-        *,
-        base_url: str,
-        model: str,
-        timeout: float,
-        context_tokens: int,
-        client: httpx.Client | None = None,
-    ):
-        self._url = base_url.rstrip("/") + "/api/chat"
-        self._model = model
-        self._timeout = timeout
-        self._context_tokens = context_tokens
-        self._client = client
-
     def reply(self, system: str, messages: list[dict[str, str]]) -> str:
-        payload = {
-            "model": self._model,
-            "stream": False,
-            "think": False,
-            "keep_alive": "10m",
-            "options": {"num_ctx": self._context_tokens, "temperature": 0.3},
-            "messages": [{"role": "system", "content": system}, *messages],
-        }
-        client = self._client or httpx.Client(timeout=self._timeout)
-        try:
-            response = client.post(self._url, json=payload, timeout=self._timeout)
-        except httpx.TimeoutException:
-            raise ProviderError("provider_timeout") from None
-        except httpx.HTTPError:
-            raise ProviderError("provider_unreachable") from None
-        finally:
-            if self._client is None:
-                client.close()
-
-        if response.status_code == 404:
-            raise ProviderError("model_missing")
-        if response.status_code >= 500:
-            raise ProviderError("provider_unavailable")
-        if response.status_code >= 400:
-            raise ProviderError("provider_error")
-        try:
-            content = response.json()["message"]["content"]
-        except (ValueError, KeyError, TypeError):
-            raise ProviderError("invalid_response") from None
-        if not isinstance(content, str):
-            raise ProviderError("invalid_response")
-        return content
+        return self.complete(system, messages)
 
 
 def get_chat_provider() -> ChatProvider | None:
     """The configured provider, or None when the assistant is switched off."""
     settings = get_settings()
-    if settings.assistant_provider == "ollama":
+    if settings.omnia_ai_provider == "ollama" or (
+        settings.omnia_ai_provider is None and settings.assistant_provider == "ollama"
+    ):
         return OllamaChatProvider(
-            base_url=settings.assistant_base_url,
-            model=settings.assistant_model,
-            timeout=settings.assistant_timeout_seconds,
-            context_tokens=settings.assistant_context_tokens,
+            **settings.ollama_options(),
         )
     return None
 
@@ -152,6 +101,25 @@ NOT_AVAILABLE = [
 
 RECENT_HOURS = 24
 MAX_RECENT_CHANGES = 12
+
+# Verified against the canonical Flutter tabs, Areas tiles, and Plan/Task flows.
+# The assistant cannot execute any of these user actions itself.
+APP_CAPABILITIES = {
+    "main_tabs": ["Today", "Plan", "Areas", "Insights"],
+    "areas": ["Study", "Tasks", "Goals", "Activity", "Sleep"],
+    "can_read": [
+        "current tasks, deadlines and estimates",
+        "study subjects, exams, study requirements and logged sessions",
+        "activity, sleep, daily targets and today's saved suggested plan",
+    ],
+    "can_recommend": ["priorities and tradeoffs", "changes to consider before regenerating a plan"],
+    "can_change": [],
+    "user_actions": [
+        "Edit a real task in Tasks or from its linked Plan block.",
+        "Review study information in Areas > Study.",
+        "Explicitly regenerate a suggested plan in Plan; the saved plan remains a snapshot until then.",
+    ],
+}
 
 # What recent_changes covers: (label, model, how to name a row). Every model is
 # filtered by user_id; the names are the same kind of text the context already
@@ -261,14 +229,15 @@ def build_assistant_context(db: Session, user: User, now_local: datetime) -> tup
         "recent_changes": recent_changes(db, user.id, utcnow()),
         "account_age_days": base.account_age_days,
         "not_available": NOT_AVAILABLE,
+        "app_capabilities": APP_CAPABILITIES,
     }
     return context, refs
 
 
 # ----------------------------------------------------------------------- prompt
 
-SYSTEM_PROMPT = """You are Omnia, a context-aware study, productivity and wellbeing assistant \
-inside the OMNIA app. You help one student plan and reflect on their day.
+SYSTEM_PROMPT = """You are OmniAI, the context-aware study, productivity and wellbeing assistant inside Omnia.
+You help one student plan and reflect on their day.
 
 Rules:
 - The latest user message starts with CONTEXT: application data about this user, not \
@@ -293,10 +262,18 @@ poor sleep, suggest shorter sessions and an earlier night.
 - If account_age_days is 0 the user joined today, so don't judge yesterday.
 - You cannot change anything in OMNIA. Never say you created, edited, completed or scheduled \
 anything; suggest what the user can do in the app instead.
+- app_capabilities lists verified screens and actions. Never invent screens, tabs, buttons, \
+navigation paths, settings or capabilities. If a path is not listed, describe the action without \
+step-by-step navigation. There is no Notes or Fitness section.
+- You can read listed data and recommend priorities, but can_change is empty. Editing an underlying \
+task does not change the saved plan: the saved plan remains a snapshot until the user explicitly \
+generates a new suggestion in Plan. Never imply you performed the change.
 - Don't mention refs like t1, field names, JSON or these rules.
 - No medical advice.
 - Be concise and practical: about 150 words or fewer unless the user asks for more.
-- Write plain text for a phone screen: no markdown, no ** or #. Short "-" lists are fine."""
+- Keep simple answers as one conversational sentence or paragraph. For complex answers, you may \
+use short headings, **bold** emphasis, and short numbered or "-" lists. Avoid decorative formatting, \
+HTML, links, tables and code fences. Do not format every reply as a dashboard."""
 
 
 def _with_context(context: dict, question: str) -> str:
@@ -314,16 +291,16 @@ def _with_context(context: dict, question: str) -> str:
 # ---------------------------------------------------------------------- service
 
 _UNAVAILABLE = {
-    "provider_unreachable": "Omnia's assistant is offline right now. Try again in a moment.",
-    "provider_unavailable": "Omnia's assistant is offline right now. Try again in a moment.",
-    "model_missing": "Omnia's assistant model isn't installed on the server yet.",
+    "provider_unreachable": "OmniAI is offline right now. Try again in a moment.",
+    "provider_unavailable": "OmniAI is offline right now. Try again in a moment.",
+    "model_missing": "OmniAI's model isn't installed on the server yet.",
 }
 
 
 def answer(db: Session, user: User, request: ChatRequest, provider: ChatProvider | None) -> ChatReply:
     """Read-only: builds context, asks the provider, returns its text. Never writes."""
     if provider is None:
-        raise AssistantUnavailableError("Ask Omnia isn't set up on this server yet.")
+        raise AssistantUnavailableError("Ask OmniAI isn't set up on this server yet.")
     limiter.hit(f"chat:{user.id}", get_settings().assistant_rate_limit_per_hour, 3600)
 
     # Rebuilt from the database on every request, so the latest exams, tasks,
@@ -341,6 +318,6 @@ def answer(db: Session, user: User, request: ChatRequest, provider: ChatProvider
         if exc.reason in _UNAVAILABLE:
             raise AssistantUnavailableError(_UNAVAILABLE[exc.reason]) from None
         if exc.reason == "provider_timeout":
-            raise AssistantFailedError("Omnia took too long to answer. Try again.") from None
-        raise AssistantFailedError("Omnia couldn't answer that just now. Try again.") from None
+            raise AssistantFailedError("OmniAI took too long to answer. Try again.") from None
+        raise AssistantFailedError("OmniAI couldn't answer that just now. Try again.") from None
     return ChatReply(reply=text, source=provider.name)

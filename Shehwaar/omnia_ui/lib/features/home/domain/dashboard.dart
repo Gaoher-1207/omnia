@@ -1,9 +1,10 @@
+import 'package:omnia_ui/features/plan/domain/daily_plan.dart';
+
 /// The day at a glance, as the server sees it: [date] and [greeting] are
 /// worked out in the user's profile timezone, so the app shows them as given
 /// rather than deciding "today" itself.
 ///
-/// Only what Home and Track show so far; the backend's streaks, upcoming
-/// tasks, study blocks and daily plan arrive with their own phases.
+/// The persisted plan is also shared with the session-owned PlanController.
 class Dashboard {
   const Dashboard({
     required this.date,
@@ -11,6 +12,8 @@ class Dashboard {
     required this.displayName,
     required this.today,
     this.nextExam,
+    this.aiPlan,
+    this.timezoneOffsetMinutes = 0,
     this.sample = false,
   });
 
@@ -22,6 +25,10 @@ class Dashboard {
   final String displayName;
   final TodaySummary today;
   final NextExam? nextExam;
+  final DailyPlan? aiPlan;
+
+  /// Server profile-zone offset at fetch time; presentation clock only.
+  final int timezoneOffsetMinutes;
 
   /// Demo data, not the user's: screens label it as a sample.
   final bool sample;

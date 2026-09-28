@@ -1,5 +1,8 @@
 import 'package:omnia_ui/features/plan/data/api_plan_repository.dart';
 import 'package:omnia_ui/features/plan/data/mock_plan_repository.dart';
+import 'package:omnia_ui/features/plan/data/api_commitment_repository.dart';
+import 'package:omnia_ui/features/plan/data/mock_commitment_repository.dart';
+import 'package:omnia_ui/features/plan/domain/commitment_repository.dart';
 import 'package:omnia_ui/features/plan/domain/plan_repository.dart';
 import 'package:flutter/widgets.dart';
 import 'package:omnia_ui/core/api/api_client.dart';
@@ -37,6 +40,7 @@ class AppDependencies {
     required this.assistant,
     required this.initialRevisionSession,
     required this.plan,
+    required this.commitments,
     this.sampleContent = false,
   });
 
@@ -55,6 +59,7 @@ class AppDependencies {
       track: track,
       assistant: MockAssistantRepository(),
       plan: MockPlanRepository(),
+      commitments: MockCommitmentRepository(),
       initialRevisionSession: revision,
       sampleContent: true,
     );
@@ -77,11 +82,13 @@ class AppDependencies {
       track: ApiTrackRepository(api),
       assistant: ApiAssistantRepository(api),
       plan: ApiPlanRepository(api),
+      commitments: ApiCommitmentRepository(api),
       initialRevisionSession: local.initialRevisionSession,
     );
   }
 
   final PlanRepository plan;
+  final CommitmentRepository commitments;
   final TaskRepository tasks;
   final GoalRepository goals;
   final StudyRepository study;

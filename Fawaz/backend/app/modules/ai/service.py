@@ -9,7 +9,6 @@ from app.core.config import get_settings
 from app.core.rate_limit import limiter
 from app.core.time import local_now
 from app.modules.ai.constraints import (
-    DAY_END,
     DEFAULT_TASK_MINUTES,
     hhmm,
     minutes,
@@ -17,6 +16,7 @@ from app.modules.ai.constraints import (
     window_start,
 )
 from app.modules.ai.context import build_context
+from app.modules.ai.explanation import explain_plan
 from app.modules.ai.models import AIPlan
 from app.modules.ai.providers import (
     AnthropicProvider,
@@ -32,6 +32,12 @@ logger = logging.getLogger("omnia.ai")
 
 def get_provider() -> PlanProvider:
     settings = get_settings()
+    if settings.omnia_ai_provider == "ollama":
+        from app.modules.ai.ollama import OllamaPlanProvider
+
+        return OllamaPlanProvider(**settings.ollama_options())
+    if settings.omnia_ai_provider == "off":
+        return RulesProvider()
     if settings.ai_provider == "anthropic":
         return AnthropicProvider(
             api_key=settings.ai_api_key,
@@ -63,11 +69,14 @@ def plan_out(plan: AIPlan) -> AIPlanOut:
         items=[PlanItemOut.model_validate(item) for item in content["items"]],
         tips=content["tips"],
         adjustments=content["adjustments"],
+        planning_start_minutes=content.get("planning_start_minutes"),
+        planning_end_minutes=content.get("planning_end_minutes"),
         validation_version=content.get("validation_version", 0),
         window_start=content.get("window_start"),
         window_end=content.get("window_end"),
         assumptions=content.get("assumptions", []),
         unscheduled=content.get("unscheduled", []),
+        explanation=content.get("explanation"),
     )
 
 
@@ -122,7 +131,7 @@ def _to_stored(content: AIPlanContent, refs: dict[str, uuid.UUID], context: Plan
                     "reason": "not_scheduled",
                 }
             )
-    assumptions = ["Assumes time is free from the planning start until 22:00; calendar commitments are not included."]
+    assumptions = ["Manual commitments are excluded from free time; external calendar events are not included."]
     if any(t.estimated_minutes is None for t in context.open_tasks):
         assumptions.append("Tasks without an estimate use 30 minutes; tasks are scheduled as whole blocks.")
     if context.omitted_tasks:
@@ -131,11 +140,14 @@ def _to_stored(content: AIPlanContent, refs: dict[str, uuid.UUID], context: Plan
             f"{context.omitted_tasks} additional tasks are outside this suggestion."
         )
     return {
+        "planning_start_minutes": context.planning_start_minutes,
+        "planning_end_minutes": context.planning_end_minutes,
         "validation_version": 1,
         "window_start": hhmm(window_start(context)),
-        "window_end": hhmm(DAY_END),
+        "window_end": hhmm(context.planning_end_minutes),
         "assumptions": assumptions,
         "unscheduled": unscheduled,
+        "explanation": explain_plan(content, context, unscheduled).model_dump(),
         "summary": content.summary,
         "items": items,
         "tips": content.tips,

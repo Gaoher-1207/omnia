@@ -44,6 +44,21 @@ class Settings(BaseSettings):
     assistant_context_tokens: int = Field(default=8192, ge=2048, le=131072)
     assistant_rate_limit_per_hour: int = Field(default=60, ge=1)
 
+    # When unset, preserve the legacy independent chat/planning configuration.
+    omnia_ai_provider: Literal["off", "ollama"] | None = None
+    omnia_ai_model: str | None = None
+    omnia_ai_base_url: str | None = None
+    omnia_ai_timeout_seconds: float | None = Field(default=None, gt=0, le=120)
+    omnia_ai_context_tokens: int | None = Field(default=None, ge=2048, le=131072)
+
+    def ollama_options(self) -> dict:
+        return {
+            "base_url": self.omnia_ai_base_url or self.assistant_base_url,
+            "model": self.omnia_ai_model or self.assistant_model,
+            "timeout": self.omnia_ai_timeout_seconds or min(self.assistant_timeout_seconds, 120),
+            "context_tokens": self.omnia_ai_context_tokens or self.assistant_context_tokens,
+        }
+
     auth_rate_limit_per_minute: int = Field(default=10, ge=1)
 
     @model_validator(mode="after")

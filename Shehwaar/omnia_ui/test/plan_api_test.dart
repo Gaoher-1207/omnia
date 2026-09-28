@@ -89,6 +89,37 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Why?'), 120);
+      await tester.tap(find.text('Why?'));
+      await tester.pumpAndSettle();
+      expect(find.text('Why this plan?'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Show details'),
+        100,
+        scrollable: find
+            .descendant(
+              of: find.byType(DraggableScrollableSheet),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.drag(
+        find
+            .descendant(
+              of: find.byType(DraggableScrollableSheet),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+        const Offset(0, -120),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Show details').hitTestable(), findsOneWidget);
+      await tester.tap(find.text('Show details'));
+      await tester.pumpAndSettle();
+      expect(find.text('Hide details'), findsOneWidget);
+      expect(tester.takeException(), isNull, reason: 'explanation sheet');
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
         find.text('Generate new suggestion'),
         250,
@@ -103,6 +134,7 @@ void main() {
         ..addUser('Sam', 'sam@example.com', 'password-123', signedIn: true)
         ..addUser('Ada', 'ada@example.com', 'password-456');
       backend.plans['sam@example.com'] = Map<String, dynamic>.from(payload);
+      backend.dashboardDate = '2026-09-27';
       final api = backend.client();
       addTearDown(api.close);
       await tester.pumpWidget(OmniaApp(api: api));
@@ -157,6 +189,9 @@ void main() {
       expect(requests.last.url.path, '/api/ai/daily-plan');
       expect(requests.last.headers['Authorization'], 'Bearer test-token');
       expect(jsonDecode(requests.last.body), {'regenerate': true});
+      final dated = await repository.getToday(date: DateTime(2026, 9, 27));
+      expect(requests.last.url.queryParameters['date'], '2026-09-27');
+      expect(dated!.date, DateTime(2026, 9, 27));
     },
   );
 
@@ -212,7 +247,7 @@ void main() {
       repo.pending.complete(DailyPlan.fromJson(payload));
       await tester.pumpAndSettle();
       expect(find.text('Assignment'), findsOneWidget);
-      expect(find.textContaining('fallback'), findsOneWidget);
+      expect(find.text('RULES FALLBACK'), findsOneWidget);
       await tester.scrollUntilVisible(find.text('DBMS revision'), 250);
       expect(find.text('DBMS revision'), findsOneWidget);
       expect(find.textContaining('60 min'), findsOneWidget);
@@ -224,7 +259,7 @@ class PendingRepository implements PlanRepository {
   var pending = Completer<DailyPlan?>();
   int calls = 0;
   @override
-  Future<DailyPlan?> getToday() {
+  Future<DailyPlan?> getToday({DateTime? date}) {
     calls++;
     return pending.future;
   }

@@ -35,6 +35,7 @@ class NextExam(BaseModel):
 
 class DashboardOut(BaseModel):
     date: date
+    timezone_offset_minutes: int
     greeting: Literal["morning", "afternoon", "evening"]
     display_name: str
     today: TodaySummary
