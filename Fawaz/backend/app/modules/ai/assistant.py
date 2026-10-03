@@ -15,6 +15,7 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Protocol
 
+import httpx
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -26,6 +27,7 @@ from app.modules.activity.models import ActivityDay
 from app.modules.activity.service import get_day as activity_on
 from app.modules.ai.context import TITLE_LIMIT, build_context
 from app.modules.ai.ollama import OllamaTransport
+from app.modules.ai.openrouter_client import OpenRouterClient
 from app.modules.ai.providers import ProviderError
 from app.modules.ai.schemas import ChatReply, ChatRequest
 from app.modules.ai.service import latest_plan
@@ -75,14 +77,69 @@ class OllamaChatProvider(OllamaTransport):
         return self.complete(system, messages)
 
 
+class OpenRouterChatProvider:
+    name = "openrouter"
+
+    def __init__(
+        self,
+        *,
+        api_key: str,
+        primary_model: str,
+        fallback_model: str,
+        timeout: float,
+        client: httpx.Client | None = None,
+        openrouter_client: OpenRouterClient | None = None,
+    ):
+        self.primary_model = primary_model
+        self.fallback_model = fallback_model
+        self._router = openrouter_client or OpenRouterClient(
+            api_key=api_key,
+            primary_model=primary_model,
+            fallback_model=fallback_model,
+            timeout=timeout,
+            client=client,
+        )
+
+    @property
+    def last_completion(self):
+        return self._router.last_completion
+
+    def reply(self, system: str, messages: list[dict[str, str]]) -> str:
+        try:
+            completion = self._router.complete([{"role": "system", "content": system}, *messages], temperature=0.3)
+        except ProviderError:
+            actual_model = self._router.last_actual_model
+            logger.info(
+                "AI request provider=openrouter primary_model=%s actual_model=%s fallback_used=%s "
+                "latency_ms=%s success=False validation_success=n/a",
+                self.primary_model,
+                actual_model,
+                actual_model is not None and actual_model != self.primary_model,
+                self._router.last_latency_ms,
+            )
+            raise
+        logger.info(
+            "AI request provider=openrouter primary_model=%s actual_model=%s fallback_used=%s "
+            "latency_ms=%s success=True validation_success=n/a",
+            self.primary_model,
+            completion.actual_model,
+            completion.actual_model is not None and completion.actual_model != self.primary_model,
+            completion.latency_ms,
+        )
+        return completion.content
+
+
 def get_chat_provider() -> ChatProvider | None:
     """The configured provider, or None when the assistant is switched off."""
     settings = get_settings()
-    if settings.omnia_ai_provider == "ollama" or (
-        settings.omnia_ai_provider is None and settings.assistant_provider == "ollama"
-    ):
+    provider = settings.effective_assistant_provider
+    if provider == "ollama":
         return OllamaChatProvider(
             **settings.ollama_options(),
+        )
+    if provider == "openrouter":
+        return OpenRouterChatProvider(
+            **settings.openrouter_options(timeout=settings.assistant_timeout_seconds),
         )
     return None
 
@@ -293,6 +350,7 @@ def _with_context(context: dict, question: str) -> str:
 _UNAVAILABLE = {
     "provider_unreachable": "OmniAI is offline right now. Try again in a moment.",
     "provider_unavailable": "OmniAI is offline right now. Try again in a moment.",
+    "provider_rate_limited": "OmniAI is offline right now. Try again in a moment.",
     "model_missing": "OmniAI's model isn't installed on the server yet.",
 }
 

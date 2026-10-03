@@ -27,16 +27,21 @@ class Settings(BaseSettings):
     public_base_url: str = ""
     max_request_bytes: int = Field(default=8 * 1024 * 1024, ge=1024)
 
+    # Food-photo provider stays independent from the two OmniAI capabilities.
     ai_provider: Literal["rules", "anthropic"] = "rules"
     ai_api_key: str = ""
     ai_model: str = "claude-sonnet-5"
     ai_base_url: str = "https://api.anthropic.com"
+    planner_ai_provider: Literal["rules", "anthropic", "ollama", "openrouter"] | None = None
     ai_timeout_seconds: float = Field(default=20.0, gt=0, le=120)
     ai_rate_limit_per_hour: int = Field(default=20, ge=1)
+    openrouter_api_key: str = ""
+    openrouter_primary_model: str = "nvidia/nemotron-3-ultra-550b-a55b:free"
+    openrouter_fallback_model: str = "openrouter/free"
 
-    # Ask Omnia (POST /ai/chat). Separate from AI_PROVIDER so the daily plan and
-    # photo estimates are unaffected. "off" answers 503; nothing is invented.
-    assistant_provider: Literal["off", "ollama"] = "off"
+    # Ask Omnia (POST /ai/chat). Separate from AI_PROVIDER, which selects the
+    # daily planner provider. "off" answers 503; nothing is invented.
+    assistant_provider: Literal["off", "ollama", "openrouter"] | None = None
     assistant_base_url: str = "http://localhost:11434"
     assistant_model: str = "qwen3:8b"
     # A local model's first answer includes loading it into memory.
@@ -59,6 +64,14 @@ class Settings(BaseSettings):
             "context_tokens": self.omnia_ai_context_tokens or self.assistant_context_tokens,
         }
 
+    def openrouter_options(self, *, timeout: float | None = None) -> dict:
+        return {
+            "api_key": self.openrouter_api_key,
+            "primary_model": self.openrouter_primary_model,
+            "fallback_model": self.openrouter_fallback_model,
+            "timeout": timeout or self.ai_timeout_seconds,
+        }
+
     auth_rate_limit_per_minute: int = Field(default=10, ge=1)
 
     @model_validator(mode="after")
@@ -68,9 +81,28 @@ class Settings(BaseSettings):
                 raise ValueError("AUTH_SECRET must be set to at least 32 characters in production")
             if self.database_url.startswith("sqlite"):
                 raise ValueError("Use PostgreSQL (DATABASE_URL) in production, not SQLite")
-        if self.ai_provider == "anthropic" and not self.ai_api_key:
-            raise ValueError("AI_API_KEY is required when AI_PROVIDER=anthropic")
+        if (self.ai_provider == "anthropic" or self.planner_ai_provider == "anthropic") and not self.ai_api_key:
+            raise ValueError("AI_API_KEY is required when an Anthropic subsystem is enabled")
+        if (
+            self.planner_ai_provider == "openrouter" or self.assistant_provider == "openrouter"
+        ) and not self.openrouter_api_key:
+            raise ValueError("OPENROUTER_API_KEY is required when a subsystem uses OpenRouter")
         return self
+
+    @property
+    def effective_planner_ai_provider(self) -> str:
+        """Resolve the subsystem setting first, then the legacy shared setting."""
+        if self.planner_ai_provider is not None:
+            return self.planner_ai_provider
+        if self.omnia_ai_provider is not None:
+            return self.omnia_ai_provider
+        return "rules"
+
+    @property
+    def effective_assistant_provider(self) -> str:
+        if self.assistant_provider is not None:
+            return self.assistant_provider
+        return self.omnia_ai_provider or "off"
 
     @property
     def cors_origin_list(self) -> list[str]:

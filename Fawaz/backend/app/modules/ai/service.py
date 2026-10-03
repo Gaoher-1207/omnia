@@ -32,19 +32,24 @@ logger = logging.getLogger("omnia.ai")
 
 def get_provider() -> PlanProvider:
     settings = get_settings()
-    if settings.omnia_ai_provider == "ollama":
+    configured_provider = settings.effective_planner_ai_provider
+    if configured_provider == "ollama":
         from app.modules.ai.ollama import OllamaPlanProvider
 
         return OllamaPlanProvider(**settings.ollama_options())
-    if settings.omnia_ai_provider == "off":
+    if configured_provider == "off":
         return RulesProvider()
-    if settings.ai_provider == "anthropic":
+    if configured_provider == "anthropic":
         return AnthropicProvider(
             api_key=settings.ai_api_key,
             model=settings.ai_model,
             base_url=settings.ai_base_url,
             timeout=settings.ai_timeout_seconds,
         )
+    if configured_provider == "openrouter":
+        from app.modules.ai.openrouter import OpenRouterPlanProvider
+
+        return OpenRouterPlanProvider(**settings.openrouter_options())
     return RulesProvider()
 
 
@@ -169,9 +174,11 @@ def generate_daily_plan(
     context, refs = build_context(db, user, now, request.note)
 
     source, fallback_reason = provider.name, None
+    validation_success = False
     try:
         try:
             content = validate_candidate(provider.generate(context), context)
+            validation_success = True
         except ValueError as exc:
             raise ProviderError("invalid_plan") from exc
     except ProviderError as exc:
@@ -180,6 +187,22 @@ def generate_daily_plan(
         logger.warning("AI provider %s failed (%s); using rules fallback", provider.name, exc.reason)
         content = validate_candidate(RulesProvider().generate(context), context)
         source, fallback_reason = RulesProvider.name, exc.reason
+
+    metadata = getattr(provider, "last_metadata", None)
+    if metadata is not None:
+        metadata["validation_success"] = validation_success
+        metadata["success"] = metadata.get("success", False) and validation_success
+        logger.info(
+            "AI request provider=%s primary_model=%s actual_model=%s fallback_used=%s "
+            "latency_ms=%s success=%s validation_success=%s",
+            metadata.get("configured_provider"),
+            metadata.get("configured_primary_model"),
+            metadata.get("actual_model"),
+            metadata.get("fallback_used"),
+            metadata.get("latency_ms"),
+            metadata.get("success"),
+            metadata.get("validation_success"),
+        )
 
     plan = AIPlan(
         user_id=user.id,

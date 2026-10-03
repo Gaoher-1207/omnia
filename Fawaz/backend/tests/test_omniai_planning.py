@@ -152,6 +152,8 @@ def test_shared_configuration_preserves_legacy_when_unset(monkeypatch):
     from app.modules.ai.assistant import OllamaChatProvider, get_chat_provider
 
     settings = get_settings()
+    monkeypatch.setattr(settings, "planner_ai_provider", None)
+    monkeypatch.setattr(settings, "assistant_provider", None)
     monkeypatch.setattr(settings, "omnia_ai_provider", "ollama")
     assert isinstance(get_provider(), OllamaPlanProvider)
     assert isinstance(get_chat_provider(), OllamaChatProvider)

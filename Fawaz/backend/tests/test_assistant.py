@@ -14,6 +14,7 @@ from app.models import Base
 from app.modules.ai.assistant import (
     MAX_REPLY_CHARS,
     OllamaChatProvider,
+    OpenRouterChatProvider,
     _progress,
     clean_reply,
     get_chat_provider,
@@ -539,3 +540,68 @@ def test_get_chat_provider_follows_settings(monkeypatch):
     monkeypatch.setattr(settings, "assistant_provider", "ollama")
     provider = get_chat_provider()
     assert isinstance(provider, OllamaChatProvider) and provider.name == "ollama"
+
+
+def test_get_chat_provider_selects_openrouter(monkeypatch):
+    from app.core.config import get_settings
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "omnia_ai_provider", "off")
+    monkeypatch.setattr(settings, "assistant_provider", "openrouter")
+    monkeypatch.setattr(settings, "openrouter_api_key", "server-secret")
+    provider = get_chat_provider()
+    assert isinstance(provider, OpenRouterChatProvider)
+    assert provider.name == "openrouter"
+
+
+def test_openrouter_chat_uses_primary_and_free_fallback_and_keeps_context(app, client, headers, caplog):
+    from app.modules.ai.assistant import SYSTEM_PROMPT
+
+    sent = {}
+
+    def handler(request):
+        sent["headers"] = request.headers
+        sent["body"] = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json={
+                "model": "some-free-model/served",
+                "choices": [{"message": {"content": "<think>hidden</think>Start with the assignment."}}],
+            },
+        )
+
+    provider = OpenRouterChatProvider(
+        api_key="server-only-secret",
+        primary_model="nvidia/nemotron-3-ultra-550b-a55b:free",
+        fallback_model="openrouter/free",
+        timeout=5,
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+    use(app, provider)
+    response = ask(client, headers, message="What should I do first?")
+    assert response.status_code == 200
+    assert response.json() == {"reply": "Start with the assignment.", "source": "openrouter"}
+    assert "server-only-secret" not in response.text
+    assert sent["headers"]["authorization"] == "Bearer server-only-secret"
+    assert sent["body"]["model"] == "nvidia/nemotron-3-ultra-550b-a55b:free"
+    assert sent["body"]["models"] == ["openrouter/free"]
+    assert sent["body"]["messages"][0]["role"] == "system"
+    assert sent["body"]["messages"][0]["content"] == SYSTEM_PROMPT
+    assert sent["body"]["messages"][-1]["content"].endswith("QUESTION: What should I do first?")
+    assert "actual_model=some-free-model/served" in caplog.text
+    assert "fallback_used=True" in caplog.text
+    assert "server-only-secret" not in caplog.text
+
+
+def test_openrouter_chat_provider_failure_returns_safe_api_error(app, client, headers):
+    provider = OpenRouterChatProvider(
+        api_key="server-only-secret",
+        primary_model="nvidia/nemotron-3-ultra-550b-a55b:free",
+        fallback_model="openrouter/free",
+        timeout=5,
+        client=httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(503))),
+    )
+    use(app, provider)
+    response = ask(client, headers)
+    assert response.status_code == 503
+    assert "server-only-secret" not in response.text

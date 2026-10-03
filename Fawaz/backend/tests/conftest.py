@@ -7,6 +7,7 @@ os.environ.update(
         "AUTH_SECRET": "test-secret-that-is-long-enough-for-hs256-signing",
         "PASSWORD_HASH_N": "1024",
         "AI_PROVIDER": "rules",
+        "PLANNER_AI_PROVIDER": "rules",
         "OMNIA_AI_PROVIDER": "off",
         # Never reach a real model from tests, whatever a developer's .env says.
         "ASSISTANT_PROVIDER": "off",
