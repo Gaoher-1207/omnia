@@ -21,7 +21,7 @@ def upgrade():
         sa.Column("day", sa.Date()),
         sa.Column("start_minutes", sa.Integer(), nullable=False),
         sa.Column("end_minutes", sa.Integer(), nullable=False),
-        sa.Column("enabled", sa.Boolean(), nullable=False, server_default=sa.text("1")),
+        sa.Column("enabled", sa.Boolean(), nullable=False, server_default=sa.true()),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.CheckConstraint("start_minutes >= 0 AND end_minutes <= 1439 AND start_minutes < end_minutes", name="ck_commitments_time_range"),
