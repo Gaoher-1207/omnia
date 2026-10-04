@@ -23,6 +23,7 @@ import 'support/fake_auth_backend.dart';
 
 const payload = {
   'id': 'plan-1',
+  'revision': 2,
   'plan_date': '2026-09-27',
   'created_at': '2026-09-27T19:00:00Z',
   'source': 'rules',
@@ -37,6 +38,7 @@ const payload = {
   'items': [
     {
       'start': '19:00',
+      'item_key': 'stable-item-1',
       'end': '19:55',
       'category': 'task',
       'title': 'Assignment',
@@ -184,6 +186,8 @@ void main() {
       status = 200;
       final plan = await repository.generate();
       expect(plan.items.single.minutes, 55);
+      expect(plan.revision, 2);
+      expect(plan.items.single.itemKey, 'stable-item-1');
       expect(plan.unscheduled.single.remainingMinutes, 60);
       expect(plan.isFallback, isTrue);
       expect(requests.last.url.path, '/api/ai/daily-plan');
@@ -192,6 +196,85 @@ void main() {
       final dated = await repository.getToday(date: DateTime(2026, 9, 27));
       expect(requests.last.url.queryParameters['date'], '2026-09-27');
       expect(dated!.date, DateTime(2026, 9, 27));
+    },
+  );
+
+  test(
+    'replan API keeps proposal preview separate from explicit apply',
+    () async {
+      final requests = <http.Request>[];
+      final proposal = {
+        'id': 'proposal-1',
+        'base_plan_id': 'plan-1',
+        'base_revision': 2,
+        'plan_date': '2026-09-27',
+        'status': 'pending',
+        'request': 'Move my assignment later',
+        'summary': 'Assignment moved.',
+        'explanation': 'A later open slot is available.',
+        'operations': [
+          {
+            'kind': 'MOVE',
+            'item_key': 'stable-item-1',
+            'entity_id': 'task-1',
+            'before': {'start': '19:00'},
+            'after': {'start': '20:00'},
+            'reason': 'The later slot is free.',
+          },
+        ],
+      'schedule': [
+        {
+          'item_key': 'stable-item-1',
+          'start': '19:00',
+          'end': '19:55',
+          'category': 'task',
+          'title': 'Assignment',
+          'detail': null,
+          'task_id': 'task-1',
+          'subject_id': null,
+        },
+      ],
+        'warnings': <String>[],
+        'validation': {'valid': true, 'applicable': true},
+        'created_at': '2026-09-27T19:00:00Z',
+        'expires_at': '2026-09-27T19:30:00Z',
+        'applied_at': null,
+        'dismissed_at': null,
+      };
+      final api = ApiClient(
+        baseUrl: 'http://test/api',
+        tokens: MemoryTokenStore(),
+        httpClient: MockClient((request) async {
+          requests.add(request);
+          if (request.url.path.endsWith('/apply'))
+            return http.Response(jsonEncode(payload), 200);
+          return http.Response(jsonEncode(proposal), 201);
+        }),
+      );
+      addTearDown(api.close);
+      final repository = ApiPlanRepository(api);
+
+      final preview = await repository.createReplanProposal(
+        'Move my assignment later',
+        date: DateTime(2026, 9, 27),
+      );
+      expect(preview.status, 'pending');
+      expect(preview.baseRevision, 2);
+      expect(preview.operations.single.kind, 'MOVE');
+      expect(preview.schedule.single.itemKey, 'stable-item-1');
+      expect(requests.single.url.path, '/api/ai/replan/proposals');
+      expect(jsonDecode(requests.single.body), {
+        'request': 'Move my assignment later',
+        'plan_date': '2026-09-27',
+      });
+
+      final applied = await repository.applyReplanProposal(preview.id);
+      expect(applied.revision, 2);
+      expect(
+        requests.last.url.path,
+        '/api/ai/replan/proposals/proposal-1/apply',
+      );
+      expect(requests.last.body, isEmpty);
     },
   );
 
@@ -269,4 +352,17 @@ class PendingRepository implements PlanRepository {
     calls++;
     return (await pending.future)!;
   }
+
+  @override
+  Future<Never> createReplanProposal(String request, {DateTime? date}) async =>
+      throw StateError('Not used in this test.');
+  @override
+  Future<Never> getReplanProposal(String proposalId) async =>
+      throw StateError('Not used in this test.');
+  @override
+  Future<Never> applyReplanProposal(String proposalId) async =>
+      throw StateError('Not used in this test.');
+  @override
+  Future<Never> dismissReplanProposal(String proposalId) async =>
+      throw StateError('Not used in this test.');
 }

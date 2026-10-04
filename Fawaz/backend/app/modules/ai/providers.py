@@ -20,7 +20,7 @@ from pydantic import ValidationError
 from app.modules.ai.constraints import DAY_END, DEFAULT_TASK_MINUTES, task_deadline, window_start
 from app.modules.ai.constraints import hhmm as _fmt
 from app.modules.ai.constraints import minutes as _parse
-from app.modules.ai.schemas import AIPlanContent, PlanContext, PlanItem
+from app.modules.ai.schemas import AIPlanContent, PlanContext, PlanItem, ReplanDraft
 
 logger = logging.getLogger("omnia.ai")
 
@@ -35,6 +35,8 @@ class PlanProvider(Protocol):
     name: str
 
     def generate(self, context: PlanContext) -> AIPlanContent: ...
+
+    def generate_replan(self, payload: dict) -> ReplanDraft: ...
 
 
 # --------------------------------------------------------------------------- rules
@@ -87,8 +89,10 @@ class RulesProvider:
             )
 
         fixed: list[PlanItem] = []
-        if start < LUNCH[0] and LUNCH[1] <= day_end and any(
-            left <= LUNCH[0] and LUNCH[1] <= right for left, right in available
+        if (
+            start < LUNCH[0]
+            and LUNCH[1] <= day_end
+            and any(left <= LUNCH[0] and LUNCH[1] <= right for left, right in available)
         ):
             fixed.append(PlanItem(start=_fmt(LUNCH[0]), end=_fmt(LUNCH[1]), category="break", title="Lunch break"))
 
@@ -123,6 +127,20 @@ class RulesProvider:
             items=items,
             tips=tips,
             adjustments=adjustments[:6],
+        )
+
+    def generate_replan(self, payload: dict) -> ReplanDraft:
+        """Offer a deterministic, clearly disclosed fallback without applying it."""
+        context = PlanContext.model_validate(payload["context"])
+        context = context.model_copy(update={"note": payload.get("request")})
+        plan = self.generate(context)
+        return ReplanDraft(
+            summary=plan.summary,
+            explanation=(
+                "This schedule was prepared by the deterministic rules planner. Review whether it addresses "
+                "your request before approving it."
+            ),
+            items=plan.items,
         )
 
     @staticmethod
@@ -360,4 +378,35 @@ class AnthropicProvider:
             return AIPlanContent.model_validate(_extract_json(text))
         except (ValueError, ValidationError, AttributeError, TypeError):
             logger.warning("AI provider returned an invalid plan")
+            raise ProviderError("invalid_response") from None
+
+    def generate_replan(self, payload: dict) -> ReplanDraft:
+        prompt = (
+            "You are Omnia's schedule replanning assistant. Return only JSON matching this schema: "
+            + json.dumps(ReplanDraft.model_json_schema())
+            + " Use only supplied task_ref/study_ref values. Preserve fixed commitments, do not schedule in the past, "
+            "preserve exact task durations, and keep study blocks within supplied budgets and 60 minutes."
+        )
+        body = {
+            "model": self._model,
+            "max_tokens": 4000,
+            "system": prompt,
+            "messages": [{"role": "user", "content": json.dumps(payload)}],
+        }
+        headers = {"x-api-key": self._api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"}
+        client = self._client or httpx.Client(timeout=self._timeout)
+        try:
+            response = client.post(self._url, json=body, headers=headers, timeout=self._timeout)
+        except httpx.HTTPError:
+            raise ProviderError("provider_unavailable") from None
+        finally:
+            if self._client is None:
+                client.close()
+        if response.status_code >= 400:
+            raise ProviderError("provider_unavailable")
+        try:
+            result = response.json()
+            text = "".join(block.get("text", "") for block in result.get("content", []) if block.get("type") == "text")
+            return ReplanDraft.model_validate(_extract_json(text))
+        except (ValueError, ValidationError, AttributeError, TypeError):
             raise ProviderError("invalid_response") from None

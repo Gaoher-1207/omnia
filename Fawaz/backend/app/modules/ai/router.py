@@ -1,3 +1,4 @@
+import uuid
 from datetime import date
 from typing import Annotated
 
@@ -8,7 +9,14 @@ from app.core.errors import NotFoundError
 from app.core.time import local_today
 from app.modules.ai import assistant, service
 from app.modules.ai.providers import PlanProvider
-from app.modules.ai.schemas import AIPlanOut, ChatReply, ChatRequest, DailyPlanRequest
+from app.modules.ai.schemas import (
+    AIPlanOut,
+    ChatReply,
+    ChatRequest,
+    DailyPlanRequest,
+    ReplanProposalOut,
+    ReplanRequest,
+)
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -52,3 +60,32 @@ def get_daily_plan(user: CurrentUser, db: DbSession, plan_date: date | None = Qu
     if plan is None:
         raise NotFoundError("Plan")
     return service.plan_out(plan)
+
+
+@router.post(
+    "/replan/proposals",
+    response_model=ReplanProposalOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create a validated replan proposal without changing the plan",
+)
+def create_replan_proposal(body: ReplanRequest, user: CurrentUser, db: DbSession, provider: Provider):
+    return service.create_replan_proposal(db, user, body, provider)
+
+
+@router.get("/replan/proposals/{proposal_id}", response_model=ReplanProposalOut, summary="Get a replan proposal")
+def get_replan_proposal(proposal_id: uuid.UUID, user: CurrentUser, db: DbSession):
+    return service.get_replan_proposal(db, user.id, proposal_id)
+
+
+@router.post("/replan/proposals/{proposal_id}/apply", response_model=AIPlanOut, summary="Apply an approved replan")
+def apply_replan_proposal(proposal_id: uuid.UUID, user: CurrentUser, db: DbSession):
+    return service.apply_replan_proposal(db, user, proposal_id)
+
+
+@router.post(
+    "/replan/proposals/{proposal_id}/dismiss",
+    response_model=ReplanProposalOut,
+    summary="Dismiss a replan proposal",
+)
+def dismiss_replan_proposal(proposal_id: uuid.UUID, user: CurrentUser, db: DbSession):
+    return service.dismiss_replan_proposal(db, user.id, proposal_id)

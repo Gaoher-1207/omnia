@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.common.planning_lock import lock_planning_state
 from app.modules.sleep.models import SleepLog
 from app.modules.sleep.schemas import SleepOut, SleepUpsert
 
@@ -29,6 +30,7 @@ def filled_range(db: Session, user_id: uuid.UUID, start: date, end: date) -> lis
 
 
 def upsert_day(db: Session, user_id: uuid.UUID, day: date, data: SleepUpsert) -> SleepLog:
+    lock_planning_state(db, user_id)
     values = data.model_dump()
     row = get_day(db, user_id, day)
     if row is None:

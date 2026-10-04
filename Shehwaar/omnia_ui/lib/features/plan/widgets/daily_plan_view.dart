@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:omnia_ui/core/app_dependencies.dart';
+import 'package:omnia_ui/core/api/api_exception.dart';
 import 'package:omnia_ui/core/auth/auth_controller.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
 import 'package:omnia_ui/core/widgets/hard_card.dart';
@@ -28,9 +29,236 @@ class DailyPlanView extends StatefulWidget {
 }
 
 class _DailyPlanViewState extends State<DailyPlanView> {
+  final _replanRequest = TextEditingController();
   bool _started = false;
   DateTime? _requestedAvailabilityDate;
   bool _requestedAvailability = false;
+
+  @override
+  void dispose() {
+    _replanRequest.dispose();
+    super.dispose();
+  }
+
+  Future<void> _startReplanning(PlanController controller) async {
+    _replanRequest.clear();
+    final request = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Adjust today’s plan'),
+        content: TextField(
+          controller: _replanRequest,
+          autofocus: true,
+          maxLines: 3,
+          textInputAction: TextInputAction.done,
+          decoration: const InputDecoration(
+            labelText: 'What would you like to change?',
+            hintText: 'For example, move study earlier this afternoon.',
+          ),
+          onSubmitted: (value) => Navigator.pop(dialogContext, value.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () =>
+                Navigator.pop(dialogContext, _replanRequest.text.trim()),
+            child: const Text('Preview changes'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || request == null || request.isEmpty) return;
+    final created = await controller.createReplanProposal(request);
+    if (!mounted) return;
+    if (!created) {
+      final failure = controller.replanError;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(friendlyError(failure ?? StateError('Failed')))),
+      );
+      return;
+    }
+    final profile = AuthScope.maybeOf(context)?.user?.profile;
+    final format = profile?.timeFormat ?? '24h';
+    await _showProposalPreview(controller, format);
+  }
+
+  Future<void> _showProposalPreview(
+    PlanController controller,
+    String timeFormat,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) => AnimatedBuilder(
+        animation: controller,
+        builder: (context, _) {
+          final proposal = controller.replanProposal;
+          if (proposal == null) return const SizedBox.shrink();
+          return Padding(
+            padding: EdgeInsets.fromLTRB(
+              18,
+              18,
+              18,
+              18 + MediaQuery.viewInsetsOf(context).bottom,
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * .82,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Proposed plan changes',
+                    style: Theme.of(context).textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: ListView(
+                      children: [
+                        HardCard(
+                          color: lilac,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                proposal.summary,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(proposal.explanation),
+                            ],
+                          ),
+                        ),
+                        const SectionHeader('Proposed changes'),
+                        if (proposal.operations.isEmpty)
+                          const Text('No item changes were proposed.'),
+                        for (final operation in proposal.operations)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: HardCard(
+                              color: paper,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    operation.kind.replaceAll('_', ' '),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  Text(operation.reason),
+                                  if (operation.before != null)
+                                    Text(
+                                      'Before: ${_changeSummary(operation.before!)}',
+                                    ),
+                                  if (operation.after != null)
+                                    Text(
+                                      'After: ${_changeSummary(operation.after!)}',
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        const SectionHeader('Proposed schedule'),
+                        if (proposal.schedule.isEmpty)
+                          const Text('The proposed schedule is empty.'),
+                        for (final item in proposal.schedule)
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(item.title),
+                            subtitle: Text(
+                              '${formatPlanTime(item.start, timeFormat)}–${formatPlanTime(item.end, timeFormat)}'
+                              '${item.detail == null ? '' : ' · ${item.detail}'}',
+                            ),
+                            trailing: Text(item.category),
+                          ),
+                        if (proposal.warnings.isNotEmpty) ...[
+                          const SectionHeader('Warnings'),
+                          for (final warning in proposal.warnings)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: Text('• $warning'),
+                            ),
+                        ],
+                        if (controller.replanError != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(
+                              friendlyError(controller.replanError!),
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.error,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (controller.proposalActionBusy)
+                    const LinearProgressIndicator(),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: controller.proposalActionBusy
+                              ? null
+                              : () async {
+                                  final dismissed = await controller
+                                      .dismissReplanProposal();
+                                  if (dismissed && sheetContext.mounted) {
+                                    Navigator.pop(sheetContext);
+                                  }
+                                },
+                          child: const Text('Dismiss'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: controller.proposalActionBusy
+                              ? null
+                              : () async {
+                                  final applied = await controller
+                                      .applyReplanProposal();
+                                  if (sheetContext.mounted &&
+                                      (applied ||
+                                          controller.replanProposal == null)) {
+                                    Navigator.pop(sheetContext);
+                                  }
+                                },
+                          child: const Text('Approve'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    if (!mounted) return;
+    final notice = controller.replanNotice;
+    if (notice != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(notice)));
+      controller.clearReplanNotice();
+    }
+  }
+
+  String _changeSummary(Map<String, dynamic> values) => values.entries
+      .map((entry) => '${entry.key.replaceAll('_', ' ')}: ${entry.value}')
+      .join(' · ');
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -258,6 +486,7 @@ class _DailyPlanViewState extends State<DailyPlanView> {
                             : 'OMNIAI PLAN',
                         style: const TextStyle(fontWeight: FontWeight.w900),
                       ),
+                      Text('Revision ${plan.revision}'),
                       TextButton(
                         onPressed: () => _details(plan, format),
                         child: const Text('Why?'),
@@ -335,6 +564,21 @@ class _DailyPlanViewState extends State<DailyPlanView> {
                   : 'Generate new suggestion',
               onTap: controller.generate,
             ),
+          if (plan != null && isToday) ...[
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: controller.creatingProposal
+                  ? null
+                  : () => _startReplanning(controller),
+              icon: controller.creatingProposal
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.auto_awesome_outlined),
+              label: const Text('Adjust today’s plan'),
+            ),
+          ],
           const SizedBox(height: 24),
           const SectionHeader(
             'Focus',

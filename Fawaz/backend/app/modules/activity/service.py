@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.common.planning_lock import lock_planning_state
 from app.modules.activity.models import ActivityDay
 from app.modules.activity.schemas import ActivityOut, ActivityUpsert
 
@@ -33,6 +34,7 @@ def filled_range(db: Session, user_id: uuid.UUID, start: date, end: date) -> lis
 
 
 def upsert_day(db: Session, user_id: uuid.UUID, day: date, data: ActivityUpsert) -> ActivityDay:
+    lock_planning_state(db, user_id)
     """Idempotent: sending the same body twice leaves one row with the same values."""
     row = get_day(db, user_id, day)
     values = data.model_dump()

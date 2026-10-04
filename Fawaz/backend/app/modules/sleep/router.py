@@ -4,6 +4,7 @@ from fastapi import APIRouter, Query, Response, status
 
 from app.common.dates import not_in_future, resolve_range
 from app.common.deps import CurrentUser, DbSession
+from app.common.planning_lock import lock_planning_state
 from app.core.errors import NotFoundError
 from app.modules.sleep import service
 from app.modules.sleep.schemas import SleepOut, SleepRange, SleepUpsert
@@ -44,6 +45,7 @@ def put_sleep(day: date, body: SleepUpsert, user: CurrentUser, db: DbSession):
 
 @router.delete("/{day}", status_code=status.HTTP_204_NO_CONTENT, summary="Remove the sleep entry for a day")
 def delete_sleep(day: date, user: CurrentUser, db: DbSession):
+    lock_planning_state(db, user.id)
     row = service.get_day(db, user.id, day)
     if row is None:
         raise NotFoundError("Sleep entry")
