@@ -10,7 +10,7 @@ OMNIA is a final-year team project: one Flutter app for study, tasks, long-term 
 This vault is the internal map of the project: architecture, reasoning, relationships and roadmap. The public-facing description lives in `Shehwaar/README.md`. This vault complements it and doesn't replace it.
 
 > [!important] Two rules that the rest of the vault depends on
-> 1. **`Shehwaar/omnia_ui` is the canonical frontend.** `Fawaz/lib` is a donor/reference implementation built on an older frontend. See [[Canonical Frontend]].
+> 1. **`Shehwaar/omnia_ui` is the canonical frontend.** It is the only frontend. `Fawaz/lib`, the older Flutter app, has been removed (October 2026); `Fawaz/` is backend-only. See [[Canonical Frontend]].
 > 2. **"Backend has an endpoint" ≠ "frontend uses it".** In API mode, authentication, Tasks, the profile, the day summary and activity/sleep logs are connected; nothing else is. See [[Current Status]].
 
 ## Where to start
@@ -21,7 +21,7 @@ This vault is the internal map of the project: architecture, reasoning, relation
 | How the app is put together | [[Architecture Overview]], [[Navigation and Information Architecture]] |
 | How sign-in and sessions work | [[Authentication Flow]], [[Session Architecture]] |
 | Which screen maps to which endpoint | [[Frontend Backend Integration]] |
-| What Fawaz's code can offer | [[Fawaz Donor Map]] |
+| What was ported from the removed `Fawaz/lib` (history) | [[Fawaz Donor Map]] |
 | What the backend exposes | [[API Map]] |
 | Why things are the way they are | [[Architecture Decisions]] |
 | What comes next | [[Roadmap]], [[Phase 5B - Activity and Sleep Logging]] |
@@ -42,13 +42,8 @@ flowchart LR
     subgraph Backend["Shared backend · Fawaz/backend"]
         B[FastAPI + SQLAlchemy<br/>13 routers under /api]
     end
-    subgraph Donor["Donor · Fawaz/lib"]
-        D[Older UI + API repositories]
-    end
     F6 ==>|connected| B
     F1 ==>|API mode| B
-    D -.->|adapt, don't copy UI| Canonical
-    D --- B
 
     classDef api fill:#b7e4c7,stroke:#1b4332,color:#000
     classDef local fill:#ffe8a3,stroke:#7a5c00,color:#000
@@ -85,6 +80,6 @@ The `status` property on feature notes uses these values everywhere in the vault
 | `local-functional` | Fully usable, but data lives in memory and is lost on restart. |
 | `partial` | Some parts are real (live or local), some are sample content. |
 | `sample` | UI exists and shows fixed sample data, labelled on screen. |
-| `planned` | Not in the canonical frontend. It may exist in the backend or donor code. |
+| `planned` | Not in the canonical frontend. It may exist in the backend. |
 
-Other properties: `backend_available` (a backend module exists), `backend_connected` (the canonical frontend calls it), `donor` (Fawaz/lib has a usable implementation).
+Other properties: `backend_available` (a backend module exists), `backend_connected` (the canonical frontend calls it), `donor` (historical: the removed Fawaz/lib had an implementation).

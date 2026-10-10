@@ -4,7 +4,7 @@ type: development
 
 # Running OMNIA
 
-Short operational notes. The full instructions are in `Shehwaar/README.md` (frontend) and `Fawaz/README.md` (backend and Docker).
+Short operational notes. The full instructions are in `Shehwaar/README.md` (frontend, the only Flutter app) and `Fawaz/README.md` (backend and Docker; `Fawaz/` is backend-only).
 
 ## Frontend (canonical)
 

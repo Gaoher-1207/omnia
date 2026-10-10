@@ -5,7 +5,7 @@ path: Fawaz/backend
 
 # Backend Overview
 
-The shared team backend at `Fawaz/backend`. It serves both the canonical frontend (auth only, today) and the donor app. Part of [[Architecture Overview]].
+The shared team backend at `Fawaz/backend`. It serves the canonical frontend, `Shehwaar/omnia_ui` (the older `Fawaz/lib` app has been removed). Part of [[Architecture Overview]].
 
 ## Stack
 

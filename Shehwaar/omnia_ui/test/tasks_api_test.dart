@@ -416,6 +416,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('1 of 1 completed'), findsOneWidget);
       expect(backend.tasksOf(sam).single['status'], 'done');
+      await tester.tap(find.text('Completed (1)'));
+      await tester.pumpAndSettle();
       await tester.tap(find.byType(Checkbox));
       await tester.pumpAndSettle();
       expect(backend.tasksOf(sam).single['status'], 'todo');

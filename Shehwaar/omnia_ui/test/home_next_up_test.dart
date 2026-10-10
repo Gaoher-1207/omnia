@@ -4,6 +4,7 @@ import 'package:omnia_ui/app.dart';
 import 'package:omnia_ui/core/auth/auth_controller.dart';
 import 'package:omnia_ui/features/home/data/api_dashboard_repository.dart';
 import 'package:omnia_ui/features/home/home_page.dart';
+import 'package:omnia_ui/features/home/widgets/category_card.dart';
 import 'package:omnia_ui/features/home/next_up.dart';
 import 'package:omnia_ui/features/plan/plan_controller.dart';
 
@@ -22,7 +23,10 @@ Map<String, dynamic> item(String title, String start, String end) => {
 FakeAuthBackend noonBackend({String source = 'ollama', bool withPlan = true}) {
   final utc = DateTime.now().toUtc();
   final offset = 12 * 60 - utc.hour * 60 - utc.minute;
-  final day = utc.add(Duration(minutes: offset)).toIso8601String().substring(0, 10);
+  final day = utc
+      .add(Duration(minutes: offset))
+      .toIso8601String()
+      .substring(0, 10);
   final backend = FakeAuthBackend()
     ..addUser('Sam', email, 'password-123', signedIn: true)
     ..dashboardOffsetMinutes = offset
@@ -62,34 +66,40 @@ Future<void> revealNextUp(WidgetTester tester, String text) async {
 }
 
 void main() {
-  test('profile-zone time excludes ended blocks and recognizes in-progress', () async {
-    final backend = FakeAuthBackend()
-      ..addUser('Sam', email, 'password-123', signedIn: true)
-      ..dashboardDate = '2026-09-28'
-      ..dashboardOffsetMinutes = 330;
-    backend.plans[email] = {
-      ...payload,
-      'plan_date': '2026-09-28',
-      'items': [item('Study', '08:00', '09:00')],
-    };
-    final api = backend.client();
-    addTearDown(api.close);
-    await api.restoreToken();
-    final dashboard = await ApiDashboardRepository(api).getDashboard();
-    expect(
-      nextUp(dashboard, dashboard.aiPlan, DateTime.utc(2026, 9, 28, 3, 0))
-          ?.inProgress,
-      isTrue,
-    );
-    expect(
-      nextUp(dashboard, dashboard.aiPlan, DateTime.utc(2026, 9, 28, 3, 30)),
-      isNull,
-    );
-    expect(
-      nextUp(dashboard, dashboard.aiPlan, DateTime.utc(2026, 9, 29, 3, 0)),
-      isNull,
-    );
-  });
+  test(
+    'profile-zone time excludes ended blocks and recognizes in-progress',
+    () async {
+      final backend = FakeAuthBackend()
+        ..addUser('Sam', email, 'password-123', signedIn: true)
+        ..dashboardDate = '2026-09-28'
+        ..dashboardOffsetMinutes = 330;
+      backend.plans[email] = {
+        ...payload,
+        'plan_date': '2026-09-28',
+        'items': [item('Study', '08:00', '09:00')],
+      };
+      final api = backend.client();
+      addTearDown(api.close);
+      await api.restoreToken();
+      final dashboard = await ApiDashboardRepository(api).getDashboard();
+      expect(
+        nextUp(
+          dashboard,
+          dashboard.aiPlan,
+          DateTime.utc(2026, 9, 28, 3, 0),
+        )?.inProgress,
+        isTrue,
+      );
+      expect(
+        nextUp(dashboard, dashboard.aiPlan, DateTime.utc(2026, 9, 28, 3, 30)),
+        isNull,
+      );
+      expect(
+        nextUp(dashboard, dashboard.aiPlan, DateTime.utc(2026, 9, 29, 3, 0)),
+        isNull,
+      );
+    },
+  );
 
   for (final source in ['ollama', 'rules']) {
     testWidgets('Today reads $source suggestion from shared session snapshot', (
@@ -107,17 +117,77 @@ void main() {
       );
       final controller = PlanScope.of(tester.element(find.byType(HomePage)));
       expect(controller.todayPlan?.source, source);
-      await tester.tap(find.text('See all →').last);
+      await tester.tap(find.text('See all'));
       await tester.pumpAndSettle();
       expect(find.text('Upcoming assignment'), findsOneWidget);
-      expect(
-        backend.requests.where((r) => r == 'GET /ai/daily-plan'),
-        isEmpty,
-      );
+      expect(backend.requests.where((r) => r == 'GET /ai/daily-plan'), isEmpty);
     });
   }
 
-  testWidgets('Today shows honest no-plan state and opens Plan', (tester) async {
+  testWidgets(
+    'Today puts the saved next action before domain overview and recommendation',
+    (tester) async {
+      await start(tester, noonBackend());
+      final next = find.text('Upcoming assignment');
+      final study = find.text('Study');
+      final recommendation = find.text('No exams coming up.');
+      expect(next, findsOneWidget);
+      expect(study, findsOneWidget);
+      expect(recommendation, findsOneWidget);
+      expect(tester.getTopLeft(next).dy, lessThan(tester.getTopLeft(study).dy));
+      expect(
+        tester.getTopLeft(study).dy,
+        lessThan(tester.getTopLeft(recommendation).dy),
+      );
+      expect(find.text('Next up'), findsNothing);
+    },
+  );
+
+  testWidgets('four domain tiles fit one row on a normal phone', (
+    tester,
+  ) async {
+    await start(tester, noonBackend());
+    final labels = ['Study', 'Tasks', 'Activity', 'Sleep'];
+    final tops = [
+      for (final label in labels) tester.getTopLeft(find.text(label)).dy,
+    ];
+    expect(tops.every((top) => top == tops.first), isTrue);
+    final heights = [
+      for (final card in find.byType(CategoryCard).evaluate())
+        tester.getSize(find.byWidget(card.widget)).height,
+    ];
+    expect(heights.toSet(), hasLength(1));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('narrow phone at 200% gives domains two readable columns', (
+    tester,
+  ) async {
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await start(tester, noonBackend());
+    tester.view.physicalSize = const Size(360, 800);
+    await tester.pumpAndSettle();
+    await tester.dragUntilVisible(
+      find.text('Study'),
+      find.byType(HomePage),
+      const Offset(0, -220),
+    );
+    expect(
+      tester.getTopLeft(find.text('Study')).dy,
+      tester.getTopLeft(find.text('Tasks')).dy,
+    );
+    expect(
+      tester.getTopLeft(find.text('Activity')).dy,
+      greaterThan(tester.getTopLeft(find.text('Study')).dy),
+    );
+    expect(find.text('SAMPLE DATA · LOCAL MODE'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Today shows honest no-plan state and opens Plan', (
+    tester,
+  ) async {
     final backend = noonBackend(withPlan: false);
     await start(tester, backend);
     await revealNextUp(tester, 'No plan yet.');
@@ -133,13 +203,17 @@ void main() {
 
   testWidgets('Today never calls a finished item Next up', (tester) async {
     final backend = noonBackend();
-    backend.plans[email]!['items'] = [item('Finished assignment', '11:00', '11:30')];
+    backend.plans[email]!['items'] = [
+      item('Finished assignment', '11:00', '11:30'),
+    ];
     await start(tester, backend);
     await revealNextUp(tester, 'No more planned blocks today.');
     expect(find.text('Finished assignment'), findsNothing);
   });
 
-  testWidgets('Next up clears with the signed-out account session', (tester) async {
+  testWidgets('Next up clears with the signed-out account session', (
+    tester,
+  ) async {
     final backend = noonBackend()
       ..addUser('Ada', 'ada@example.com', 'password-456');
     await start(tester, backend);

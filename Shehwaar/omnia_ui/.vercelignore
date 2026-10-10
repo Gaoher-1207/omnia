@@ -1,0 +1,14 @@
+.dart_tool/
+build/
+graphify-out/
+Microsoft/
+.vscode/
+test/
+integration/
+linux/
+macos/
+windows/
+android/
+ios/
+*.png
+!web/**/*.png

@@ -16,7 +16,9 @@ Both use the package name `omnia_ui`, and several files are still identical (`Ta
 
 ## Decision
 
-**`Shehwaar/omnia_ui` is the canonical frontend.** `Fawaz/lib` is a **donor / reference implementation**. `Fawaz/backend` is the shared backend for both.
+**`Shehwaar/omnia_ui` is the canonical and only frontend.** `Fawaz/backend` is the backend.
+
+**Update (October 2026):** `Fawaz/lib` and its Flutter scaffolding were deleted. Both apps used the Android application ID `com.example.omnia_ui`, so an old `Fawaz` build could be installed over, and mistaken for, the current app. `Fawaz/` is now backend-only.
 
 ## Reasons
 
@@ -29,6 +31,6 @@ Both use the package name `omnia_ui`, and several files are still identical (`Ta
 - Backend functionality is **ported or adapted** into the canonical app feature by feature ([[Mock First API Migration]]). The canonical app isn't replaced.
 - Donor code is classified per area in the [[Fawaz Donor Map]] (REUSE / ADAPT, REFERENCE, DO NOT COPY WHOLESALE, INCOMPATIBLE).
 - Old donor screens don't replace canonical screens ([[Preserve OMNIA Design System]]).
-- Docs and this vault never describe `Fawaz/lib` as "the app".
+- Docs and this vault never describe `Fawaz/lib` as "the app", and never instruct anyone to build or copy from it.
 
 Related: [[Architecture Decisions]] · [[Architecture Overview]]

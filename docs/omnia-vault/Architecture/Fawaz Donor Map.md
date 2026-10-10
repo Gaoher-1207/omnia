@@ -5,6 +5,9 @@ donor_path: Fawaz/lib
 
 # Fawaz Donor Map
 
+> [!warning] Historical record — `Fawaz/lib` has been removed
+> The legacy Flutter app under `Fawaz/` (`lib/`, `test/`, platform folders, `pubspec.yaml`) was deleted in October 2026 because it shared the Android application ID `com.example.omnia_ui` with the canonical app and could be built or installed by mistake. `Fawaz/` is now backend-only. This page only records what was ported from it; do not restore, build, or copy from it. `Shehwaar/omnia_ui` is the only frontend.
+
 **Question answered here:** *What useful work already exists in `Fawaz/lib` that can be adapted into the canonical frontend?*
 
 `Fawaz/lib` is a backend-connected Flutter app built from an **older version** of the OMNIA frontend. It's a donor and a reference, **not** the app. See [[Canonical Frontend]].

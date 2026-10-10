@@ -67,6 +67,7 @@ Future<void> openSettings(WidgetTester tester) async {
 
 Future<void> tapTile(WidgetTester tester, String title) async {
   await tester.ensureVisible(find.widgetWithText(ListTile, title));
+  await tester.pumpAndSettle();
   await tester.tap(find.widgetWithText(ListTile, title));
   await tester.pumpAndSettle();
 }
@@ -288,6 +289,28 @@ void main() {
     await tester.pumpAndSettle();
     expect(backend.hasUser(email), isFalse);
     expect(find.byType(AuthPage), findsOneWidget);
+  });
+
+  testWidgets('Settings shows theme first and separates account deletion', (
+    tester,
+  ) async {
+    final backend = FakeAuthBackend()
+      ..addUser('Sam', email, password, signedIn: true);
+    await startApiApp(tester, backend);
+    await openSettings(tester);
+    expect(
+      tester.getTopLeft(find.text('Appearance')).dy,
+      lessThan(tester.getTopLeft(find.text('Account')).dy),
+    );
+    expect(
+      tester.getTopLeft(find.text('Delete account')).dy,
+      greaterThan(tester.getTopLeft(find.text('Sign out')).dy),
+    );
+    await tapTile(tester, 'Delete account');
+    expect(find.text('Confirm with your password'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(backend.hasUser(email), isTrue);
   });
 
   testWidgets('an expired session returns to sign-in once, with a notice', (

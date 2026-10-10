@@ -10,13 +10,20 @@ import 'package:omnia_ui/features/tasks/task_controller.dart';
 import 'package:omnia_ui/features/tasks/task_form_page.dart';
 import 'package:omnia_ui/features/tasks/task_format.dart';
 
-class TasksPage extends StatelessWidget {
+class TasksPage extends StatefulWidget {
   const TasksPage({super.key});
 
   static void open(BuildContext context) => Navigator.push<void>(
     context,
     MaterialPageRoute(builder: (_) => const TasksPage()),
   );
+
+  @override
+  State<TasksPage> createState() => _TasksPageState();
+}
+
+class _TasksPageState extends State<TasksPage> {
+  bool _completedExpanded = false;
 
   static void _failed(BuildContext context, String action) =>
       ScaffoldMessenger.of(context).showSnackBar(
@@ -68,6 +75,23 @@ class TasksPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final tasks = TaskScope.of(context);
     final items = tasks.tasks;
+    final active = items.where((task) => !task.completed);
+    final completed = items.where((task) => task.completed);
+    Widget taskCard(Task task) => Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: _TaskCard(
+        key: ValueKey(task.id),
+        task: task,
+        busy: tasks.isBusy(task.id),
+        onToggle: (value) async {
+          if (!await tasks.setCompleted(task.id, value) && context.mounted) {
+            _failed(context, 'update');
+          }
+        },
+        onEdit: () => _openForm(context, tasks, task),
+        onDelete: () => _delete(context, tasks, task),
+      ),
+    );
     final Widget body;
     if (!tasks.loaded && tasks.loadError == null) {
       body = const Center(child: CircularProgressIndicator());
@@ -90,23 +114,39 @@ class TasksPage extends StatelessWidget {
             style: OmniaText.meta.copyWith(color: context.mutedForeground),
           ),
           const SizedBox(height: 12),
-          for (final task in items)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: _TaskCard(
-                key: ValueKey(task.id),
-                task: task,
-                busy: tasks.isBusy(task.id),
-                onToggle: (value) async {
-                  if (!await tasks.setCompleted(task.id, value) &&
-                      context.mounted) {
-                    _failed(context, 'update');
-                  }
-                },
-                onEdit: () => _openForm(context, tasks, task),
-                onDelete: () => _delete(context, tasks, task),
+          for (final task in active) taskCard(task),
+          if (completed.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Semantics(
+              button: true,
+              expanded: _completedExpanded,
+              child: HardCard(
+                color: paper,
+                shadowOffset: const Offset(2, 3),
+                onTap: () =>
+                    setState(() => _completedExpanded = !_completedExpanded),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Completed (${completed.length})',
+                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                    Icon(
+                      _completedExpanded
+                          ? Icons.keyboard_arrow_up_rounded
+                          : Icons.keyboard_arrow_down_rounded,
+                    ),
+                  ],
+                ),
               ),
             ),
+            if (_completedExpanded) ...[
+              const SizedBox(height: 12),
+              for (final task in completed) taskCard(task),
+            ],
+          ],
         ],
       );
     }

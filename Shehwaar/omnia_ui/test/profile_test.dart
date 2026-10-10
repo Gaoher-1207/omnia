@@ -71,6 +71,8 @@ Future<void> startApp(
 Future<void> openProfile(WidgetTester tester) async {
   await tester.tap(find.byTooltip('Settings'));
   await tester.pumpAndSettle();
+  await tester.ensureVisible(find.text('Profile & daily targets'));
+  await tester.pumpAndSettle();
   await tester.tap(find.text('Profile & daily targets'));
   await tester.pumpAndSettle();
 }

@@ -360,15 +360,15 @@ void main() {
       tester,
     ) async {
       await startApp(tester, null);
-      final ask = find.text('Ask OmniAI');
-      await reveal(tester, HomePage, ask);
-      await expectPresses(tester, ask);
       final study = find.descendant(
         of: find.byType(HomePage),
         matching: find.text('Study'),
       );
       await reveal(tester, HomePage, study);
       await expectPresses(tester, study);
+      final ask = find.text('Ask OmniAI');
+      await reveal(tester, HomePage, ask);
+      await expectPresses(tester, ask);
     });
 
     testWidgets('Areas tiles are tactile', (tester) async {

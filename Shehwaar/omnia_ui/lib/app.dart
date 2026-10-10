@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:omnia_ui/core/api/api_client.dart';
 import 'package:omnia_ui/core/api/api_config.dart';
 import 'package:omnia_ui/core/auth/auth_controller.dart';
@@ -6,6 +7,8 @@ import 'package:omnia_ui/core/auth/token_store.dart';
 import 'package:omnia_ui/core/session.dart';
 import 'package:omnia_ui/core/widgets/omnia_mark.dart';
 import 'package:omnia_ui/core/widgets/state_views.dart';
+import 'package:omnia_ui/core/widgets/omnia_pressable.dart';
+import 'package:omnia_ui/core/theme/surface_style.dart';
 import 'package:omnia_ui/features/auth/auth_page.dart';
 import 'package:omnia_ui/features/focus/focus_timer_controller.dart';
 import 'package:omnia_ui/features/focus/widgets/focus_phase_feedback.dart';
@@ -85,11 +88,8 @@ class _OmniaAppState extends State<OmniaApp> {
       (auth == null ? AppDependencies.mock() : AppDependencies.api(api!));
 
   // Session state sits above MaterialApp so pushed screens can reach it.
-  Widget _session(Widget home, {Key? key}) => UserSession(
-    key: key,
-    dependencies: _newDependencies,
-    child: _app(home),
-  );
+  Widget _session(Widget home, {Key? key}) =>
+      UserSession(key: key, dependencies: _newDependencies, child: _app(home));
 
   Widget _body() {
     final auth = this.auth;
@@ -248,36 +248,64 @@ class _OmniaHomeState extends State<OmniaHome> {
     return Scaffold(
       backgroundColor: context.colors.surface,
       body: SafeArea(
-        child: IndexedStack(
-          index: tab.index,
+        child: Column(
           children: [
-            for (final option in RootTab.values)
-              // System back pops the visible tab's own stack first.
-              if (_visited.contains(option))
-                NavigatorPopHandler<Object?>(
-                  enabled: option == tab,
-                  onPopWithResult: (_) =>
-                      _stacks[option]!.currentState?.maybePop(),
-                  child: Navigator(
-                    key: _stacks[option],
-                    onGenerateRoute: (_) =>
-                        MaterialPageRoute(builder: (_) => _root(option)),
-                  ),
-                )
-              else
-                const SizedBox.shrink(),
+            if (kDebugMode && AppDependenciesScope.of(context).sampleContent)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 3,
+                ),
+                color: context.isDark ? darkSurfaceElevated : lilac,
+                child: Text(
+                  'SAMPLE DATA · LOCAL MODE',
+                  textAlign: TextAlign.right,
+                  style: OmniaText.label.copyWith(color: context.foreground),
+                ),
+              ),
+            Expanded(
+              child: IndexedStack(
+                index: tab.index,
+                children: [
+                  for (final option in RootTab.values)
+                    // System back pops the visible tab's own stack first.
+                    if (_visited.contains(option))
+                      NavigatorPopHandler<Object?>(
+                        enabled: option == tab,
+                        onPopWithResult: (_) =>
+                            _stacks[option]!.currentState?.maybePop(),
+                        child: Navigator(
+                          key: _stacks[option],
+                          onGenerateRoute: (_) =>
+                              MaterialPageRoute(builder: (_) => _root(option)),
+                        ),
+                      )
+                    else
+                      const SizedBox.shrink(),
+                ],
+              ),
+            ),
           ],
         ),
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: context.navigationSurface,
-          border: Border(top: BorderSide(color: context.outline, width: 1.5)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Row(
-            children: [for (final option in RootTab.values) _nav(option, dark)],
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 6, 14, 8),
+          child: Container(
+            key: const ValueKey('physical-bottom-nav'),
+            padding: const EdgeInsets.all(5),
+            decoration: SurfaceStyle.of(context).decoration(
+              radius: 17,
+              color: context.navigationSurface,
+              offset: const Offset(3, 4),
+            ),
+            child: Row(
+              children: [
+                for (final option in RootTab.values) _nav(option, dark),
+              ],
+            ),
           ),
         ),
       ),
@@ -286,62 +314,61 @@ class _OmniaHomeState extends State<OmniaHome> {
 
   Widget _nav(RootTab option, bool dark) {
     final active = tab == option;
-    final color = context.foreground;
+    final fill = active
+        ? (dark ? darkNavigationAccent : lilac)
+        : context.navigationSurface;
+    final foreground = active ? ink : context.foreground;
     return Expanded(
-      // One merged node per tab: "Plan, selected, button".
-      child: Semantics(
-        container: true,
-        button: true,
-        selected: active,
-        child: InkWell(
-          onTap: () => _select(option),
-          focusColor: color.withValues(alpha: .16),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 9),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DecoratedBox(
-                  position: DecorationPosition.foreground,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 3),
+        child: Semantics(
+          container: true,
+          button: true,
+          selected: active,
+          child: OmniaPressable(
+            radius: 11,
+            shadowOffset: const Offset(1, 2),
+            builder: (context, states) => Material(
+              color: fill,
+              borderRadius: BorderRadius.circular(11),
+              child: InkWell(
+                onTap: () => _select(option),
+                statesController: states,
+                splashFactory: NoSplash.splashFactory,
+                borderRadius: BorderRadius.circular(11),
+                child: Container(
+                  constraints: const BoxConstraints(minHeight: 56),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 2,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(16),
-                    border: active
-                        ? Border.all(
-                            color: context.outlineOn(
-                              dark ? darkNavigationAccent : blue,
-                            ),
-                            width: 1.5,
-                          )
-                        : null,
+                    border: Border.all(
+                      color: context.outlineOn(fill),
+                      width: 1.5,
+                    ),
+                    borderRadius: BorderRadius.circular(11),
                   ),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: active
-                          ? (dark ? darkNavigationAccent : blue)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Icon(
-                      option.icon,
-                      size: 23,
-                      color: active ? ink : color.withValues(alpha: .65),
-                    ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(option.icon, size: 20, color: foreground),
+                      const SizedBox(height: 2),
+                      Text(
+                        option.label,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: foreground,
+                          fontWeight: active
+                              ? FontWeight.w900
+                              : FontWeight.w600,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  option.label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: color,
-                    fontWeight: active ? FontWeight.w800 : FontWeight.w500,
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),

@@ -495,7 +495,7 @@ Listed in the intended order. There are no fixed dates.
    `Learn → Practice → Measure mastery → Detect weak topics → Prioritise revision → Retest`
    Planned: AI-generated flashcards, quizzes and MCQs, timed tests, topic mastery, weak-topic detection, revision priorities and performance history.
 5. **Fitness and workout progression.** Routines, exercises, sets / reps / weight, workout history, comparison with the previous session, personal records, strength trends and consistency.
-6. **Sleep and activity.** Port the useful sleep, activity and meal-logging features from the team's backend-connected prototype into this frontend, in this design system.
+6. **Sleep and activity.** Build the remaining sleep, activity and meal-logging features against the backend API in this design system.
 7. **Insights and progress** from real data across features.
 8. **Long-term Goals on the backend.** A backend module designed for measurable and completion-only goals: current value, target value and unit; explicit completion; target date.
 9. **AI assistant** that understands the user's context and helps with planning, study, productivity, fitness and changes to the schedule.
@@ -509,7 +509,7 @@ Listed in the intended order. There are no fixed dates.
 OMNIA is a shared final-year project, and this repository holds each team member's work in their own folder.
 
 - **`Shehwaar/`:** frontend contribution (Flutter development and UI/UX). `Shehwaar/omnia_ui` is the **canonical Flutter frontend** the team is developing.
-- **`Fawaz/`:** the team's FastAPI backend (`Fawaz/backend`), with its own documentation, and an earlier backend-connected Flutter prototype built from an older version of this frontend.
+- **`Fawaz/`:** the team's FastAPI backend (`Fawaz/backend`), with its own documentation. It is backend-only; an earlier Flutter prototype that lived there has been removed, and this folder (`Shehwaar/omnia_ui`) is the only frontend.
 - Other folders hold other members' work, such as infrastructure and deployment.
 
 Useful functionality from across the team is brought into the canonical frontend one step at a time: first the API client, then authentication and sessions, with feature data next. Each step keeps the current design, accessibility work and mock mode intact.

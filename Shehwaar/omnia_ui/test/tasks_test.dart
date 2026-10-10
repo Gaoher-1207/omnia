@@ -113,8 +113,35 @@ void main() {
       await tester.tap(find.byType(Checkbox));
       await tester.pumpAndSettle();
       expect(find.text('1 of 1 completed'), findsOneWidget);
+      expect(find.text('Completed (1)'), findsOneWidget);
+      expect(find.text('Write report'), findsNothing);
+      await tester.tap(find.text('Completed (1)'));
+      await tester.pumpAndSettle();
       expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isTrue);
+      await tester.tap(find.byType(Checkbox));
+      await tester.pumpAndSettle();
+      expect(find.text('Write report'), findsOneWidget);
+      expect(find.text('Completed (1)'), findsNothing);
     });
+
+    testWidgets(
+      'completed section starts closed and expands without changing task order',
+      (tester) async {
+        await pumpTasksPage(
+          tester,
+          MockTaskRepository(seed: [task('a'), task('b', completed: true)]),
+        );
+        expect(find.text('Task a'), findsOneWidget);
+        expect(find.text('Task b'), findsNothing);
+        await tester.tap(find.text('Completed (1)'));
+        await tester.pumpAndSettle();
+        expect(find.text('Task b'), findsOneWidget);
+        expect(
+          tester.getTopLeft(find.text('Task a')).dy,
+          lessThan(tester.getTopLeft(find.text('Task b')).dy),
+        );
+      },
+    );
 
     testWidgets('create validates input, then adds the task', (tester) async {
       await pumpTasksPage(tester, MockTaskRepository(seed: []));

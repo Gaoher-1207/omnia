@@ -54,15 +54,13 @@ class AssistantRichText extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(
-                width: 26,
-                child: Text(
-                  entry.group(1) == '-' || entry.group(1) == '*'
-                      ? '•'
-                      : entry.group(1)!,
-                  style: bodyStyle,
-                ),
+              Text(
+                entry.group(1) == '-' || entry.group(1) == '*'
+                    ? '•'
+                    : entry.group(1)!,
+                style: bodyStyle,
               ),
+              const SizedBox(width: 8),
               Expanded(child: _rich(entry.group(2)!, bodyStyle)),
             ],
           ),
@@ -76,7 +74,7 @@ class AssistantRichText extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (final (index, block) in blocks.indexed) ...[
-          if (index > 0) const SizedBox(height: 7),
+          if (index > 0) SizedBox(height: block is Row ? 5 : 11),
           block,
         ],
       ],

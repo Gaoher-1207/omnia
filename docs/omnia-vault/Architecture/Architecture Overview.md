@@ -10,7 +10,7 @@ OMNIA has three code bases in one repository. Only two of them make up the produ
 |---|---|---|
 | Canonical Flutter frontend | `Shehwaar/omnia_ui` | **The app.** See [[Flutter Architecture]]. |
 | Shared backend | `Fawaz/backend` | FastAPI + SQLAlchemy + Alembic. See [[Backend Overview]]. |
-| Donor Flutter app | `Fawaz/lib` | Older, backend-connected frontend. It's a reference only. See [[Fawaz Donor Map]] and [[Canonical Frontend]]. |
+| Removed Flutter app | ~~`Fawaz/lib`~~ | Older, backend-connected frontend. **Deleted**; nothing should be built or copied from it. History: [[Fawaz Donor Map]], [[Canonical Frontend]]. |
 
 ## The real architecture today
 

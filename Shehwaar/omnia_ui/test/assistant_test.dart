@@ -9,6 +9,7 @@ import 'package:omnia_ui/core/theme/app_colors.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/features/assistant/assistant_controller.dart';
 import 'package:omnia_ui/features/assistant/assistant_page.dart';
+import 'package:omnia_ui/features/assistant/assistant_rich_text.dart';
 import 'package:omnia_ui/features/assistant/data/mock_assistant_repository.dart';
 import 'package:omnia_ui/features/assistant/domain/assistant_message.dart';
 import 'package:omnia_ui/features/assistant/domain/assistant_repository.dart';
@@ -304,6 +305,32 @@ void main() {
   });
 
   group('page states', () {
+    testWidgets('numbered steps keep a readable gap at large text scale', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MediaQuery(
+              data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+              child: const SizedBox(
+                width: 280,
+                child: AssistantRichText(
+                  'Steps:\n100. Continue with the plan.',
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final marker = tester.getRect(find.text('100.'));
+      final body = tester.getRect(
+        find.textContaining('Continue with the plan.'),
+      );
+      expect(marker.width, greaterThan(26));
+      expect(marker.right + 4, lessThanOrEqualTo(body.left));
+      expect(tester.takeException(), isNull);
+    });
     testWidgets('simple answer stays one conversational line', (tester) async {
       final repo = ScriptedAssistant();
       final controller = AssistantController(repo);

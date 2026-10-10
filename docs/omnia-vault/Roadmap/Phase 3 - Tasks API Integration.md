@@ -29,7 +29,7 @@ flowchart TD
 
 ## Changes made
 
-1. **`ApiTaskRepository`.** Adapt `Fawaz/lib/features/tasks/data/api_task_repository.dart`:
+1. **`ApiTaskRepository`.** Adapt the (since removed) `Fawaz/lib/features/tasks/data/api_task_repository.dart`:
    - Import `asMap`/`asMapList`/`parseDay`/`formatDay` from `core/api/json.dart` (the donor imports them from `core/models/user.dart`). `isAllDay` already exists in the canonical `task_format.dart`.
    - Keep its mapping: `normal↔medium`, `description↔notes`, `completed↔status`, `dueAt↔due_date+due_time`, minutes, and paging with `limit=200` until `total`.
 2. **Wiring.** In API mode, give each `UserSession` an `AppDependencies` whose `tasks` is `ApiTaskRepository(api)`, while goals and study stay mocks. That's likely an extra factory next to `AppDependencies.mock()`, chosen in `app.dart` where `_session(...)` is built for a signed-in user.

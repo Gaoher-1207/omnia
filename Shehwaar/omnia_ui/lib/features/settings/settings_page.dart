@@ -4,6 +4,7 @@ import 'package:omnia_ui/core/api/api_exception.dart';
 import 'package:omnia_ui/core/auth/auth_controller.dart';
 import 'package:omnia_ui/core/models/user.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
+import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/core/widgets/hard_card.dart';
 import 'package:omnia_ui/core/widgets/state_views.dart';
 import 'package:omnia_ui/features/onboarding/onboarding_page.dart';
@@ -23,10 +24,6 @@ class SettingsPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(18),
         children: [
-          if (user != null) ...[
-            _AccountSection(user: user),
-            const SizedBox(height: 24),
-          ],
           Semantics(
             header: true,
             child: Text(
@@ -66,6 +63,10 @@ class SettingsPage extends StatelessWidget {
               icon: const Icon(Icons.replay),
               label: const Text('Preview onboarding'),
             ),
+          ],
+          if (user != null) ...[
+            const SizedBox(height: 24),
+            _AccountSection(user: user),
           ],
         ],
       ),
@@ -208,16 +209,33 @@ class _AccountSection extends StatelessWidget {
                 title: const Text('Sign out'),
                 onTap: () => _attempt(context, AuthScope.read(context).signOut),
               ),
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: Icon(Icons.delete_forever_outlined, color: danger),
-                title: Text('Delete account', style: TextStyle(color: danger)),
-                subtitle: const Text(
-                  'Permanently removes your account and data',
-                ),
-                onTap: () => _deleteAccount(context),
-              ),
             ],
+          ),
+        ),
+        const SizedBox(height: 32),
+        Divider(color: context.outline, thickness: 1.5),
+        const SizedBox(height: 12),
+        Semantics(
+          header: true,
+          child: Text(
+            'Danger zone',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              color: danger,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        HardCard(
+          color: paper,
+          shadowOffset: const Offset(2, 3),
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.delete_forever_outlined, color: danger),
+            title: Text('Delete account', style: TextStyle(color: danger)),
+            subtitle: const Text('Permanently removes your account and data'),
+            onTap: () => _deleteAccount(context),
           ),
         ),
       ],

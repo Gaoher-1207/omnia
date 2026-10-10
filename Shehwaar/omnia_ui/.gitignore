@@ -49,3 +49,6 @@ app.*.map.json
 
 # A developer's own backend settings (copy of integration/omnia.env.example)
 /integration/omnia.env
+
+.vercel
+.env*

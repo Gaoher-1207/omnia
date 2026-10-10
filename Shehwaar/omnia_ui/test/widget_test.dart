@@ -13,6 +13,7 @@ import 'package:omnia_ui/features/plan/widgets/timeline_row.dart';
 import 'package:omnia_ui/features/settings/settings_page.dart';
 import 'package:omnia_ui/features/areas/areas_page.dart';
 import 'package:omnia_ui/features/study/study_page.dart';
+import 'package:omnia_ui/core/widgets/omnia_pressable.dart';
 
 Future<void> startApp(
   WidgetTester tester, {
@@ -81,6 +82,36 @@ void expectTheme(WidgetTester tester, Type page, Brightness brightness) {
 }
 
 void main() {
+  testWidgets('physical bottom bar keeps the four existing destinations', (
+    tester,
+  ) async {
+    await startApp(tester);
+    final bar = find.byKey(const ValueKey('physical-bottom-nav'));
+    expect(bar, findsOneWidget);
+    expect(find.text('SAMPLE DATA · LOCAL MODE'), findsOneWidget);
+    expect(
+      find.descendant(of: bar, matching: find.byType(OmniaPressable)),
+      findsNWidgets(4),
+    );
+    final selected = find.descendant(
+      of: bar,
+      matching: find.byWidgetPredicate(
+        (widget) => widget is Semantics && widget.properties.selected == true,
+      ),
+    );
+    expect(tester.getSemantics(selected).label, 'Today');
+    await tester.tap(find.descendant(of: bar, matching: find.text('Plan')));
+    await tester.pumpAndSettle();
+    expect(find.byType(PlanPage), findsOneWidget);
+    expect(tester.getSemantics(selected).label, 'Plan');
+    await tester.tap(find.descendant(of: bar, matching: find.text('Areas')));
+    await tester.pumpAndSettle();
+    expect(find.byType(AreasPage), findsOneWidget);
+    await tester.tap(find.descendant(of: bar, matching: find.text('Plan')));
+    await tester.pumpAndSettle();
+    expect(find.byType(PlanPage), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
   test('Dark accent text maintains normal-text contrast', () {
     for (final background in [studyDark, tasksDark, activityDark, sleepDark]) {
       final ratio =

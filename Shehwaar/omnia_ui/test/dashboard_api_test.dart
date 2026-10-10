@@ -299,12 +299,12 @@ void main() {
       addTearDown(api.close);
       await tester.pumpWidget(OmniaApp(api: api));
       await tester.pumpAndSettle();
+      expect(find.text('No plan yet.'), findsOneWidget);
       for (var i = 0; i < 12; i++) {
         await tester.drag(find.byType(HomePage), const Offset(0, -250));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
       }
-      expect(find.text('No plan yet.'), findsOneWidget, reason: 'the end');
       await openTab(tester, 'Areas');
       expect(tester.takeException(), isNull);
     });

@@ -22,6 +22,10 @@ Intended order with dependencies. **No dates** are set. Sources: `Shehwaar/READM
 
 These were built on the Tasks, Focus, onboarding and design work in the canonical frontend that came before them. See [[Git Checkpoints]].
 
+## Open TODOs
+
+- [ ] **Replace the second onboarding placeholder.** Update the canonical `Shehwaar/omnia_ui` onboarding page that currently says “Next onboarding page” and “This space is reserved for the next onboarding step.” Define the real step, final copy, and CTA while preserving the existing Skip/Back flow, current visual system, reduced-motion behavior, accessibility, light/dark themes, and narrow-screen/text-scale coverage. Update the onboarding widget tests when implementing it; do not copy the older `Fawaz/lib` donor onboarding.
+
 ## Dependency graph
 
 ```mermaid

@@ -13,7 +13,7 @@ Found while building this vault by comparing the READMEs, the canonical frontend
 |---|---|---|---|
 | D1 | `.github/workflows/backend-ci.yml` | The only workflow installs from **`Fawz/backend`** (typo for `Fawaz`) and runs a **Django** `manage.py check \|\| true`. The backend is FastAPI. Nothing runs pytest or Flutter tests. | CI passes without testing anything |
 | D2 | `Fawaz/README.md` | Describes `.github/workflows/ci.yml` (backend on SQLite and PostgreSQL, migrations, `flutter analyze`/`test`). **That file doesn't exist** in the repository. | Misleading assurance |
-| D3 | `Fawaz/README.md` | Calls its `lib/` "the product UI" / "Shew's UI". It's the older donor, not the canonical frontend. | Confusion over what the app is ([[Canonical Frontend]]) |
+| D3 | `Fawaz/README.md` | ~~Calls its `lib/` "the product UI" / "Shew's UI".~~ Resolved: `Fawaz/lib` was removed and the README now describes `Fawaz/` as backend-only. | Confusion over what the app is ([[Canonical Frontend]]) |
 | D4 | Home screen | ~~The greeting is hard-coded as "Good morning, Shew."~~ Resolved in API mode by [[Phase 4 - Dashboard API Integration]] (server `greeting` + `display_name`). Mock mode still shows the sample "Shew". | None in API mode |
 | D5 | "Goals" naming | The backend and donor call the profile's daily targets "goals". The canonical Goals feature means long-term goals. | Risk of wiring the wrong repository ([[Goals vs Daily Targets]]) |
 | D6 | Study models | The canonical `StudySession` (embedded revision items) vs the backend `StudySession` (logged minutes) | Study can't be a simple repository swap ([[Study Session]]) |
@@ -32,7 +32,7 @@ Found while building this vault by comparing the READMEs, the canonical frontend
 | R5 | In-memory rate limiter | Per-process sliding window. Multiple workers or instances each keep their own counts. | Fine for dev. Revisit for deployment. |
 | R6 | Focus survives sign-out | App-wide by design | Accepted ([[App State vs User Session State]]) |
 | R7 | Onboarding not persisted | `_onboardingComplete` lives in memory, so it's shown on every cold start in mock mode or when signed out | A known TODO in `app.dart` |
-| R8 | Two `omnia_ui` packages | `Fawaz/lib` and `Shehwaar/omnia_ui` share the package name and several identical files | Copy only deliberately ([[Fawaz Donor Map]]) |
+| R8 | Two `omnia_ui` packages | **Resolved:** `Fawaz/lib` was removed; only `Shehwaar/omnia_ui` remains | If an old UI appears on a device, it is a stale install; reinstall from `Shehwaar/omnia_ui` |
 | R9 | Mapping edge cases (Tasks) | 00:00 local due time ⇒ sent as all-day. Sub-minute estimates are dropped. Due dates are device-local calendar days, while the backend's "today" uses the profile time zone. | Accepted in Phase 3 (a `ponytail:` comment in `api_task_repository.dart`) |
 | R11 | Dashboard targets of 0 | A daily target of 0 ("not tracking") shows as `/ 0m` with an empty bar. Since 5A users can set 0 from the editor (its helper says "0 turns it off"). | Still open: decide how Home should show an untracked target |
 | R10 | CI credentials | The workflow contains a hard-coded CI test-database password | Only a CI throwaway, but better moved to secrets when CI is fixed |

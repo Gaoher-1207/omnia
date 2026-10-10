@@ -8,7 +8,7 @@ Lightweight ADR-style records. Each one has **Context → Decision → Reasons �
 
 | Decision | One-line summary | Status |
 |---|---|---|
-| [[Canonical Frontend]] | `Shehwaar/omnia_ui` is the app. `Fawaz/lib` is a donor. | Accepted |
+| [[Canonical Frontend]] | `Shehwaar/omnia_ui` is the only frontend. `Fawaz/lib` has been removed. | Accepted |
 | [[Goals vs Daily Targets]] | Long-term Goals and daily targets are separate domain concepts | Accepted |
 | [[Mock First API Migration]] | Migrate one feature at a time. Keep mock mode forever. | Accepted, in progress |
 | [[App State vs User Session State]] | Per-user state lives in `UserSession`, keyed by user id. Focus stays app-wide. | Accepted |
