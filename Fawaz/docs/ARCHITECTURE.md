@@ -2,7 +2,7 @@
 
 ## Shape
 
-One modular backend (no microservices) and one Flutter client (Shew's app, for Android, iOS, web and desktop), as the role guide asks. Phases 1–4 are all in the same deployable.
+One modular backend (no microservices) in `Fawaz/backend` and one Flutter client, `Shehwaar/omnia_ui` (Android, iOS, web and desktop), as the role guide asks. Phases 1–4 are all in the same deployable.
 
 ```
 Flutter app      ──/api──▶  FastAPI app
@@ -42,21 +42,9 @@ backend/app/
 
 Each module has the same pieces: `models.py`, `schemas.py`, `service.py`, `router.py`. Routers stay thin; rules live in services or in pure modules (`planner.py`, `streaks.py`, `providers.py`) that are unit-tested without a database.
 
-## Flutter client layout
+## Flutter client
 
-```
-lib/
-  core/api/        ApiConfig (base URL), ApiClient (http + bearer + error envelope), ApiException
-  core/auth/       TokenStore (flutter_secure_storage), AuthController / AuthScope
-  core/state/      Loadable<T>, ControllerScope<T>: loading / error / data for every screen
-  core/session.dart per-user scope (tasks, today's plan, dashboard), rebuilt on each sign-in
-  core/app_dependencies.dart  wires one ApiClient into every repository; tests inject a fake
-  features/<name>/data/       repositories: the only code that knows endpoints and JSON keys
-  features/<name>/domain/     immutable models used by the widgets
-  features/<name>/*.dart      Shew's screens, now reading from repositories instead of mocks
-```
-
-Sign-in state lives above `MaterialApp`, so signing in or out swaps the whole tree and no screen can keep another user's data. Details: [INTEGRATION.md](INTEGRATION.md).
+The client is `Shehwaar/omnia_ui`; its layout and integration notes live in `Shehwaar/omnia_ui/integration/`. An older Flutter app that used to sit next to this backend (`Fawaz/lib`) has been removed and is not a reference for new work.
 
 ## Data model
 
@@ -112,7 +100,7 @@ The role guide says stack and architecture need team agreement. These are the ch
 | 7 | Resources returned without a `{success,data}` envelope; one error envelope | idiomatic for FastAPI/OpenAPI typing; consistent errors | Shew |
 | 8 | Rule-based planner as default and fallback; Claude API optional | works offline and free; AI failures never break the app | Gaoher + AI contributors |
 | 9 | Streak and planner rules (see API.md) | first reasonable version | product discussion |
-| 10 | Flutter state with InheritedNotifier scopes (no Provider/Riverpod/Bloc) and `package:http` | matches Shew's existing code; no new state library to learn | Shew |
+| 10 | Flutter state with InheritedNotifier scopes (no Provider/Riverpod/Bloc) and `package:http` | matches the `Shehwaar/omnia_ui` code; no new state library to learn | Shew |
 | 11 | Group chat by polling (`after=`) instead of WebSockets | works everywhere, no extra infrastructure; switch if chat grows | Shew, Ibrahim |
 | 12 | Photo estimates are never stored; the user confirms and saves a normal meal | privacy and accuracy | Gaoher, Rahaman |
 

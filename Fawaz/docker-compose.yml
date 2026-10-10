@@ -2,7 +2,7 @@
 # 1. cp .env.example .env and fill in the values
 # 2. docker compose up --build
 # 3. optional demo data: docker compose exec backend python -m app.scripts.seed
-# Then run the Flutter app (see README) pointing at http://localhost:8000/api.
+# Then run the Flutter app from Shehwaar/omnia_ui (see README) pointing at http://localhost:8000/api.
 
 services:
   db:

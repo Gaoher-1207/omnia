@@ -42,14 +42,3 @@ jobs:
           DATABASE_URL="$PG_URL" alembic upgrade head
           DATABASE_URL="$PG_URL" alembic check
           DATABASE_URL="$PG_URL" alembic downgrade base
-
-  flutter:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-      - run: flutter pub get
-      - run: flutter analyze
-      - run: flutter test

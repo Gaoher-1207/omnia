@@ -1,11 +1,12 @@
-# OMNIA
+# OMNIA backend
 
-One plan for study, tasks, fitness, sleep and food: a Flutter app (Shew's UI) backed by a FastAPI + PostgreSQL API that also generates an adaptive AI daily plan.
+The FastAPI + PostgreSQL API for OMNIA: study, tasks, fitness, sleep and food, plus the adaptive AI daily plan.
+
+**This folder is backend-only.** The one OMNIA frontend is the Flutter app in [`Shehwaar/omnia_ui`](../Shehwaar/omnia_ui). An older Flutter app that used to live in this folder (`Fawaz/lib` and its platform folders) has been removed; do not recreate or build it.
 
 ```
-repo/
-  lib/, test/, android/, ios/, web/, macos/, linux/, windows/   Flutter app (the product UI)
-  backend/                                                      FastAPI API, migrations, tests
+Fawaz/
+  backend/               FastAPI API, migrations, tests
   docs/API.md            every endpoint, request and response
   docs/ARCHITECTURE.md   how the pieces fit, data model, security
   docs/INTEGRATION.md    how the app talks to the API; setup per platform; troubleshooting
@@ -14,7 +15,7 @@ repo/
 
 ## Quick start
 
-You need Docker (or Python 3.11+ and PostgreSQL 14+) and the Flutter SDK (Dart ≥ 3.13).
+You need Docker (or Python 3.11+ and PostgreSQL 14+).
 
 ### 1. Start the backend
 
@@ -41,18 +42,11 @@ uvicorn app.main:app --reload --port 8000
 
 ### 2. Run the app
 
-```bash
-flutter pub get
-flutter run                    # debug: Android emulator → 10.0.2.2:8000, others → localhost:8000
-flutter run -d chrome          # web (dev CORS allows any localhost port)
-flutter run --dart-define=API_BASE_URL=http://192.168.1.20:8000/api   # a real phone on your Wi-Fi
-```
-
-Release builds have no default URL and must be built with `--dart-define=API_BASE_URL=https://your-api.example.com/api`. See [docs/INTEGRATION.md](docs/INTEGRATION.md) for each platform.
+The frontend lives in `Shehwaar/omnia_ui`. On Windows, `START_OMNIA.bat` at the repository root starts Ollama, this backend (with migrations), the Android emulator and the Flutter app. To run the app on its own, follow [`Shehwaar/omnia_ui/integration/README.md`](../Shehwaar/omnia_ui/integration/README.md).
 
 ## Configuration
 
-All secrets live in environment variables or an untracked `.env` file, never in code. The Flutter app holds **no** secrets, only the API URL.
+All secrets live in environment variables or an untracked `.env` file, never in code. The frontend holds **no** secrets, only the API URL.
 
 | Variable | Needed | What it is |
 |---|---|---|
@@ -76,12 +70,9 @@ TEST_DATABASE_URL=postgresql+psycopg://omnia:***@localhost:5432/omnia_test pytes
 python scripts/integration_check.py --base http://localhost:8000/api --phase create
 # restart the backend, then:
 python scripts/integration_check.py --base http://localhost:8000/api --phase verify
-
-# Flutter (widget and API-client tests use an in-process fake backend)
-flutter analyze && flutter test
 ```
 
-CI (`.github/workflows/ci.yml`) runs the backend suite on SQLite and PostgreSQL, checks migrations, and runs `flutter analyze` and `flutter test`.
+CI (`.github/workflows/ci.yml`) runs the backend suite on SQLite and PostgreSQL and checks migrations. Frontend tests run from `Shehwaar/omnia_ui`.
 
 ## Features
 
