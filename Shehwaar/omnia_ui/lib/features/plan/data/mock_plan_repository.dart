@@ -12,4 +12,20 @@ class MockPlanRepository implements PlanRepository {
   @override
   Future<DailyPlan> generate() async =>
       plan ?? (throw StateError('Plan generation requires API mode.'));
+
+  @override
+  Future<Never> createReplanProposal(String request, {DateTime? date}) async =>
+      throw StateError('Adaptive replanning requires API mode.');
+
+  @override
+  Future<Never> getReplanProposal(String proposalId) async =>
+      throw StateError('Adaptive replanning requires API mode.');
+
+  @override
+  Future<Never> applyReplanProposal(String proposalId) async =>
+      throw StateError('Adaptive replanning requires API mode.');
+
+  @override
+  Future<Never> dismissReplanProposal(String proposalId) async =>
+      throw StateError('Adaptive replanning requires API mode.');
 }

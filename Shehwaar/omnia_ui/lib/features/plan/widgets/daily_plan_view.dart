@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:omnia_ui/core/api/api_exception.dart';
 import 'package:omnia_ui/core/app_dependencies.dart';
 import 'package:omnia_ui/core/auth/auth_controller.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
+import 'package:omnia_ui/core/theme/app_theme.dart';
+import 'package:omnia_ui/core/widgets/action_row.dart';
 import 'package:omnia_ui/core/widgets/hard_card.dart';
 import 'package:omnia_ui/core/widgets/section_header.dart';
 import 'package:omnia_ui/core/widgets/solid_action.dart';
@@ -14,6 +17,7 @@ import 'package:omnia_ui/features/plan/commitment_controller.dart';
 import 'package:omnia_ui/features/plan/plan_controller.dart';
 import 'package:omnia_ui/features/plan/plan_preferences_page.dart';
 import 'package:omnia_ui/features/plan/plan_time.dart';
+import 'package:omnia_ui/features/plan/replan_change_format.dart';
 import 'package:omnia_ui/features/plan/widgets/plan_date_strip.dart';
 import 'package:omnia_ui/features/tasks/task_controller.dart';
 import 'package:omnia_ui/features/tasks/task_form_page.dart';
@@ -91,15 +95,58 @@ class _DailyPlanViewState extends State<DailyPlanView> {
     SubjectDetailPage.open(context, id);
   }
 
+  /// Ask for a request, then show a preview. Nothing changes until Apply.
+  Future<void> _adjustPlan(PlanController controller) async {
+    final request = await showDialog<String>(
+      context: context,
+      builder: (_) => const _ReplanRequestDialog(),
+    );
+    if (!mounted || request == null) return;
+    final created = await controller.createReplanProposal(request);
+    if (!mounted) return;
+    if (!created) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            friendlyError(controller.replanError ?? StateError('failed')),
+          ),
+        ),
+      );
+      return;
+    }
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) => ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * .85,
+        ),
+        child: _ReplanPreviewSheet(controller: controller),
+      ),
+    );
+    // A preview closed without Apply or Cancel is still discarded server-side.
+    if (controller.replanProposal != null) {
+      await controller.dismissReplanProposal();
+    }
+    if (!mounted) return;
+    final notice = controller.replanNotice;
+    if (notice != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(notice)));
+      controller.clearReplanNotice();
+    }
+  }
+
   void _details(DailyPlan plan, String format) => showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (context) => DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: .85,
-      builder: (context, scroll) =>
-          _PlanExplanationSheet(plan: plan, format: format, scroll: scroll),
+    builder: (context) => ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * .85,
+      ),
+      child: _PlanExplanationSheet(plan: plan, format: format),
     ),
   );
 
@@ -250,13 +297,9 @@ class _DailyPlanViewState extends State<DailyPlanView> {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     spacing: 12,
                     children: [
-                      Text(
-                        plan.isFallback
-                            ? 'RULES FALLBACK'
-                            : plan.source == 'rules'
-                            ? 'RULES PLAN'
-                            : 'OMNIAI PLAN',
-                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      const Text(
+                        'Suggested plan',
+                        style: TextStyle(fontWeight: FontWeight.w900),
                       ),
                       TextButton(
                         onPressed: () => _details(plan, format),
@@ -264,6 +307,15 @@ class _DailyPlanViewState extends State<DailyPlanView> {
                       ),
                     ],
                   ),
+                  Text(
+                    plan.isFallback
+                        ? 'Rules fallback'
+                        : plan.source == 'rules'
+                        ? 'Planned with rules'
+                        : 'OmniAI assisted',
+                    style: OmniaText.meta,
+                  ),
+                  const SizedBox(height: 5),
                   Text(
                     plan.explanation?.headline ?? plan.summary,
                     maxLines: 2,
@@ -335,6 +387,36 @@ class _DailyPlanViewState extends State<DailyPlanView> {
                   : 'Generate new suggestion',
               onTap: controller.generate,
             ),
+          if (!controller.busy &&
+              isToday &&
+              plan != null &&
+              (selected == null ||
+                  DateUtils.isSameDay(plan.date, selected))) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: controller.creatingProposal
+                    ? null
+                    : () => _adjustPlan(controller),
+                icon: controller.creatingProposal
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          semanticsLabel: 'Preparing changes',
+                        ),
+                      )
+                    : const Icon(Icons.auto_awesome_outlined, size: 18),
+                label: const Text('Adjust today’s plan'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: context.foreground,
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  side: BorderSide(color: context.outline, width: 1.5),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 24),
           const SectionHeader(
             'Focus',
@@ -472,16 +554,163 @@ class _DailyPlanViewState extends State<DailyPlanView> {
   }
 }
 
+class _ReplanRequestDialog extends StatefulWidget {
+  const _ReplanRequestDialog();
+  @override
+  State<_ReplanRequestDialog> createState() => _ReplanRequestDialogState();
+}
+
+class _ReplanRequestDialogState extends State<_ReplanRequestDialog> {
+  final controller = TextEditingController();
+  final form = GlobalKey<FormState>();
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  void submit() {
+    if (form.currentState!.validate()) {
+      Navigator.pop(context, controller.text.trim());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Adjust today’s plan'),
+    content: Form(
+      key: form,
+      child: TextFormField(
+        controller: controller,
+        autofocus: true,
+        maxLines: 3,
+        minLines: 1,
+        maxLength: 1000,
+        textInputAction: TextInputAction.done,
+        decoration: const InputDecoration(
+          labelText: 'What would you like to change?',
+          hintText: 'For example, move study earlier this afternoon.',
+        ),
+        validator: (value) => value == null || value.trim().isEmpty
+            ? 'Describe the change you want'
+            : null,
+        onFieldSubmitted: (_) => submit(),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(onPressed: submit, child: const Text('Preview changes')),
+    ],
+  );
+}
+
+/// A compact preview: one action-and-title line per change, then Apply or Cancel.
+/// Proposal internals (summary, reasons, schedule, validation) stay hidden.
+class _ReplanPreviewSheet extends StatelessWidget {
+  const _ReplanPreviewSheet({required this.controller});
+
+  final PlanController controller;
+
+  Future<void> _apply(BuildContext context) async {
+    final applied = await controller.applyReplanProposal();
+    if (context.mounted && (applied || controller.replanProposal == null)) {
+      Navigator.pop(context);
+    }
+  }
+
+  Future<void> _cancel(BuildContext context) async {
+    final dismissed = await controller.dismissReplanProposal();
+    if (context.mounted && dismissed) Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: controller,
+    builder: (context, _) {
+      final proposal = controller.replanProposal;
+      if (proposal == null) return const SizedBox.shrink();
+      final changes = describeReplanChanges(proposal.operations);
+      final busy = controller.proposalActionBusy;
+      final error = controller.replanError;
+      return ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.all(20),
+        children: [
+          Semantics(
+            header: true,
+            child: const Text(
+              'Plan changes',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (changes.isEmpty)
+            const Text('No changes needed.')
+          else
+            for (final change in changes)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const ExcludeSemantics(child: Text('•  ')),
+                    Expanded(child: Text(change)),
+                  ],
+                ),
+              ),
+          if (error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                friendlyError(error),
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+          const SizedBox(height: 16),
+          if (busy) ...[
+            const LinearProgressIndicator(semanticsLabel: 'Updating plan'),
+            const SizedBox(height: 12),
+          ],
+          AbsorbPointer(
+            absorbing: busy,
+            child: changes.isEmpty
+                ? SizedBox(
+                    width: double.infinity,
+                    child: OutlineAction(
+                      icon: Icons.close,
+                      label: 'Close',
+                      onPressed: () => _cancel(context),
+                    ),
+                  )
+                : ActionRow(
+                    primary: SolidAction(
+                      label: 'Apply',
+                      onTap: () => _apply(context),
+                    ),
+                    secondary: [
+                      OutlineAction(
+                        icon: Icons.close,
+                        label: 'Cancel',
+                        onPressed: () => _cancel(context),
+                      ),
+                    ],
+                  ),
+          ),
+        ],
+      );
+    },
+  );
+}
+
 class _PlanExplanationSheet extends StatefulWidget {
-  const _PlanExplanationSheet({
-    required this.plan,
-    required this.format,
-    required this.scroll,
-  });
+  const _PlanExplanationSheet({required this.plan, required this.format});
 
   final DailyPlan plan;
   final String format;
-  final ScrollController scroll;
 
   @override
   State<_PlanExplanationSheet> createState() => _PlanExplanationSheetState();
@@ -500,7 +729,7 @@ class _PlanExplanationSheetState extends State<_PlanExplanationSheet> {
         ? 'Rules plan'
         : 'OmniAI plan';
     return ListView(
-      controller: widget.scroll,
+      shrinkWrap: true,
       padding: const EdgeInsets.all(20),
       children: [
         Row(

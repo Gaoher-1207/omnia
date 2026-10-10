@@ -5,6 +5,7 @@ class DailyPlan {
   DailyPlan.fromJson(Map<String, dynamic> json)
     : planningStartMinutes = json['planning_start_minutes'] as int?,
       planningEndMinutes = json['planning_end_minutes'] as int?,
+      revision = json['revision'] as int? ?? 1,
       id = json['id'] as String,
       date = parseDay(json['plan_date'] as String),
       createdAt = DateTime.parse(json['created_at'] as String),
@@ -30,6 +31,7 @@ class DailyPlan {
       adjustments = List<String>.unmodifiable(json['adjustments'] ?? []);
 
   final int? planningStartMinutes, planningEndMinutes;
+  final int revision;
   final String id, source, summary;
   final PlanExplanation? explanation;
   final DateTime date, createdAt;
@@ -82,7 +84,8 @@ class PlanExplanation {
 
 class DailyPlanItem {
   DailyPlanItem.fromJson(Map<String, dynamic> json)
-    : start = json['start'] as String,
+    : itemKey = json['item_key'] as String?,
+      start = json['start'] as String,
       end = json['end'] as String,
       category = json['category'] as String,
       title = json['title'] as String,
@@ -90,6 +93,7 @@ class DailyPlanItem {
       taskId = json['task_id'] as String?,
       subjectId = json['subject_id'] as String?;
   final String start, end, category, title;
+  final String? itemKey;
   final String? detail, taskId, subjectId;
   int get minutes => _minutes(end) - _minutes(start);
   static int minutesOf(String time) => _minutes(time);

@@ -3,6 +3,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.common.dates import InputError
 from app.common.deps import CurrentUser, DbSession
+from app.common.planning_lock import lock_planning_state
 from app.core.errors import ConflictError
 from app.modules.users.schemas import ProfileOut, ProfileUpdate
 
@@ -16,6 +17,7 @@ def get_profile(user: CurrentUser):
 
 @router.patch("", response_model=ProfileOut, summary="Update my profile and daily goals")
 def update_profile(body: ProfileUpdate, user: CurrentUser, db: DbSession):
+    lock_planning_state(db, user.id)
     profile = user.profile
     changes = body.changes()
     start = changes.get("planning_start_minutes", profile.planning_start_minutes)

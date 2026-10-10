@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.common.ownership import get_owned
+from app.common.planning_lock import lock_planning_state
 from app.core.errors import AppError, ConflictError
 from app.core.time import local_today, utcnow
 from app.modules.study.models import BacklogItem, Exam, StudySession, Subject
@@ -37,6 +38,7 @@ def list_subjects(db: Session, user_id: uuid.UUID) -> list[Subject]:
 
 
 def create_subject(db: Session, user_id: uuid.UUID, data: SubjectCreate) -> Subject:
+    lock_planning_state(db, user_id)
     subject = Subject(user_id=user_id, **data.model_dump())
     db.add(subject)
     _commit_unique_subject(db)
@@ -45,6 +47,7 @@ def create_subject(db: Session, user_id: uuid.UUID, data: SubjectCreate) -> Subj
 
 
 def update_subject(db: Session, user_id: uuid.UUID, subject_id: uuid.UUID, data: SubjectUpdate) -> Subject:
+    lock_planning_state(db, user_id)
     subject = get_owned(db, Subject, subject_id, user_id, "Subject")
     for field, value in data.changes().items():
         setattr(subject, field, value)
@@ -54,6 +57,7 @@ def update_subject(db: Session, user_id: uuid.UUID, subject_id: uuid.UUID, data:
 
 
 def delete_subject(db: Session, user_id: uuid.UUID, subject_id: uuid.UUID) -> None:
+    lock_planning_state(db, user_id)
     subject = get_owned(db, Subject, subject_id, user_id, "Subject")
     db.delete(subject)
     db.commit()
@@ -84,6 +88,7 @@ def list_exams(db: Session, user_id: uuid.UUID, *, include_past: bool, today: da
 
 
 def create_exam(db: Session, user_id: uuid.UUID, data: ExamCreate) -> Exam:
+    lock_planning_state(db, user_id)
     get_owned(db, Subject, data.subject_id, user_id, "Subject")
     exam = Exam(user_id=user_id, **data.model_dump())
     db.add(exam)
@@ -93,6 +98,7 @@ def create_exam(db: Session, user_id: uuid.UUID, data: ExamCreate) -> Exam:
 
 
 def update_exam(db: Session, user_id: uuid.UUID, exam_id: uuid.UUID, data: ExamUpdate) -> Exam:
+    lock_planning_state(db, user_id)
     exam = get_owned(db, Exam, exam_id, user_id, "Exam")
     changes = data.changes()
     if "subject_id" in changes:
@@ -105,6 +111,7 @@ def update_exam(db: Session, user_id: uuid.UUID, exam_id: uuid.UUID, data: ExamU
 
 
 def delete_exam(db: Session, user_id: uuid.UUID, exam_id: uuid.UUID) -> None:
+    lock_planning_state(db, user_id)
     exam = get_owned(db, Exam, exam_id, user_id, "Exam")
     db.delete(exam)
     db.commit()
@@ -125,6 +132,7 @@ def list_backlog(
 
 
 def create_backlog_item(db: Session, user_id: uuid.UUID, data: BacklogCreate) -> BacklogItem:
+    lock_planning_state(db, user_id)
     get_owned(db, Subject, data.subject_id, user_id, "Subject")
     item = BacklogItem(user_id=user_id, **data.model_dump())
     db.add(item)
@@ -134,6 +142,7 @@ def create_backlog_item(db: Session, user_id: uuid.UUID, data: BacklogCreate) ->
 
 
 def update_backlog_item(db: Session, user_id: uuid.UUID, item_id: uuid.UUID, data: BacklogUpdate) -> BacklogItem:
+    lock_planning_state(db, user_id)
     item = get_owned(db, BacklogItem, item_id, user_id, "Backlog item")
     changes = data.changes()
     if "subject_id" in changes:
@@ -150,6 +159,7 @@ def update_backlog_item(db: Session, user_id: uuid.UUID, item_id: uuid.UUID, dat
 
 
 def delete_backlog_item(db: Session, user_id: uuid.UUID, item_id: uuid.UUID) -> None:
+    lock_planning_state(db, user_id)
     item = get_owned(db, BacklogItem, item_id, user_id, "Backlog item")
     db.delete(item)
     db.commit()
@@ -173,6 +183,7 @@ def list_sessions(db: Session, user_id: uuid.UUID, *, start: date, end: date) ->
 
 
 def create_session(db: Session, user: User, data: SessionCreate) -> StudySession:
+    lock_planning_state(db, user.id)
     today = local_today(user.profile.timezone)
     session_date = data.session_date or today
     if session_date > today:
@@ -211,6 +222,7 @@ def create_session(db: Session, user: User, data: SessionCreate) -> StudySession
 
 
 def delete_session(db: Session, user_id: uuid.UUID, session_id: uuid.UUID) -> None:
+    lock_planning_state(db, user_id)
     session = get_owned(db, StudySession, session_id, user_id, "Study session")
     db.delete(session)
     db.commit()

@@ -5,6 +5,7 @@ from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
 from app.common.ownership import get_owned
+from app.common.planning_lock import lock_planning_state
 from app.core.time import utcnow
 from app.modules.tasks.models import Task
 from app.modules.tasks.schemas import TaskCreate, TaskUpdate
@@ -48,6 +49,7 @@ def open_tasks_for_planning(db: Session, user_id: uuid.UUID, limit: int = 10) ->
 
 
 def create_task(db: Session, user_id: uuid.UUID, data: TaskCreate) -> Task:
+    lock_planning_state(db, user_id)
     task = Task(user_id=user_id, **data.model_dump())
     db.add(task)
     db.commit()
@@ -56,6 +58,7 @@ def create_task(db: Session, user_id: uuid.UUID, data: TaskCreate) -> Task:
 
 
 def update_task(db: Session, user_id: uuid.UUID, task_id: uuid.UUID, data: TaskUpdate) -> Task:
+    lock_planning_state(db, user_id)
     task = get_owned(db, Task, task_id, user_id, "Task")
     changes = data.changes()
     new_status = changes.get("status")
@@ -73,6 +76,7 @@ def update_task(db: Session, user_id: uuid.UUID, task_id: uuid.UUID, data: TaskU
 
 
 def delete_task(db: Session, user_id: uuid.UUID, task_id: uuid.UUID) -> None:
+    lock_planning_state(db, user_id)
     task = get_owned(db, Task, task_id, user_id, "Task")
     db.delete(task)
     db.commit()

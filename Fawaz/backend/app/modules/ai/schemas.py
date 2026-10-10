@@ -140,6 +140,28 @@ class DailyPlanRequest(InputModel):
     )
 
 
+class ReplanRequest(InputModel):
+    request: Text(1000)
+    plan_date: date | None = None
+
+
+class ReplanOperation(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    kind: Literal["MOVE", "RESCHEDULE", "SHORTEN", "REMOVE", "ADD", "UNCHANGED"]
+    item_key: str
+    entity_id: uuid.UUID | None = None
+    before: dict | None = None
+    after: dict | None = None
+    reason: str = Field(min_length=1, max_length=280)
+
+
+class ReplanDraft(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    summary: str = Field(min_length=1, max_length=280)
+    explanation: str = Field(min_length=1, max_length=1000)
+    items: list[PlanItem] = Field(max_length=20)
+
+
 class ChatTurn(InputModel):
     role: Literal["user", "assistant"]
     content: Text(2000)
@@ -158,6 +180,7 @@ class ChatReply(BaseModel):
 
 
 class PlanItemOut(BaseModel):
+    item_key: str | None = None
     start: str
     end: str
     category: Category
@@ -165,6 +188,25 @@ class PlanItemOut(BaseModel):
     detail: str | None = None
     task_id: uuid.UUID | None = None
     subject_id: uuid.UUID | None = Field(default=None, description="For study items: the subject it belongs to")
+
+
+class ReplanProposalOut(BaseModel):
+    id: uuid.UUID
+    base_plan_id: uuid.UUID
+    base_revision: int
+    plan_date: date
+    status: Literal["pending", "applied", "dismissed", "stale", "expired", "invalid"]
+    request: str
+    summary: str
+    explanation: str
+    operations: list[ReplanOperation]
+    schedule: list[PlanItemOut]
+    warnings: list[str]
+    validation: dict
+    created_at: datetime
+    expires_at: datetime
+    applied_at: datetime | None = None
+    dismissed_at: datetime | None = None
 
 
 class UnscheduledItem(BaseModel):
@@ -186,6 +228,7 @@ class PlanExplanationOut(BaseModel):
 
 class AIPlanOut(BaseModel):
     id: uuid.UUID
+    revision: int = 1
     plan_date: date
     source: str
     is_fallback: bool

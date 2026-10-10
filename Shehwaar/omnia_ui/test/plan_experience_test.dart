@@ -115,11 +115,16 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Plan').last);
       await tester.pumpAndSettle();
-      expect(find.text('OMNIAI PLAN'), findsOneWidget);
+      expect(find.text('Suggested plan'), findsOneWidget);
+      expect(find.text('OmniAI assisted'), findsOneWidget);
       expect(find.textContaining('Not accepted'), findsNothing);
       await tester.tap(find.text('Why?'));
       await tester.pumpAndSettle();
       expect(find.text('Why this plan?'), findsOneWidget);
+      expect(
+        tester.getSize(find.byType(BottomSheet)).height,
+        lessThan(tester.view.physicalSize.height * .75),
+      );
       expect(
         find.text(
           'This saved suggestion arranges work within its planning window.',
@@ -135,7 +140,7 @@ void main() {
         140,
         scrollable: find
             .descendant(
-              of: find.byType(DraggableScrollableSheet),
+              of: find.byType(BottomSheet),
               matching: find.byType(Scrollable),
             )
             .first,
@@ -176,7 +181,8 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('OMNIAI PLAN'), findsOneWidget);
+      expect(find.text('Suggested plan'), findsOneWidget);
+      expect(find.text('OmniAI assisted'), findsOneWidget);
       await tester.scrollUntilVisible(
         find.text('Open Focus Timer'),
         250,
@@ -232,12 +238,23 @@ void main() {
       await tester.tap(find.text('Plan').last);
       await tester.pumpAndSettle();
       expect(find.text('Nearby deadlines shape this day.'), findsOneWidget);
+      expect(find.text('Suggested plan'), findsOneWidget);
+      expect(
+        find.text(
+          source == 'ollama'
+              ? 'OmniAI assisted'
+              : source == 'rules'
+              ? 'Planned with rules'
+              : 'Rules fallback',
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Assignment first.'), findsNothing);
       await tester.tap(find.text('Why?'));
       await tester.pumpAndSettle();
       expect(
         find.descendant(
-          of: find.byType(DraggableScrollableSheet),
+          of: find.byType(BottomSheet),
           matching: find.text('Nearby deadlines shape this day.'),
         ),
         findsOneWidget,
@@ -257,7 +274,7 @@ void main() {
         140,
         scrollable: find
             .descendant(
-              of: find.byType(DraggableScrollableSheet),
+              of: find.byType(BottomSheet),
               matching: find.byType(Scrollable),
             )
             .first,
@@ -267,7 +284,7 @@ void main() {
         findsOneWidget,
       );
       final window = find.descendant(
-        of: find.byType(DraggableScrollableSheet),
+        of: find.byType(BottomSheet),
         matching: find.textContaining('7:00 PM'),
       );
       await tester.scrollUntilVisible(
@@ -275,7 +292,7 @@ void main() {
         140,
         scrollable: find
             .descendant(
-              of: find.byType(DraggableScrollableSheet),
+              of: find.byType(BottomSheet),
               matching: find.byType(Scrollable),
             )
             .first,
@@ -435,4 +452,20 @@ class DatedRepository implements PlanRepository {
 
   @override
   Future<DailyPlan> generate() => throw UnimplementedError();
+
+  @override
+  Future<Never> createReplanProposal(String request, {DateTime? date}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Never> getReplanProposal(String proposalId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Never> applyReplanProposal(String proposalId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Never> dismissReplanProposal(String proposalId) =>
+      throw UnimplementedError();
 }

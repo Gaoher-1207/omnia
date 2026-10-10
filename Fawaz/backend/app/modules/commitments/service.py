@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.common.ownership import get_owned
+from app.common.planning_lock import lock_planning_state
 from app.modules.commitments.models import Commitment
 from app.modules.commitments.schemas import CommitmentInput, IntervalOut
 
@@ -20,10 +21,7 @@ def for_day(rows: list[Commitment], day: date) -> list[Commitment]:
         row
         for row in rows
         if row.enabled
-        and (
-            (row.kind == "one_off" and row.day == day)
-            or (row.kind == "recurring" and day.weekday() in row.weekdays)
-        )
+        and ((row.kind == "one_off" and row.day == day) or (row.kind == "recurring" and day.weekday() in row.weekdays))
     ]
 
 
@@ -58,6 +56,7 @@ def availability(db: Session, user_id: uuid.UUID, day: date, start: int, end: in
 
 
 def save(db: Session, user_id: uuid.UUID, body: CommitmentInput, commitment_id: uuid.UUID | None = None) -> Commitment:
+    lock_planning_state(db, user_id)
     row = (
         get_owned(db, Commitment, commitment_id, user_id, "Commitment")
         if commitment_id
@@ -72,6 +71,7 @@ def save(db: Session, user_id: uuid.UUID, body: CommitmentInput, commitment_id: 
 
 
 def delete(db: Session, user_id: uuid.UUID, commitment_id: uuid.UUID) -> None:
+    lock_planning_state(db, user_id)
     row = get_owned(db, Commitment, commitment_id, user_id, "Commitment")
     db.delete(row)
     db.commit()

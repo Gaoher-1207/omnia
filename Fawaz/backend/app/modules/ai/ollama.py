@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.modules.ai.constraints import DEFAULT_TASK_MINUTES, hhmm, minutes, task_deadline, window_start
 from app.modules.ai.providers import SYSTEM_PROMPT, ProviderError, RulesProvider
-from app.modules.ai.schemas import AIPlanContent, Category, PlanContext
+from app.modules.ai.schemas import AIPlanContent, Category, PlanContext, ReplanDraft
 
 
 class OllamaTransport:
@@ -100,11 +100,10 @@ class OllamaPlanProvider(OllamaTransport):
             "earliest_start": hhmm(window_start(context)),
             "latest_end": hhmm(context.planning_end_minutes),
             "free_intervals": [
-                {"start": hhmm(slot.start_minutes), "end": hhmm(slot.end_minutes)}
-                for slot in context.free_intervals
-            ] if context.free_intervals is not None else [
-                {"start": hhmm(window_start(context)), "end": hhmm(context.planning_end_minutes)}
-            ],
+                {"start": hhmm(slot.start_minutes), "end": hhmm(slot.end_minutes)} for slot in context.free_intervals
+            ]
+            if context.free_intervals is not None
+            else [{"start": hhmm(window_start(context)), "end": hhmm(context.planning_end_minutes)}],
             "tasks": [
                 {
                     "ref": t.ref,
@@ -149,4 +148,21 @@ class OllamaPlanProvider(OllamaTransport):
             ]
             return AIPlanContent.model_validate(content)
         except ValueError:
+            raise ProviderError("invalid_response") from None
+
+    def generate_replan(self, payload: dict) -> ReplanDraft:
+        prompt = (
+            "You are Omnia's schedule replanning assistant. Return only JSON matching the supplied schema. "
+            "Propose the complete schedule for the same day using only supplied task_ref/study_ref values. "
+            "Do not invent IDs, move fixed commitments, or schedule in the past. Preserve exact task durations. "
+            "Study blocks must fit the supplied budgets and be at most 60 minutes. Explain important changes briefly."
+        )
+        try:
+            raw = self.complete(
+                prompt,
+                [{"role": "user", "content": json.dumps(payload)}],
+                ReplanDraft.model_json_schema(),
+            )
+            return ReplanDraft.model_validate_json(raw)
+        except (ValueError, TypeError):
             raise ProviderError("invalid_response") from None

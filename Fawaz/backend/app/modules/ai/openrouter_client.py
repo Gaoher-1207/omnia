@@ -36,13 +36,20 @@ class OpenRouterClient:
         self.last_actual_model: str | None = None
         self.last_latency_ms: int | None = None
 
-    def complete(self, messages: list[dict[str, str]], *, temperature: float = 0) -> OpenRouterCompletion:
+    def complete(
+        self, messages: list[dict[str, str]], *, temperature: float = 0, schema: dict | None = None
+    ) -> OpenRouterCompletion:
         payload = {
             "model": self.primary_model,
             "models": [self.fallback_model],
             "temperature": temperature,
             "messages": messages,
         }
+        if schema is not None:
+            payload["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {"name": "replan_draft", "strict": True, "schema": schema},
+            }
         client = self._client or httpx.Client(timeout=self._timeout)
         started = time.perf_counter()
         self.last_completion = None
