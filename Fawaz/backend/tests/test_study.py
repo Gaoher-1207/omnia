@@ -1,4 +1,6 @@
-from datetime import date, timedelta
+from datetime import timedelta
+
+from tests.conftest import TODAY
 
 
 def _subject(client, headers, name="Physics"):
@@ -25,7 +27,7 @@ def test_same_subject_name_allowed_for_different_users(client, headers, other_he
 
 def test_exams_list_upcoming_with_days_left(client, headers):
     subject = _subject(client, headers)
-    today = date.today()
+    today = TODAY
     client.post(
         "/api/study/exams",
         json={
@@ -57,7 +59,7 @@ def test_cannot_attach_to_someone_elses_subject(client, headers, other_headers):
         json={
             "subject_id": theirs["id"],
             "title": "Sneaky",
-            "exam_date": date.today().isoformat(),
+            "exam_date": TODAY.isoformat(),
         },
         headers=headers,
     )
@@ -95,7 +97,7 @@ def test_backlog_and_sessions_flow(client, headers):
     )
     assert session.status_code == 201
     assert session.json()["subject"]["id"] == subject["id"]
-    assert session.json()["session_date"] == date.today().isoformat()
+    assert session.json()["session_date"] == TODAY.isoformat()
 
     backlog = client.get("/api/study/backlog", headers=headers).json()
     assert backlog[0]["status"] == "done" and backlog[0]["completed_at"]
@@ -106,7 +108,7 @@ def test_backlog_and_sessions_flow(client, headers):
 
 
 def test_session_validation(client, headers):
-    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    tomorrow = (TODAY + timedelta(days=1)).isoformat()
     assert client.post("/api/study/sessions", json={"duration_minutes": 0}, headers=headers).status_code == 422
     assert client.post("/api/study/sessions", json={"duration_minutes": 721}, headers=headers).status_code == 422
     future = client.post(
@@ -141,7 +143,7 @@ def test_deleting_subject_cascades_but_keeps_sessions(client, headers):
         json={
             "subject_id": subject["id"],
             "title": "e",
-            "exam_date": date.today().isoformat(),
+            "exam_date": TODAY.isoformat(),
         },
         headers=headers,
     )
@@ -161,7 +163,7 @@ def test_study_plan_endpoint(client, headers):
         json={
             "subject_id": subject["id"],
             "title": "Final",
-            "exam_date": (date.today() + timedelta(days=3)).isoformat(),
+            "exam_date": (TODAY + timedelta(days=3)).isoformat(),
         },
         headers=headers,
     )

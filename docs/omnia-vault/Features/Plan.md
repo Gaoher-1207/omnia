@@ -1,9 +1,9 @@
 ---
 type: feature
-status: sample
+status: api-connected
 frontend: canonical
 backend_available: true
-backend_connected: false
+backend_connected: true
 donor: true
 ---
 
@@ -15,7 +15,7 @@ The day's schedule, eventually an adaptive daily plan that reacts to sleep, exam
 
 ## Current Status
 
-**API mode: empty.** The tab shows the server's date, "No plan yet." and the [[Focus]] timer entry; no sample schedule is ever shown. The page reads an `items` list, which Phase 5C fills from `/ai/daily-plan`.
+**API mode: connected** (5C, `8029231` and `a22ac4d`; adaptive replanning `1d87602`). `DailyPlanView` loads today's plan with `GET /ai/daily-plan` and generates a suggestion with `POST /ai/daily-plan`. Fixed commitments come from `/commitments` and are shown on the timeline; planning hours and the 12/24-hour format are plan preferences on the profile. "Why?" opens a short explanation. On today's plan, **Adjust today's plan** asks for a change, shows a compact "Plan changes" preview (one action-and-title line per change) and changes nothing until **Apply** succeeds (`/ai/replan/proposals`, then `/apply`); **Cancel** dismisses the proposal. Today's "Next up" reads the same plan. Plan-block completion and outcomes are **not** persisted yet (see [[Roadmap]]). No sample schedule is ever shown in API mode.
 
 **Mock mode: `sample`.** Timeline and list views of a **fixed sample day** (`samplePlan` in `features/plan/plan_item.dart`, labelled `SAMPLE DAY`). Two parts are live:
 
@@ -26,26 +26,27 @@ Other items open an info dialog: "This is a sample plan item. Editing and schedu
 
 ## Current Frontend
 
-`features/plan/plan_page.dart`, `plan_item.dart`, `widgets/timeline_row.dart`.
+`features/plan/plan_page.dart` (mock-mode sample day, and the switch to `DailyPlanView` in API mode), `widgets/daily_plan_view.dart`, `plan_controller.dart`, `commitment_controller.dart`, `plan_preferences_page.dart`, `replan_change_format.dart`, `plan_item.dart`, `widgets/timeline_row.dart`.
 
 ## State / Controller
 
-None for plan data (it's a `const` list). The revision title comes from `RevisionScope`, the timer from `FocusTimerScope`.
+API mode: `PlanController` (session-owned plan snapshots, date selection, replan proposal lifecycle) and `CommitmentController`. Mock mode: the `const` sample list. The revision title comes from `RevisionScope`, the timer from `FocusTimerScope`.
 
 ## Backend
 
 [[AI API]]: `POST /ai/daily-plan` (get or generate, with `regenerate` and an optional note like "slept badly") and `GET /ai/daily-plan?date=`. The plan is built by a **rule-based provider by default**. An Anthropic provider is optional and configured server-side, and it falls back to rules on failure. The [[Study API]] also offers `GET /study/plan` (a multi-day study allocation).
 
-The donor has `PlanRepository`, `DailyPlan` and `PlanController` to adapt. Its Plan UI is reference only ([[Fawaz Donor Map]]).
+Replanning: `POST /ai/replan/proposals` (never changes the plan), `GET /ai/replan/proposals/{id}`, `POST …/apply` (explicit, owner-scoped, creates the next immutable plan revision) and `POST …/dismiss`. See `Fawaz/backend/docs/adaptive-replanning.md`.
 
 ## Data Flow
 
 ```mermaid
 flowchart LR
-    PP["PlanPage"] --> SP[["samplePlan (const)"]]
+    PP["PlanPage"] -->|mock mode| SP[["samplePlan (const)"]]
+    PP -->|API mode| DPV["DailyPlanView"] --> PC["PlanController"] --> PR["ApiPlanRepository"] --> AI["/ai/daily-plan · /ai/replan/*"]
+    DPV --> CC["CommitmentController"] --> CR["/commitments"]
     PP --> RS["RevisionScope"] --> RDP["Revision session"]
     PP --> FE["FocusTimerEntry"] --> FT["FocusTimerController"]
-    PP -.->|daily plan phase| PR["PlanRepository"] -.-> AI["/ai/daily-plan"]
 ```
 
 ## Related Features
@@ -54,4 +55,4 @@ flowchart LR
 
 ## Future Direction
 
-Replace the sample day with the backend daily plan, including regeneration and the "what changed" adjustments, while keeping the canonical timeline and list views. Later, cross-domain replanning (vision): see [[AI Roadmap]].
+Next: persist plan-block completion and outcomes so replanning can learn what actually happened; let Ask Omnia start the existing replan flow while keeping explicit approval. Later, cross-domain replanning (vision): see [[AI Roadmap]].

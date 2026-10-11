@@ -1,0 +1,124 @@
+name: CI
+
+# Release gate for the two shipped projects:
+#   Fawaz/backend      FastAPI API (Ruff, tests on SQLite and PostgreSQL, migrations)
+#   Shehwaar/omnia_ui  the only frontend (analysis, tests, web release build)
+# Every step runs under `bash -e`; any failing command fails the job and the run.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (Ruff, tests, migrations)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+        working-directory: Fawaz/backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: omnia_test
+          POSTGRES_USER: omnia
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U omnia -d omnia_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      PG_URL: postgresql+psycopg://omnia:ci-only-password@localhost:5432/omnia_test
+      SQLITE_URL: sqlite:///./ci-migrations.db
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: Fawaz/backend/requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Ruff lint
+        run: ruff check .
+
+      - name: Ruff format
+        run: ruff format --check .
+
+      - name: Tests (SQLite)
+        run: pytest
+
+      - name: Tests (PostgreSQL)
+        env:
+          TEST_DATABASE_URL: ${{ env.PG_URL }}
+        run: pytest
+
+      - name: Migrations (SQLite) apply, match models, roll back, re-apply
+        env:
+          DATABASE_URL: ${{ env.SQLITE_URL }}
+        run: |
+          alembic upgrade head
+          alembic check
+          alembic downgrade base
+          alembic upgrade head
+
+      - name: Migrations (PostgreSQL) apply, match models, roll back, re-apply
+        env:
+          DATABASE_URL: ${{ env.PG_URL }}
+        run: |
+          alembic upgrade head
+          alembic check
+          alembic downgrade base
+          alembic upgrade head
+
+  frontend:
+    name: Frontend (analyze, tests, web build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+        working-directory: Shehwaar/omnia_ui
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          # Keep in step with the SDK the team develops on (pubspec: sdk ^3.13.4).
+          flutter-version: 3.47.5
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Tests
+        run: flutter test
+
+      - name: Web release build
+        # Same flags as vercel-build.sh; the URL is a placeholder, nothing is deployed.
+        run: |
+          flutter build web --release \
+            --dart-define=OMNIA_DATA=api \
+            --dart-define=OMNIA_API_BASE_URL=https://api.example.invalid/api

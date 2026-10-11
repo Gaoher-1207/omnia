@@ -1,4 +1,6 @@
-from datetime import date, timedelta
+from datetime import timedelta
+
+from tests.conftest import TODAY
 
 
 def test_task_crud_flow(client, headers):
@@ -7,7 +9,7 @@ def test_task_crud_flow(client, headers):
         json={
             "title": "  Finish lab report  ",
             "priority": "high",
-            "due_date": date.today().isoformat(),
+            "due_date": TODAY.isoformat(),
         },
         headers=headers,
     )
@@ -56,7 +58,7 @@ def test_other_users_cannot_see_or_change_my_tasks(client, headers, other_header
 
 
 def test_list_filters_ordering_and_pagination(client, headers):
-    today = date.today()
+    today = TODAY
     client.post(
         "/api/tasks", json={"title": "later", "due_date": (today + timedelta(days=5)).isoformat()}, headers=headers
     )

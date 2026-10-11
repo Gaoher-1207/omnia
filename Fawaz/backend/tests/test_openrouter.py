@@ -13,8 +13,8 @@ from app.modules.ai.service import get_provider
 
 
 @pytest.fixture(autouse=True)
-def clock(monkeypatch):
-    monkeypatch.setattr("app.core.time.utcnow", lambda: datetime(2026, 9, 28, 9, tzinfo=UTC))
+def frozen(clock):
+    clock.set(datetime(2026, 9, 28, 9, tzinfo=UTC))
 
 
 def candidate(**changes):

@@ -14,8 +14,8 @@ from app.modules.commitments.service import free_intervals
 
 
 @pytest.fixture(autouse=True)
-def clock(monkeypatch):
-    monkeypatch.setattr("app.core.time.utcnow", lambda: datetime(2026, 9, 28, 8, tzinfo=UTC))
+def frozen(clock):
+    clock.set(datetime(2026, 9, 28, 8, tzinfo=UTC))
 
 
 def body(title="College", **changes):
@@ -69,9 +69,7 @@ def test_recurring_and_one_off_dates_are_account_scoped(client, headers, other_h
     assert sunday["commitments"] == []
     assert client.get("/api/commitments", headers=other_headers).json() == []
     other_day = client.get("/api/commitments/availability?day=2026-09-28", headers=other_headers).json()
-    assert other_day["free_intervals"] == [
-        {"start_minutes": 480, "end_minutes": 1320}
-    ]
+    assert other_day["free_intervals"] == [{"start_minutes": 480, "end_minutes": 1320}]
     assert client.delete(f"/api/commitments/{college['id']}", headers=other_headers).status_code == 404
     assert client.put(f"/api/commitments/{college['id']}", headers=other_headers, json=body()).status_code == 404
 
@@ -138,9 +136,7 @@ class Candidate:
 
 
 @pytest.mark.parametrize("start,source", [("09:30", "rules"), ("16:30", "ollama")])
-def test_model_cannot_schedule_busy_time_and_valid_free_proposal_persists(
-    app, client, headers, db, start, source
-):
+def test_model_cannot_schedule_busy_time_and_valid_free_proposal_persists(app, client, headers, db, start, source):
     add(client, headers, body())
     add(client, headers, body("Commute", category="commute", start_minutes=945, end_minutes=990))
     client.post("/api/tasks", headers=headers, json={"title": "Real task", "estimated_minutes": 30})
@@ -185,24 +181,29 @@ def test_ollama_receives_trusted_free_intervals_and_feasible_rules_draft(app, cl
             {"start": "08:00", "end": "09:15"},
             {"start": "16:30", "end": "22:00"},
         ]
-        assert all(
-            item["start"] < "09:15" or item["start"] >= "16:30"
-            for item in facts["rules_draft"]["items"]
-        )
+        assert all(item["start"] < "09:15" or item["start"] >= "16:30" for item in facts["rules_draft"]["items"])
         return httpx.Response(
             200,
-            json={"message": {"content": json.dumps({
-                "summary": "Assignment around college",
-                "items": [{
-                    "start": "16:30",
-                    "duration_minutes": 30,
-                    "category": "task",
-                    "title": "Untrusted title",
-                    "task_ref": "t1",
-                }],
-                "tips": [],
-                "adjustments": [],
-            })}},
+            json={
+                "message": {
+                    "content": json.dumps(
+                        {
+                            "summary": "Assignment around college",
+                            "items": [
+                                {
+                                    "start": "16:30",
+                                    "duration_minutes": 30,
+                                    "category": "task",
+                                    "title": "Untrusted title",
+                                    "task_ref": "t1",
+                                }
+                            ],
+                            "tips": [],
+                            "adjustments": [],
+                        }
+                    )
+                }
+            },
         )
 
     provider = OllamaPlanProvider(

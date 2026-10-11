@@ -1,17 +1,16 @@
 import base64
 import json
-from datetime import date, timedelta
+from datetime import timedelta
 
 import httpx
 
 from app.modules.ai.providers import RulesProvider
 from app.modules.ai.schemas import ContextSleep, ContextStudyBlock
 from app.modules.nutrition.estimator import AnthropicFoodEstimator, get_estimator
-from tests.conftest import auth_headers, register
+from tests.conftest import TODAY, auth_headers, register
 from tests.test_ai import context
 
 PNG = base64.b64encode(b"\x89PNG\r\n\x1a\n" + b"\x00" * 64).decode()
-TODAY = date.today()
 
 
 # ---- tasks: fields the Flutter app needs

@@ -1,19 +1,21 @@
 ---
 type: feature
-status: planned
-frontend: none
+status: partial
+frontend: canonical
 backend_available: partial
-backend_connected: false
+backend_connected: true
 ---
 
 # AI Assistant
 
-> [!caution] Not implemented in the canonical frontend
-> The canonical app contains **no AI**. The Home "Sample recommendation" card and the revision screen's "AI explanation" are sample copy, and both say so on screen.
+> [!info] What exists today
+> **Ask Omnia** (`ed47dac`) is a read-only, context-aware assistant: in API mode it calls `POST /ai/chat` and answers from the user's own data; it never creates, edits or applies anything. AI **planning** lives in [[Plan]]: the daily plan (AI-assisted with a deterministic rules fallback) and adaptive replanning proposals that change nothing until the user taps Apply. Mock mode uses canned sample answers. Cross-domain learning and recommendations below are still vision.
 
 ## What exists in the backend today
 
-The [[AI API]] (`modules/ai`) generates **one kind of output: a daily plan**.
+> [!note] This section predates Ask Omnia and replanning. The backend now also serves `POST /ai/chat` (read-only assistant), `/ai/replan/proposals*` (validated, explicitly applied plan changes), and Ollama and OpenRouter planner providers besides `rules` and `anthropic`.
+
+The [[AI API]] (`modules/ai`) originally generated **one kind of output: a daily plan**.
 
 - The default provider is `rules`, a deterministic rule-based planner that works offline with no key.
 - An optional `anthropic` provider is set on the **server** via `AI_PROVIDER`, `AI_API_KEY` and `AI_MODEL`. If it fails, the rules provider answers and `is_fallback = true`.

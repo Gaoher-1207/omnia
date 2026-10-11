@@ -11,14 +11,14 @@ Found while building this vault by comparing the READMEs, the canonical frontend
 
 | # | Where | What | Impact |
 |---|---|---|---|
-| D1 | `.github/workflows/backend-ci.yml` | The only workflow installs from **`Fawz/backend`** (typo for `Fawaz`) and runs a **Django** `manage.py check \|\| true`. The backend is FastAPI. Nothing runs pytest or Flutter tests. | CI passes without testing anything |
-| D2 | `Fawaz/README.md` | Describes `.github/workflows/ci.yml` (backend on SQLite and PostgreSQL, migrations, `flutter analyze`/`test`). **That file doesn't exist** in the repository. | Misleading assurance |
+| D1 | `.github/workflows/backend-ci.yml` | ~~Installed from `Fawz/backend` and ran a Django `manage.py check \|\| true`.~~ Resolved: replaced by `.github/workflows/ci.yml` (Ruff, backend tests on SQLite and PostgreSQL, migrations, Flutter analyze/test, web build). | Resolved; confirm the first GitHub Actions run |
+| D2 | `Fawaz/README.md` | ~~Described a `ci.yml` that didn't exist.~~ Resolved: the root `.github/workflows/ci.yml` now exists and the README points to it. | Resolved |
 | D3 | `Fawaz/README.md` | ~~Calls its `lib/` "the product UI" / "Shew's UI".~~ Resolved: `Fawaz/lib` was removed and the README now describes `Fawaz/` as backend-only. | Confusion over what the app is ([[Canonical Frontend]]) |
 | D4 | Home screen | ~~The greeting is hard-coded as "Good morning, Shew."~~ Resolved in API mode by [[Phase 4 - Dashboard API Integration]] (server `greeting` + `display_name`). Mock mode still shows the sample "Shew". | None in API mode |
 | D5 | "Goals" naming | The backend and donor call the profile's daily targets "goals". The canonical Goals feature means long-term goals. | Risk of wiring the wrong repository ([[Goals vs Daily Targets]]) |
 | D6 | Study models | The canonical `StudySession` (embedded revision items) vs the backend `StudySession` (logged minutes) | Study can't be a simple repository swap ([[Study Session]]) |
 | D7 | Test count | Re-run: 106 passing at the auth checkpoint; 128 after Phase 3; 146 after Phase 4; 164 after Phase 5A; 192 after Phase 5B. The README still says 106 (a checkpoint). | Update at the next documentation checkpoint |
-| D9 | `Fawaz/backend/tests/test_dashboard.py`, `test_phase2.py`, `test_activity_progress.py` | `test_dashboard_reflects_today`, three sleep tests in `test_phase2.py` and three activity tests use the machine's local `date.today()` while the dashboard uses the profile time zone (UTC in tests), so it fails when those dates differ (e.g. just after local midnight east of UTC) | A flaky backend test, not an app bug. They all pass with `TZ=UTC0`. Not changed (backend out of scope). |
+| D9 | `Fawaz/backend/tests/test_dashboard.py`, `test_phase2.py`, `test_activity_progress.py` | `test_dashboard_reflects_today`, three sleep tests in `test_phase2.py` and three activity tests use the machine's local `date.today()` while the dashboard uses the profile time zone (UTC in tests), so it fails when those dates differ (e.g. just after local midnight east of UTC). **Resolved:** the suite runs on a frozen clock (`tests/conftest.py`) | Resolved, not an app bug. They all pass with `TZ=UTC0`. Not changed (backend out of scope). |
 | D8 | Sample dates | `MockData` and screens use a fixed 23 Sep **2025** sample day, and goal deadlines fall in 2025 | Seeded goals now look overdue |
 
 ## Technical risks

@@ -39,11 +39,19 @@ cd Fawaz/backend && ruff check . && pytest
 
 96 `def test_` functions across 12 files: auth 12, tasks 6, study 10, planner 10, AI 16, activity/progress 10, phase2 (sleep and meals) 15, social 11, phase4 (calendar and export) 5, dashboard 3, errors/health 7, migrations 1. It runs on in-memory SQLite by default, or on PostgreSQL with `TEST_DATABASE_URL`. There's also `scripts/integration_check.py` for end-to-end checks across a restart.
 
-`test_dashboard.py::test_dashboard_reflects_today` depends on the machine clock: it logs activity for the machine's local `date.today()`, while `/dashboard` uses the profile time zone (UTC in the tests). It fails whenever the local and UTC dates differ (seen during Phase 4 at 01:45 UTC+5). Three `test_phase2.py` tests (`test_sleep_upsert_range_and_privacy`, `test_dashboard_and_progress_include_sleep_and_calories`, `test_ai_context_includes_sleep_but_no_identity`) fail the same way (seen during Phase 5A at 02:23 local / 20:53 UTC), and so do `test_activity_progress.py`'s `test_activity_upsert_is_idempotent`, `test_activity_clears_workout_details_when_not_done` and `test_activity_range_fills_missing_days` (Phase 5B, 02:55 local). With the local clock on UTC (`TZ=UTC0 pytest ...`) all of `test_activity_progress.py`, `test_phase2.py`, `test_dashboard.py` and `test_auth.py` pass (40 tests). See D9 in [[Risks and Discrepancies]].
+> [!success] Fixed (October 11, 2026)
+> The whole backend suite now runs on one frozen clock (`tests/conftest.py`: `clock`, `TODAY`, `FROZEN_NOW`), and `tests/test_clock.py` guards it. Results no longer depend on the host's timezone or the time of day; verified with the host clock a day behind, on, and a day ahead of UTC (243 passed each time). The history below is kept for context.
+
+`test_dashboard.py::test_dashboard_reflects_today` used to depend on the machine clock: it logs activity for the machine's local `date.today()`, while `/dashboard` uses the profile time zone (UTC in the tests). It fails whenever the local and UTC dates differ (seen during Phase 4 at 01:45 UTC+5). Three `test_phase2.py` tests (`test_sleep_upsert_range_and_privacy`, `test_dashboard_and_progress_include_sleep_and_calories`, `test_ai_context_includes_sleep_but_no_identity`) fail the same way (seen during Phase 5A at 02:23 local / 20:53 UTC), and so do `test_activity_progress.py`'s `test_activity_upsert_is_idempotent`, `test_activity_clears_workout_details_when_not_done` and `test_activity_range_fills_missing_days` (Phase 5B, 02:55 local). With the local clock on UTC (`TZ=UTC0 pytest ...`) all of `test_activity_progress.py`, `test_phase2.py`, `test_dashboard.py` and `test_auth.py` pass (40 tests). See D9 in [[Risks and Discrepancies]].
 
 ## CI
 
-⚠️ The repository's only workflow (`.github/workflows/backend-ci.yml`) doesn't actually test this backend or the Flutter app. See [[Risks and Discrepancies]].
+`.github/workflows/ci.yml` (replacing the broken `backend-ci.yml`) runs on every push to `main` and every pull request:
+
+- **Backend** (`Fawaz/backend`): `ruff check .`, `ruff format --check .`, `pytest` on SQLite and again on a PostgreSQL 16 service, and `alembic upgrade head` → `alembic check` → `alembic downgrade base` → `alembic upgrade head` on both databases.
+- **Frontend** (`Shehwaar/omnia_ui`): `flutter pub get`, `flutter analyze`, `flutter test`, and `flutter build web --release`.
+
+Any failing step fails the run; nothing is allowed to fail silently. `Fawaz/backend/tests/test_ci_workflow.py` fails if a gate is removed or a failure is swallowed.
 
 ## Phase 3
 

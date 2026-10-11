@@ -72,7 +72,7 @@ python scripts/integration_check.py --base http://localhost:8000/api --phase cre
 python scripts/integration_check.py --base http://localhost:8000/api --phase verify
 ```
 
-CI (`.github/workflows/ci.yml`) runs the backend suite on SQLite and PostgreSQL and checks migrations. Frontend tests run from `Shehwaar/omnia_ui`.
+CI is the repository-root workflow `.github/workflows/ci.yml`. For this backend it runs Ruff (lint and format), the test suite on SQLite and on PostgreSQL, and migrations up, check, down and up again on both databases; it also runs `flutter analyze`, `flutter test` and the web release build for `Shehwaar/omnia_ui`. Any failure fails the run. Tests run on a frozen clock (`tests/conftest.py`), so results don't depend on the machine's timezone or the time of day; move it with the `clock` fixture.
 
 ## Features
 

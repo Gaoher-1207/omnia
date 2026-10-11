@@ -1,4 +1,6 @@
-from datetime import date, timedelta
+from datetime import timedelta
+
+from tests.conftest import TODAY
 
 
 def test_dashboard_empty_state(client, headers, user):
@@ -27,7 +29,7 @@ def test_dashboard_empty_state(client, headers, user):
 
 
 def test_dashboard_reflects_today(client, headers):
-    today = date.today()
+    today = TODAY
     subject = client.post("/api/study/subjects", json={"name": "Biology"}, headers=headers).json()
     client.post(
         "/api/study/exams",

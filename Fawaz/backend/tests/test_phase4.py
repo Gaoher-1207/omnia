@@ -1,10 +1,8 @@
 import json
 import logging
-from datetime import date, timedelta
+from datetime import timedelta
 
-from tests.conftest import auth_headers, register
-
-TODAY = date.today()
+from tests.conftest import TODAY, auth_headers, register
 
 
 def test_change_password_revokes_old_tokens(client):

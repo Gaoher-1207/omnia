@@ -11,7 +11,7 @@ This vault is the internal map of the project: architecture, reasoning, relation
 
 > [!important] Two rules that the rest of the vault depends on
 > 1. **`Shehwaar/omnia_ui` is the canonical frontend.** It is the only frontend. `Fawaz/lib`, the older Flutter app, has been removed (October 2026); `Fawaz/` is backend-only. See [[Canonical Frontend]].
-> 2. **"Backend has an endpoint" ≠ "frontend uses it".** In API mode, authentication, Tasks, the profile, the day summary and activity/sleep logs are connected; nothing else is. See [[Current Status]].
+> 2. **"Backend has an endpoint" ≠ "frontend uses it".** In API mode, authentication, Tasks, the profile, the day summary, activity/sleep logs, Study subjects and exams, the daily plan (with commitments and adaptive replanning) and the read-only Ask Omnia assistant are connected; Goals and Focus are local, and Insights, nutrition and social are not connected. See [[Current Status]].
 
 ## Where to start
 

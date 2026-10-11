@@ -1,7 +1,7 @@
 import hashlib
 import json
 import secrets
-from datetime import date, time, timedelta
+from datetime import time, timedelta
 
 from fastapi import APIRouter, Request, Response, status
 from pydantic import BaseModel
@@ -149,7 +149,7 @@ def export(user: CurrentUser, db: DbSession):
         for m in db.scalars(select(GroupMessage).where(GroupMessage.sender_id == user.id))
     ]
     data = {
-        "exported_on": date.today().isoformat(),
+        "exported_on": local_today(user.profile.timezone).isoformat(),
         "account": {"email": user.email, "created_at": user.created_at.isoformat()},
         "profile": ProfileOut.model_validate(user.profile).model_dump(mode="json"),
         "tasks": _rows(db, Task, user.id),

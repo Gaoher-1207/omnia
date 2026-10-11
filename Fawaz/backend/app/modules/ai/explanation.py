@@ -40,9 +40,7 @@ def explain_plan(content: AIPlanContent, context: PlanContext, unscheduled: list
     if context.commitments and end > start:
         largest = max(
             context.commitments,
-            key=lambda commitment: max(
-                0, min(end, commitment.end_minutes) - max(start, commitment.start_minutes)
-            ),
+            key=lambda commitment: max(0, min(end, commitment.end_minutes) - max(start, commitment.start_minutes)),
         )
         occupied = max(0, min(end, largest.end_minutes) - max(start, largest.start_minutes))
         if occupied >= 60 and occupied * 4 >= end - start:

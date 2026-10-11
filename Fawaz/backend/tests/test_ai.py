@@ -12,9 +12,8 @@ NOW = datetime(2026, 3, 10, 7, 0, tzinfo=UTC)
 
 
 @pytest.fixture(autouse=True)
-def frozen(monkeypatch):
-    monkeypatch.setattr("app.core.time.utcnow", lambda: NOW)
-    monkeypatch.setattr("app.modules.tasks.service.utcnow", lambda: NOW)
+def frozen(clock):
+    clock.set(NOW)
 
 
 def use_provider(app, provider):

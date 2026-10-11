@@ -25,14 +25,8 @@ NOW = datetime(2026, 3, 10, 17, 0, tzinfo=UTC)  # 17:00, "tonight" territory
 
 
 @pytest.fixture(autouse=True)
-def frozen(monkeypatch):
-    for target in (
-        "app.core.time.utcnow",
-        "app.modules.tasks.service.utcnow",
-        "app.modules.study.service.utcnow",
-        "app.modules.ai.assistant.utcnow",
-    ):
-        monkeypatch.setattr(target, lambda: NOW)
+def frozen(clock):
+    clock.set(NOW)
 
 
 class Recorder:

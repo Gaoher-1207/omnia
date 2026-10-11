@@ -29,7 +29,7 @@ A single view of the day: greeting, a highlighted exam countdown, category cards
 | Card taps | Activity → activity log, Sleep → sleep log (full screen), Tasks → Tasks, Study → Study (in the Today tab) | same, against the server's day |
 | Tasks card (`done / total`) | `TaskScope` | `TaskScope` (unchanged; not the dashboard's `tasks_completed`) |
 | Goals preview | `GoalScope` | `GoalScope` (unchanged) |
-| Next up agenda | sample | "No plan yet." (Phase 5C) |
+| Next up agenda | sample | From today's daily plan; "No plan yet." with **Open Plan** when there is none |
 | "Why?" dialog, "View today's plan" | sample | not shown |
 
 Loading shows "Hello." and dashes; a first-load failure shows "Couldn't load today." with **Try again**. Pull down to refresh; a failed refresh keeps the last day and shows a snackbar. The dashboard also reloads when the app returns to the foreground.

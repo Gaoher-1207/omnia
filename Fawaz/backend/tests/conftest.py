@@ -17,6 +17,8 @@ os.environ.update(
 )
 
 import itertools  # noqa: E402
+from datetime import UTC, date, datetime  # noqa: E402
+from zoneinfo import ZoneInfo  # noqa: E402
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
@@ -31,6 +33,48 @@ from app.main import create_app  # noqa: E402
 from app.models import Base  # noqa: E402
 
 _counter = itertools.count(1)
+
+# Every test runs at one fixed instant unless it moves the clock itself. Midday UTC
+# keeps the date the same for test users in any timezone from UTC-11 to UTC+11, and
+# the result never depends on the host's timezone or the wall-clock time of the run.
+FROZEN_NOW = datetime(2026, 3, 10, 12, 0, tzinfo=UTC)
+# "Today" for a default test user, whose profile timezone is UTC (see `register`).
+TODAY = FROZEN_NOW.date()
+
+# Modules that bind `utcnow` by name. `local_now`/`local_today` read
+# `app.core.time.utcnow`, so patching these covers every server-side clock read.
+# test_clock_covers_every_utcnow_import keeps this list complete.
+CLOCK_TARGETS = (
+    "app.core.time.utcnow",
+    "app.modules.ai.assistant.utcnow",
+    "app.modules.ai.service.utcnow",
+    "app.modules.study.service.utcnow",
+    "app.modules.tasks.service.utcnow",
+)
+
+
+class Clock:
+    """The server's frozen 'now'. Tests move it with `clock.set(moment)`."""
+
+    def __init__(self, now: datetime):
+        self.now = now
+
+    def set(self, moment: datetime) -> None:
+        if moment.tzinfo is None:
+            raise ValueError("clock.set needs an aware datetime")
+        self.now = moment
+
+    def today(self, tz: str = "UTC") -> date:
+        """The calendar day a user in `tz` sees at the frozen instant."""
+        return self.now.astimezone(ZoneInfo(tz)).date()
+
+
+@pytest.fixture(autouse=True)
+def clock(monkeypatch):
+    frozen = Clock(FROZEN_NOW)
+    for target in CLOCK_TARGETS:
+        monkeypatch.setattr(target, lambda: frozen.now)
+    return frozen
 
 
 @pytest.fixture

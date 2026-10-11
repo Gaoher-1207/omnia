@@ -9,7 +9,6 @@ from pydantic import ValidationError
 from sqlalchemy import event
 from sqlalchemy.orm import Session
 
-from app.modules.ai import service
 from app.modules.ai.providers import ProviderError, RulesProvider
 from app.modules.ai.schemas import ReplanDraft
 from app.modules.ai.service import get_provider
@@ -44,11 +43,9 @@ class ReplanningProvider:
 
 
 @pytest.fixture
-def fixed_clock(monkeypatch):
+def fixed_clock(clock):
     now = datetime(2026, 10, 4, 9, 0, tzinfo=UTC)
-    monkeypatch.setattr(service, "local_now", lambda _tz: now)
-    monkeypatch.setattr(service, "utcnow", lambda: now)
-    monkeypatch.setattr("app.core.time.utcnow", lambda: now)
+    clock.set(now)
     return now
 
 
@@ -154,16 +151,14 @@ def test_changed_context_marks_proposal_stale(app, client, headers, fixed_clock)
     assert client.post(f"/api/ai/replan/proposals/{proposal['id']}/apply", headers=headers).status_code == 409
 
 
-def test_time_passing_past_proposed_blocks_marks_proposal_stale(app, client, headers, fixed_clock, monkeypatch):
+def test_time_passing_past_proposed_blocks_marks_proposal_stale(app, client, headers, fixed_clock, clock):
     configure(app, ReplanningProvider())
     setup_day(client, headers, fixed_clock)
     proposal = make_proposal(client, headers).json()
     first_start = min(item["start"] for item in proposal["schedule"])
     hour, minute = (int(part) for part in first_start.split(":"))
     later = datetime(2026, 10, 4, hour, minute, tzinfo=UTC) + timedelta(minutes=1)
-    monkeypatch.setattr(service, "local_now", lambda _tz: later)
-    monkeypatch.setattr(service, "utcnow", lambda: later)
-    monkeypatch.setattr("app.core.time.utcnow", lambda: later)
+    clock.set(later)
     response = client.post(f"/api/ai/replan/proposals/{proposal['id']}/apply", headers=headers)
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "replan_proposal_stale"

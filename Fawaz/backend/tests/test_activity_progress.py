@@ -3,16 +3,12 @@ from datetime import UTC, date, datetime, timedelta
 import pytest
 
 from app.modules.progress.streaks import DayFacts, current_streak, longest_streak
+from tests.conftest import TODAY
 
 
 @pytest.fixture
-def freeze(monkeypatch):
-    def _freeze(moment: datetime):
-        monkeypatch.setattr("app.core.time.utcnow", lambda: moment)
-        monkeypatch.setattr("app.modules.tasks.service.utcnow", lambda: moment)
-        monkeypatch.setattr("app.modules.study.service.utcnow", lambda: moment)
-
-    return _freeze
+def freeze(clock):
+    return clock.set
 
 
 # ---- pure streak rules
@@ -53,7 +49,7 @@ def test_balance_needs_two_areas_and_fitness_counts_steps():
 
 
 def test_activity_upsert_is_idempotent(client, headers):
-    today = date.today().isoformat()
+    today = TODAY.isoformat()
     body = {"steps": 6240, "workout_done": True, "workout_minutes": 40, "workout_type": "Run"}
     first = client.put(f"/api/activity/{today}", json=body, headers=headers)
     second = client.put(f"/api/activity/{today}", json=body, headers=headers)
@@ -63,14 +59,14 @@ def test_activity_upsert_is_idempotent(client, headers):
 
 
 def test_activity_clears_workout_details_when_not_done(client, headers):
-    today = date.today().isoformat()
+    today = TODAY.isoformat()
     body = {"steps": 100, "workout_done": False, "workout_minutes": 40, "workout_type": "Run"}
     saved = client.put(f"/api/activity/{today}", json=body, headers=headers).json()
     assert saved["workout_minutes"] == 0 and saved["workout_type"] is None
 
 
 def test_activity_validation_and_future_dates(client, headers):
-    today = date.today()
+    today = TODAY
     assert client.put(f"/api/activity/{today}", json={"steps": -1}, headers=headers).status_code == 422
     assert client.put(f"/api/activity/{today}", json={"steps": 300000}, headers=headers).status_code == 422
     future = client.put(f"/api/activity/{today + timedelta(days=2)}", json={"steps": 10}, headers=headers)
@@ -79,7 +75,7 @@ def test_activity_validation_and_future_dates(client, headers):
 
 
 def test_activity_range_fills_missing_days(client, headers):
-    today = date.today()
+    today = TODAY
     client.put(f"/api/activity/{today}", json={"steps": 500}, headers=headers)
     data = client.get(f"/api/activity?from={today - timedelta(days=6)}&to={today}", headers=headers).json()
     assert len(data["days"]) == 7
@@ -90,7 +86,7 @@ def test_activity_range_fills_missing_days(client, headers):
 
 
 def test_activity_is_private(client, headers, other_headers):
-    today = date.today().isoformat()
+    today = TODAY.isoformat()
     client.put(f"/api/activity/{today}", json={"steps": 999}, headers=headers)
     assert client.get(f"/api/activity/{today}", headers=other_headers).json()["steps"] == 0
 

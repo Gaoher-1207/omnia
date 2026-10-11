@@ -7,8 +7,8 @@ from app.modules.ai.service import get_provider
 
 
 @pytest.fixture(autouse=True)
-def evening(monkeypatch):
-    monkeypatch.setattr("app.core.time.utcnow", lambda: datetime(2026, 9, 27, 19, tzinfo=UTC))
+def evening(clock):
+    clock.set(datetime(2026, 9, 27, 19, tzinfo=UTC))
 
 
 def task(client, headers, **fields):
@@ -132,8 +132,8 @@ def test_legacy_plans_remain_readable_without_claiming_new_validation(client, he
     assert plan["unscheduled"] == [] and plan["window_start"] is None
 
 
-def test_after_day_end_reports_capacity_without_inventing_a_missed_deadline(client, headers, monkeypatch):
-    monkeypatch.setattr("app.core.time.utcnow", lambda: datetime(2026, 9, 27, 23, tzinfo=UTC))
+def test_after_day_end_reports_capacity_without_inventing_a_missed_deadline(client, headers, clock):
+    clock.set(datetime(2026, 9, 27, 23, tzinfo=UTC))
     task(client, headers, estimated_minutes=30)
     plan = client.post("/api/ai/daily-plan", headers=headers, json={}).json()
     assert plan["items"] == []
@@ -141,8 +141,8 @@ def test_after_day_end_reports_capacity_without_inventing_a_missed_deadline(clie
     assert plan["unscheduled"][0]["reason"] == "not_scheduled"
 
 
-def test_short_task_can_use_the_last_minutes_of_the_window(client, headers, monkeypatch):
-    monkeypatch.setattr("app.core.time.utcnow", lambda: datetime(2026, 9, 27, 21, 50, tzinfo=UTC))
+def test_short_task_can_use_the_last_minutes_of_the_window(client, headers, clock):
+    clock.set(datetime(2026, 9, 27, 21, 50, tzinfo=UTC))
     short = task(client, headers, estimated_minutes=5)
     plan = client.post("/api/ai/daily-plan", headers=headers, json={}).json()
     assert plan["items"][0]["task_id"] == short["id"]

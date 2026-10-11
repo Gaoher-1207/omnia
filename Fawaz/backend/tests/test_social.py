@@ -1,10 +1,8 @@
-from datetime import date, timedelta
+from datetime import timedelta
 
 import pytest
 
-from tests.conftest import auth_headers, register
-
-TODAY = date.today()
+from tests.conftest import TODAY, auth_headers, register
 
 
 def person(client, username):
