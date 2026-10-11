@@ -131,7 +131,7 @@ def create_session(body: SessionCreate, user: CurrentUser, db: DbSession):
 
 @router.delete("/sessions/{session_id}", status_code=_NO_CONTENT, summary="Delete a study session")
 def delete_session(session_id: uuid.UUID, user: CurrentUser, db: DbSession):
-    service.delete_session(db, user.id, session_id)
+    service.delete_session(db, user, session_id)
     return Response(status_code=_NO_CONTENT)
 
 

@@ -32,15 +32,41 @@ These were built on the Tasks, Focus, onboarding and design work in the canonica
 
 ## Open TODOs
 
-- [ ] **Verify the release foundation.** Implementation and local verification are complete (October 11, uncommitted): deterministic backend tests, corrected user-local export dates, root CI workflow, and documentation alignment are in place. Local checks passed: 247 backend tests across three host-date offsets; Ruff; SQLite migrations up/check/down/up; Flutter analysis and 344 tests; web release build. Still open: push the workflow and confirm the first GitHub Actions run is green, including PostgreSQL tests and migrations (not run locally).
-  - [x] Deterministic backend tests (October 11, uncommitted): one frozen clock for the whole suite (`tests/conftest.py`), dates taken from it rather than the host, and guard tests in `tests/test_clock.py`. The 11 failures reproduce on the old tests whenever the host's date differs from UTC; the suite now passes with the host clock a day behind, on, and a day ahead of UTC. The data export's `exported_on` now uses the user's day too.
-  - [x] CI replaced (uncommitted): `.github/workflows/ci.yml` runs Ruff (lint and format), backend tests on SQLite and PostgreSQL, migrations up/check/down/up on both databases, `flutter analyze`, `flutter test` and the web release build. `tests/test_ci_workflow.py` keeps those gates in place. The broken `backend-ci.yml` and the inert `Fawaz/.github` workflow were removed.
-  - [x] Status and roadmap documentation aligned with the code ([[Current Status]], this page, `Shehwaar/README.md`).
-  - [ ] Confirm the first GitHub Actions run is green. The PostgreSQL steps have not been run locally.
-- [ ] **Finish product and release basics.** Replace the canonical `Shehwaar/omnia_ui` second onboarding placeholder (“Next onboarding page” / “This space is reserved for the next onboarding step”) with the real step, copy, and CTA; persist onboarding completion; configure a real Android application ID and release signing; persist plan-block completion/outcomes so replanning can learn what actually happened; then run a PostgreSQL/emulator end-to-end pass covering plan generation, concurrent edits, proposal expiry, stale proposals, and account switching.
-- [ ] **Harden production operations.** Move migrations out of container startup into a controlled release step; add error reporting and AI-provider latency/fallback plus replan lifecycle metrics; decide whether 12-hour tokens without refresh are acceptable; replace the in-memory rate limiter before multi-instance deployment; document backup, rollback, migration, and secret-rotation procedures.
-- [ ] **Close the remaining data gaps, in order.** (1) Long-term Goals backend and synchronization; (2) persisted focus sessions and study-minute logging; (3) frontend nutrition logging using the existing backend; (4) real Insights/Progress screens; (5) achievements based on genuine history.
-- [ ] **Expand the AI loop only after the data foundation is dependable.** Let Ask Omnia initiate the existing replan proposal flow while retaining explicit approval; ground explanations in actual plan changes and outcomes; add cross-domain rules for poor sleep, imminent exams, missed tasks, and recovery; only then build adaptive learning (flashcards, quizzes, mastery, weak-topic detection) and broader learned recommendations.
+Status as of October 11, 2026. Items marked done below are implemented and verified locally (uncommitted); nothing here has been deployed.
+
+- [ ] **Verify the release foundation.**
+  - [x] Deterministic backend tests: one frozen clock for the whole suite (`tests/conftest.py`), guarded by `tests/test_clock.py`; passes with the host clock a day behind, on, and a day ahead of UTC.
+  - [x] CI replaced: `.github/workflows/ci.yml` (Ruff, backend tests on SQLite and PostgreSQL, migrations up/check/down/up on both, `flutter analyze`, `flutter test`, web release build), guarded by `tests/test_ci_workflow.py`.
+  - [x] The first GitHub Actions run (#38130470928, commit `da37db7`) failed only at **Tests (PostgreSQL)**: the `commitments.enabled` model default was the integer `1`, which PostgreSQL rejects for a boolean. Fixed (`server_default=true()`) with a guard test in `tests/test_migrations.py`. Re-verified locally against PostgreSQL 16.2: the full backend suite passes and migrations run up, check, down and up. Actions bumped to `checkout@v5` / `setup-python@v6` (the run warned about Node 20).
+  - [ ] Push and confirm the next GitHub Actions run is green. This needs a push; no CI run has passed yet.
+- [ ] **Finish product and release basics.**
+  - [x] Onboarding: the placeholder page is replaced by "How Omnia works" (three steps that describe only built features), with Skip/Back, reduced motion, light/dark and narrow/200% text covered by tests. Completion is saved on the device (`SecureOnboardingStore`, read before the first frame in `main.dart`) when the intro is skipped or finished, or when a stored sign-in is restored; it is per device, not per account.
+  - [x] Plan-block outcomes: each block can be marked done, partly done or skipped (`PUT`/`DELETE /api/ai/daily-plan/{date}/items/{item_key}/outcome`, migration `0008`). Outcomes follow the block's stable key through replans, take the planning lock (a proposal made before an outcome change becomes stale), are owner-scoped, and can't be set for future days. Replanning reads them: done work isn't planned again and isn't required by validation; partly done and skipped work still is. Today's "Next up" skips done and skipped blocks.
+  - [x] Check-off control inside each plan block (October 11, uncommitted): a rounded square on the right of the card, vertically centred — neutral and unfilled until something is recorded, then green ✓ (done), yellow – (partly done) or red × (not done). Tested for placement, colours, menu, 44 px target, light/dark and 200% text.
+  - [x] Study check-offs count as study (migration `0010`): a study block marked done is saved as a study session for its subject, date and planned length; partly done asks for the minutes studied and saves only those; not done, cleared and untouched blocks never count. Focus time already inside the block is subtracted, in either order, so nothing is counted twice; repeated check-offs never add sessions. The schedule is never changed, and ownership, future-date, stale-proposal and one-write-per-block protections still apply. Study shows the last two weeks of study (Focus, check-offs, logged) and Insights has a Study card.
+  - [ ] Real Android application ID and release signing. **Blocked on a product decision and secrets:** the ID (reverse-domain name the team owns) and an upload keystore/passwords that must not be committed.
+  - [ ] PostgreSQL/emulator end-to-end pass (plan generation, concurrent edits, proposal expiry, stale proposals, account switching). Automated coverage exists; the manual pass hasn't been run.
+- [ ] **Harden production operations.**
+  - [x] Migrations are a release step: the API image no longer migrates on start; `docker compose` runs a one-off `migrate` service first (`tests/test_release_config.py`).
+  - [x] Metrics: `omnia.metrics` events for AI plan latency/fallbacks, replan proposal/apply/dismiss outcomes and plan outcomes (`app/core/metrics.py`, `tests/test_metrics.py`).
+  - [x] Procedures documented in `Fawaz/docs/OPERATIONS.md`: release, migrations, rollback, backup/restore, secret rotation, monitoring. Token lifetime assessed there: 12-hour revocable tokens without refresh are accepted for now; revisit before a public launch.
+  - [ ] Hosted error reporting (Sentry or similar). **Blocked:** needs an account and a DSN secret. Unhandled errors are logged with request ids meanwhile.
+  - [ ] Replace the in-memory rate limiter before running more than one API instance (documented; not done).
+- [ ] **Build the Insights tab.**
+  - [x] Week (Monday–Sunday) and month views of workouts and steps, each with a compact habit grid, from `GET /api/activity?from&to`. Only logged days count: unlogged days are shown and counted as "not logged", never as zero; fewer than three logged days give counts but no rates; nothing logged shows an empty state. Reloads after a log is saved elsewhere.
+  - [x] Study card: minutes and days studied per week/month, split into plan check-offs and Focus.
+  - [ ] More insight types (sleep, tasks) and progress/streak views.
+- [x] **Ask OmniAI entry (October 11, uncommitted):** the Today card is gone; one compact floating "Ask OmniAI" pill (card fill, outline, hard shadow) sits above the navigation bar on Today, Plan, Areas and Insights, hidden on deeper screens and while typing. A brief glint crosses it every 6 seconds (none with reduced motion). Tests cover all four tabs, no duplicates, placement at 320 px and 200% text, opening the assistant, and reduced motion.
+- [x] **UI polish requested October 11:** the Settings gear on Today is a 48 px card square (pastel fill, outline, hard shadow, press-into-shadow) in both themes; sleep duration is chosen on two scrollable hour/minute wheels (0–24 h, every minute) with the chosen value always shown, instead of typing.
+- [ ] **Close the remaining data gaps, in order.**
+  - [x] (1) Long-term Goals backend (`/api/goals`, migration `0009`) and synchronization: API mode reads and writes goals on the account; mock mode stays local and says so.
+  - [x] (2) Focus sessions: each Focus phase that runs out is saved as study time (`POST /api/study/sessions`) by the signed-in session, retried if saving fails, never double-counted, never credited to another account; Today's study minutes refresh.
+  - [ ] (3) Frontend nutrition logging using the existing backend.
+  - [ ] (4) Real Insights/Progress beyond activity and steps.
+  - [ ] (5) Achievements based on genuine history.
+- [ ] **Expand the AI loop only after the data foundation is dependable.**
+  - [x] Ask Omnia can start the existing replan flow: when a question reads like a change to today's plan, it offers "Preview plan change", which opens the same validated preview; nothing changes until Apply. Ask Omnia itself stays read-only.
+  - [ ] Ground explanations in actual plan changes and outcomes; cross-domain rules (poor sleep, imminent exams, missed tasks, recovery); adaptive learning. Not started: outcomes are only now being recorded, so there is no history to learn from yet.
 
 Planning note: follow this order and resist adding more AI surface area before CI is trustworthy, documentation is aligned, plan outcomes are persisted, and the core data loop is complete. Source: the release-readiness assessment provided October 11, 2026.
 
@@ -63,8 +89,8 @@ flowchart TD
     PLAN["Daily plan + adaptive replanning"]:::done
     STUDY["Study V1: subjects + exams<br/>(sessions, backlog next)"]:::later
     TRACK["5B: Activity / Sleep logging"]:::done
-    INS["Insights / Progress"]:::later
-    GB["Long-term Goals backend<br/>(new module)"]:::later
+    INS["Insights: workouts + steps<br/>(more views next)"]:::next
+    GB["Long-term Goals backend + sync"]:::done
     AL["Adaptive learning"]:::vision
     FIT["Workout progression"]:::vision
     AIA["Ask Omnia (read-only)"]:::done

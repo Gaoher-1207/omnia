@@ -37,20 +37,31 @@ class OpenRouterClient:
         self.last_latency_ms: int | None = None
 
     def complete(
-        self, messages: list[dict[str, str]], *, temperature: float = 0, schema: dict | None = None
+        self,
+        messages: list[dict[str, str]],
+        *,
+        temperature: float = 0,
+        schema: dict | None = None,
+        timeout: float | None = None,
+        max_tokens: int | None = None,
     ) -> OpenRouterCompletion:
         payload = {
             "model": self.primary_model,
+            # OpenRouter tries the fallback model server-side: one request, no serial retry here.
             "models": [self.fallback_model],
             "temperature": temperature,
             "messages": messages,
         }
+        if max_tokens is not None:
+            payload["max_tokens"] = max_tokens
         if schema is not None:
+            # Non-strict: free models often reject strict schemas; the server re-validates anyway.
             payload["response_format"] = {
                 "type": "json_schema",
-                "json_schema": {"name": "replan_draft", "strict": True, "schema": schema},
+                "json_schema": {"name": "replan_edits", "strict": False, "schema": schema},
             }
-        client = self._client or httpx.Client(timeout=self._timeout)
+        limit = min(self._timeout, timeout) if timeout is not None else self._timeout
+        client = self._client or httpx.Client(timeout=limit)
         started = time.perf_counter()
         self.last_completion = None
         self.last_actual_model = None
@@ -61,7 +72,7 @@ class OpenRouterClient:
                     self.url,
                     json=payload,
                     headers={"Authorization": f"Bearer {self._api_key}", "Content-Type": "application/json"},
-                    timeout=self._timeout,
+                    timeout=limit,
                 )
             except httpx.TimeoutException:
                 raise ProviderError("provider_timeout") from None

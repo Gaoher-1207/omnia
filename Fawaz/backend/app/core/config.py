@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     planner_ai_provider: Literal["rules", "anthropic", "ollama", "openrouter"] | None = None
     ai_timeout_seconds: float = Field(default=20.0, gt=0, le=120)
     ai_rate_limit_per_hour: int = Field(default=20, ge=1)
+    # The whole replan proposal, AI attempts included, must finish within this.
+    # Past it the deterministic rules planner answers instead (or a clear error).
+    replan_timeout_seconds: float = Field(default=45.0, ge=10, le=120)
     openrouter_api_key: str = ""
     openrouter_primary_model: str = "nvidia/nemotron-3-ultra-550b-a55b:free"
     openrouter_fallback_model: str = "openrouter/free"

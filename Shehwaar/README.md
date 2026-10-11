@@ -49,17 +49,17 @@ That cross-domain planning is the **product vision**, and most of it is not impl
 
 | Area | Status | Notes |
 |---|---|---|
-| Onboarding | ✅ Implemented | Multi-page intro with skip, back and swipe navigation; the second page is still a placeholder |
+| Onboarding | ✅ Implemented | Two-page intro (welcome, how Omnia works) with skip, back and swipe navigation; completion is remembered on the device |
 | Authentication and accounts | ✅ Implemented (real backend) | API mode only |
 | Tasks | ✅ Implemented (real backend in API mode) | Full create / edit / complete / delete flow; in-memory in mock mode |
-| Long-term Goals | ✅ Implemented (local data) | Measurable and completion-only goals; no backend module yet |
-| Focus Timer | ✅ Implemented (local) | Pomodoro timer shared across the whole app; focused minutes are not saved |
+| Long-term Goals | ✅ Implemented (real backend in API mode) | Measurable and completion-only goals, saved to the account; local in mock mode |
+| Focus Timer | ✅ Implemented | Pomodoro timer shared across the whole app; each finished Focus phase is saved as study time when signed in |
 | Study | 🟡 Partial | Subjects and exams from the backend in API mode; the revision session is local sample content |
 | Today (Home) | ✅ Implemented (real backend in API mode) | Day summary from `/dashboard`; "Next up" from today's plan |
-| Plan | ✅ Implemented (real backend in API mode) | Daily plan, fixed commitments, plan preferences, "Why?", and **Adjust today's plan** (adaptive replanning with explicit Apply) |
+| Plan | ✅ Implemented (real backend in API mode) | Daily plan, fixed commitments, plan preferences, "Why?", a check-off square in each block (done ✓ / partly done – / not done ×; study check-offs count as study time), and **Adjust today's plan** (adaptive replanning with explicit Apply) |
 | Areas (activity and sleep) | ✅ Implemented (real backend in API mode) | Today's activity and sleep logging; no meal logging yet |
-| Ask Omnia | ✅ Implemented (real backend in API mode) | Read-only, context-aware answers; never changes your data |
-| Insights | ⏳ Not connected | Empty state in API mode; labelled sample data in mock mode |
+| Ask Omnia | ✅ Implemented (real backend in API mode) | Floating "Ask OmniAI" button on every main tab; context-aware answers; a request to change today's plan offers a preview, and only your Apply changes anything |
+| Insights | 🟡 Partial | Weekly and monthly workout and step consistency with habit grids, from logged days only; more insight types to come |
 | Settings | ✅ Implemented | Theme, profile and daily targets, account section in API mode |
 | Light / dark theme | ✅ Implemented | Switchable in Settings |
 | Cross-domain AI recommendations | ⏳ Planned | Vision; see the [Roadmap](#roadmap) |
@@ -135,7 +135,7 @@ The adaptive study system (flashcards, quizzes, mastery tracking) is **planned**
 - **Today:** greeting, date and the day summary (study, activity, sleep against your daily targets) from the backend in API mode, the Tasks card and Goals preview, and **Next up** from today's plan.
 - **Plan:** in API mode, today's daily plan from the backend (generate a suggestion, see "Why?"), fixed commitments on the timeline, and plan preferences (planning hours, 12/24-hour time). **Adjust today's plan** previews the changes as short lines ("Moved Assignment") and changes nothing until you tap Apply. Mock mode shows a labelled sample day.
 - **Areas:** Study, Tasks, Goals, Activity and Sleep tiles; Activity and Sleep open today's log screens.
-- **Insights:** not connected yet; an empty state in API mode and labelled sample data in mock mode.
+- **Insights:** a Week/Month switch with **Workouts** and **Steps** cards, each a compact habit grid of the days logged. Unlogged days are marked "not logged" and never counted as zero; too few logged days give counts but no rates.
 
 ### Settings
 
@@ -475,11 +475,11 @@ What each area of the canonical frontend uses **today**:
 | Activity and sleep logs | ✅ **FastAPI** | `/activity`, `/sleep` | Meals next |
 | Study subjects and exams | ✅ **FastAPI** | `/study/subjects`, `/study/exams` | Sessions and backlog |
 | Study revision session | 🟡 In-memory (sample session) | `/study/*` (topics, sessions, plan) | Needs model alignment |
-| Plan | ✅ **FastAPI** | `/ai/daily-plan`, `/ai/replan/proposals*`, `/commitments` | Persist plan-block outcomes |
-| Ask Omnia | ✅ **FastAPI** (read-only) | `/ai/chat` | May start the replan flow, with explicit approval |
-| Long-term Goals | 🟡 In-memory | ❌ None yet | New backend module needed |
-| Focus Timer | Local only | Study-time logging (`/study/sessions`) | Persist focus sessions |
-| Insights | ⏳ Not connected | `/progress`, `/achievements` | Real Insights screens |
+| Plan | ✅ **FastAPI** | `/ai/daily-plan` (with block outcomes), `/ai/replan/proposals*`, `/commitments` | End-to-end pass on PostgreSQL |
+| Ask Omnia | ✅ **FastAPI** (read-only) | `/ai/chat`; offers the replan preview | Explanations grounded in outcomes |
+| Long-term Goals | ✅ **FastAPI** | `/goals` | Done |
+| Focus Timer | ✅ Finished Focus phases saved | `/study/sessions` | Done |
+| Insights | 🟡 **FastAPI** (activity, steps) | `/activity?from&to`; `/progress`, `/achievements` not used yet | Sleep, study and streak views |
 
 The backend already provides more modules, including nutrition, social and calendar feeds. The canonical frontend adopts them one at a time, keeping the current design system and a working mock mode at every step.
 

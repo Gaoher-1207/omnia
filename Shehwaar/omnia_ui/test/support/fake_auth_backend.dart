@@ -37,6 +37,15 @@ class FakeAuthBackend {
   /// Every activity or sleep PUT as "path body", in order.
   final trackPuts = <String>[];
 
+  /// `from..to` of every `GET /activity` range request.
+  final activityRanges = <String>[];
+
+  /// Study minutes logged with `POST /study/sessions`, by `email day`.
+  final studyMinutesOn = <String, int>{};
+
+  /// Every successful goal write, e.g. `PATCH goal-uuid-3 {"completed":true}`.
+  final goalWrites = <String>[];
+
   /// Makes every `/study` call answer 503.
   bool studyDown = false;
 
@@ -65,6 +74,8 @@ class FakeAuthBackend {
   final _activity = <String, Map<String, dynamic>>{}; // "email day" → row
   final _sleep = <String, Map<String, dynamic>>{}; // "email day" → row
   final _commitments = <String, Map<String, dynamic>>{};
+  final _goals = <String, Map<String, dynamic>>{}; // id → goal + owner
+  final _studySessions = <Map<String, dynamic>>[];
   var _ids = 0;
 
   /// Stores a task for [email] as the server would; returns its id.
@@ -363,6 +374,7 @@ class FakeAuthBackend {
         _activity.removeWhere((key, _) => key.startsWith('$email '));
         _sleep.removeWhere((key, _) => key.startsWith('$email '));
         _commitments.removeWhere((_, row) => row['owner'] == email);
+        _goals.removeWhere((_, row) => row['owner'] == email);
         return http.Response('', 204);
       case ('GET', '/profile'):
         return _json(profileOf(email)!);
@@ -391,6 +403,9 @@ class FakeAuthBackend {
           'source': 'fake',
         });
     }
+    if (request.method == 'GET' && path == '/activity') {
+      return _activityRange(request.url.queryParameters, email);
+    }
     if (path.startsWith('/activity/') || path.startsWith('/sleep/')) {
       return _handleTrack(request.method, path, body, email);
     }
@@ -399,6 +414,9 @@ class FakeAuthBackend {
     }
     if (path == '/tasks' || path.startsWith('/tasks/')) {
       return _handleTasks(request.method, path, request.url, body, email);
+    }
+    if (path == '/goals' || path.startsWith('/goals/')) {
+      return _handleGoals(request.method, path, body, email);
     }
     if (path == '/commitments' || path.startsWith('/commitments/')) {
       return _handleCommitments(request.method, path, request.url, body, email);
@@ -665,7 +683,7 @@ class FakeAuthBackend {
       'greeting': 'morning',
       'display_name': profile['display_name'],
       'today': {
-        'study_minutes': 0,
+        'study_minutes': studyMinutesOn['$email ${todayFor(email)}'] ?? 0,
         'study_goal_minutes': profile['daily_study_goal_minutes'],
         'tasks_completed': tasksOf(email).length - open.length,
         'task_goal': profile['daily_task_goal'],
@@ -699,6 +717,142 @@ class FakeAuthBackend {
       'study_today': <Object>[],
       'ai_plan': plans[email]?['plan_date'] == today ? plans[email] : null,
     };
+  }
+
+  /// Goals stored for [email] (without the owner field).
+  List<Map<String, dynamic>> goalsOf(String email) => [
+    for (final goal in _goals.values)
+      if (goal['owner'] == email) Map.of(goal)..remove('owner'),
+  ];
+
+  /// `/goals` CRUD like `modules/goals`: server-assigned ids, owner scoping,
+  /// and the measurable-or-completion-only rule.
+  http.Response _handleGoals(
+    String method,
+    String path,
+    Map<String, dynamic> body,
+    String email,
+  ) {
+    const fields = {
+      'title',
+      'description',
+      'category',
+      'target_value',
+      'current_value',
+      'unit',
+      'deadline',
+      'completed',
+    };
+    for (final field in body.keys) {
+      if (!fields.contains(field)) {
+        return _invalid('body.$field', 'Extra inputs are not permitted');
+      }
+    }
+    String? measurementError(Map<String, dynamic> goal) {
+      final target = goal['target_value'] as num?;
+      if (target == null) {
+        return goal['current_value'] != null || goal['unit'] != null
+            ? 'A completion-only goal has no current value or unit'
+            : null;
+      }
+      if (target <= 0) return 'target_value must be greater than 0';
+      final current = goal['current_value'] as num?;
+      if (current == null || current < 0) {
+        return 'A measurable goal needs a current_value of 0 or more';
+      }
+      return goal['unit'] == null ? 'A measurable goal needs a unit' : null;
+    }
+
+    if (path == '/goals') {
+      if (method == 'GET') return _json(goalsOf(email));
+      if (method != 'POST') return _error(405, 'method_not_allowed', '');
+      final goal = <String, dynamic>{
+        'description': null,
+        'target_value': null,
+        'current_value': null,
+        'unit': null,
+        'deadline': null,
+        'completed': false,
+        ...body,
+      };
+      if (goal['target_value'] != null) goal['current_value'] ??= 0;
+      final error = measurementError(goal);
+      if (error != null) return _invalid('body', error);
+      final id = 'goal-uuid-${++_ids}';
+      _goals[id] = {
+        ...goal,
+        'id': id,
+        'owner': email,
+        'completed_at': goal['completed'] == true ? _now() : null,
+        'created_at': _now(),
+        'updated_at': _now(),
+      };
+      goalWrites.add('POST $id');
+      return _json(Map.of(_goals[id]!)..remove('owner'), 201);
+    }
+    final id = path.substring('/goals/'.length);
+    final stored = _goals[id];
+    if (stored == null || stored['owner'] != email) {
+      return _error(404, 'not_found', 'Goal not found');
+    }
+    switch (method) {
+      case 'GET':
+        return _json(Map.of(stored)..remove('owner'));
+      case 'PATCH':
+        final next = {...stored, ...body};
+        final error = measurementError(next);
+        if (error != null) return _invalid('body', error);
+        if (body.containsKey('completed') &&
+            body['completed'] != stored['completed']) {
+          next['completed_at'] = body['completed'] == true ? _now() : null;
+        }
+        next['updated_at'] = _now();
+        _goals[id] = next;
+        goalWrites.add('PATCH $id ${jsonEncode(body)}');
+        return _json(Map.of(next)..remove('owner'));
+      case 'DELETE':
+        _goals.remove(id);
+        goalWrites.add('DELETE $id');
+        return http.Response('', 204);
+    }
+    return _error(405, 'method_not_allowed', '');
+  }
+
+  /// `GET /activity?from&to`: every day in the range, with `id: null`
+  /// placeholders for days that were never logged (like `ActivityRange`).
+  http.Response _activityRange(Map<String, String> query, String email) {
+    if (trackDown) {
+      return _error(503, 'service_unavailable', 'Tracking is unavailable.');
+    }
+    activityRanges.add('${query['from']}..${query['to']}');
+    final from = DateTime.parse(query['from']!);
+    final to = DateTime.parse(query['to']!);
+    final days = <Map<String, dynamic>>[];
+    for (
+      var day = from;
+      !day.isAfter(to);
+      day = DateTime(day.year, day.month, day.day + 1)
+    ) {
+      final iso = day.toIso8601String().substring(0, 10);
+      days.add(
+        _activity['$email $iso'] ??
+            {
+              'id': null,
+              'day': iso,
+              'steps': 0,
+              'workout_done': false,
+              'workout_minutes': 0,
+              'workout_type': null,
+              'updated_at': null,
+            },
+      );
+    }
+    return _json({
+      'start': query['from'],
+      'end': query['to'],
+      'step_goal': profileOf(email)!['daily_step_goal'],
+      'days': days,
+    });
   }
 
   /// `/activity/{day}` and `/sleep/{day}`: GET, whole-day PUT, and DELETE
@@ -946,6 +1100,42 @@ class FakeAuthBackend {
       return null;
     }
 
+    if (kind == 'sessions' && id == null) {
+      if (method == 'GET') {
+        return _json([
+          for (final row in _studySessions.reversed)
+            if (row['owner'] == email) Map.of(row)..remove('owner'),
+        ]);
+      }
+      if (method != 'POST') return _error(405, 'method_not_allowed', '');
+      final invalid = extra({'duration_minutes', 'source', 'started_at'});
+      if (invalid != null) return invalid;
+      final minutes = body['duration_minutes'];
+      if (minutes is! int || minutes < 1 || minutes > 720) {
+        return _invalid('body.duration_minutes', 'Must be 1 to 720');
+      }
+      final source = body['source'] ?? 'manual';
+      if (source != 'manual' && source != 'focus') {
+        return _invalid('body.source', 'Must be manual or focus');
+      }
+      final day = todayFor(email);
+      studyMinutesOn['$email $day'] =
+          (studyMinutesOn['$email $day'] ?? 0) + minutes;
+      final row = {
+        'id': 'session-uuid-${++_ids}',
+        'owner': email,
+        'session_date': day,
+        'duration_minutes': minutes,
+        'source': source,
+        'started_at': body['started_at'],
+        'notes': null,
+        'backlog_item_id': null,
+        'subject': null,
+        'created_at': _now(),
+      };
+      _studySessions.add(row);
+      return _json(Map.of(row)..remove('owner'), 201);
+    }
     if (kind == 'subjects') {
       final subject = id == null ? null : _subjects[id];
       if (id != null && subject?['owner'] != email) {

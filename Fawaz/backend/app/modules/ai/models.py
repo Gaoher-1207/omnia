@@ -52,3 +52,38 @@ class ReplanProposal(IdMixin, TimestampMixin, Base):
     expires_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
     applied_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
     dismissed_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
+
+
+class PlanItemOutcome(IdMixin, TimestampMixin, Base):
+    """What actually happened to one plan block, recorded by its owner.
+
+    Keyed by the block's stable `item_key`, which survives plan revisions, so an
+    outcome stays attached when a replan moves the block. Title and times are
+    snapshotted so the history survives even if a later revision drops the block.
+    """
+
+    __tablename__ = "plan_item_outcomes"
+    __table_args__ = (
+        CheckConstraint("status IN ('done', 'partial', 'skipped')", name="status"),
+        Index("uq_plan_item_outcomes_owner_item", "user_id", "plan_date", "item_key", unique=True),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    plan_date: Mapped[date] = mapped_column(Date, nullable=False)
+    item_key: Mapped[str] = mapped_column(String(80), nullable=False)
+    # The revision the outcome was recorded against (for audit; the key is what matters).
+    plan_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, ForeignKey("ai_plans.id", ondelete="SET NULL"))
+    status: Mapped[str] = mapped_column(String(10), nullable=False)
+    category: Mapped[str] = mapped_column(String(12), nullable=False)
+    title: Mapped[str] = mapped_column(String(120), nullable=False)
+    start: Mapped[str] = mapped_column(String(5), nullable=False)
+    end: Mapped[str] = mapped_column(String(5), nullable=False)
+    task_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
+    subject_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
+    recorded_at: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
+    # Minutes actually done, for a partly done block (null when not given).
+    minutes: Mapped[int | None] = mapped_column(Integer)
+    # The study session credited for a study block, if any (see study_credit.py).
+    study_session_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("study_sessions.id", ondelete="SET NULL")
+    )

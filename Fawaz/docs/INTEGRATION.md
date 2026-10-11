@@ -45,7 +45,7 @@ The backend always answers errors as `{"error": {"code", "message", "details"?, 
 
 ```bash
 cp .env.example .env              # set POSTGRES_PASSWORD, AUTH_SECRET
-docker compose up --build         # PostgreSQL + API on :8000, migrations run on start
+docker compose up --build         # PostgreSQL, the one-off migrate step, then the API on :8000
 docker compose exec backend python -m app.scripts.seed   # optional demo account
 ```
 
@@ -64,7 +64,7 @@ Demo account: `demo@omnia.app` / `omnia-demo-123` (friend `riya.demo@omnia.app`,
 ## 7. Deploying
 
 1. Provision PostgreSQL and set `DATABASE_URL`, `AUTH_SECRET`, `APP_ENV=production`, `PUBLIC_BASE_URL` and, for web builds, `CORS_ORIGINS`. Optionally set `AI_PROVIDER` and `AI_API_KEY`.
-2. Run the backend container behind HTTPS. Migrations run on start (`alembic upgrade head`). In production the API refuses a weak secret or SQLite, turns off `/api/docs`, and sends HSTS.
+2. Run migrations as a release step (`docker compose run --rm migrate`), then the backend container behind HTTPS; see [OPERATIONS.md](OPERATIONS.md). In production the API refuses a weak secret or SQLite, turns off `/api/docs`, and sends HSTS.
 3. Build the app from `Shehwaar/omnia_ui` with `--dart-define=API_BASE_URL=https://<your-api>/api`.
 4. Store secrets in your host's secret manager, never in the repo or the app.
 

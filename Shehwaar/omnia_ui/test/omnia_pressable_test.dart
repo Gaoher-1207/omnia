@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:omnia_ui/features/assistant/widgets/ask_omnia_button.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/core/widgets/hard_card.dart';
@@ -366,9 +367,8 @@ void main() {
       );
       await reveal(tester, HomePage, study);
       await expectPresses(tester, study);
-      final ask = find.text('Ask OmniAI');
-      await reveal(tester, HomePage, ask);
-      await expectPresses(tester, ask);
+      // The floating Ask OmniAI button presses into its shadow too.
+      await expectPresses(tester, find.text('Ask OmniAI'));
     });
 
     testWidgets('Areas tiles are tactile', (tester) async {
@@ -387,9 +387,7 @@ void main() {
       tester,
     ) async {
       await startApp(tester, null);
-      final ask = find.text('Ask OmniAI');
-      await reveal(tester, HomePage, ask);
-      await tester.tap(ask);
+      await tester.tap(find.byType(AskOmniaButton));
       await tester.pumpAndSettle();
       final question = find.text('How am I doing today?');
       await expectPresses(tester, question);

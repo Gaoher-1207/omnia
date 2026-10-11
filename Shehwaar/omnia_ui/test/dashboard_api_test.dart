@@ -6,7 +6,7 @@ import 'package:omnia_ui/core/api/api_exception.dart';
 import 'package:omnia_ui/core/app_dependencies.dart';
 import 'package:omnia_ui/core/widgets/solid_action.dart';
 import 'package:omnia_ui/features/auth/auth_page.dart';
-import 'package:omnia_ui/features/goals/data/mock_goal_repository.dart';
+import 'package:omnia_ui/features/goals/data/api_goal_repository.dart';
 import 'package:omnia_ui/features/home/dashboard_controller.dart';
 import 'package:omnia_ui/features/home/data/api_dashboard_repository.dart';
 import 'package:omnia_ui/features/home/data/mock_dashboard_repository.dart';
@@ -199,11 +199,11 @@ void main() {
       expect(AppDependencies.mock().dashboard, isA<MockDashboardRepository>());
     });
 
-    test('API dependencies use GET /dashboard; Goals stay local', () async {
+    test('API dependencies use GET /dashboard and the goals API', () async {
       final deps = AppDependencies.api(await clientFor(samSignedIn()));
       expect(deps.dashboard, isA<ApiDashboardRepository>());
       expect(deps.tasks, isA<ApiTaskRepository>());
-      expect(deps.goals, isA<MockGoalRepository>());
+      expect(deps.goals, isA<ApiGoalRepository>());
     });
   });
 

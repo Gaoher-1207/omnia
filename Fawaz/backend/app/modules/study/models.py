@@ -72,6 +72,7 @@ class StudySession(IdMixin, TimestampMixin, Base):
     __tablename__ = "study_sessions"
     __table_args__ = (
         CheckConstraint("duration_minutes BETWEEN 1 AND 720", name="duration_range"),
+        CheckConstraint("source IN ('manual', 'focus', 'plan')", name="source"),
         Index("ix_study_sessions_user_date", "user_id", "session_date"),
     )
 
@@ -85,5 +86,9 @@ class StudySession(IdMixin, TimestampMixin, Base):
     session_date: Mapped[date] = mapped_column(Date, nullable=False)
     duration_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text)
+    # How it was recorded: by hand, a finished Focus phase, or a plan block marked done.
+    source: Mapped[str] = mapped_column(String(8), nullable=False, default="manual", server_default="manual")
+    # When the time started (Focus phases), used to avoid crediting the same minutes twice.
+    started_at: Mapped[datetime | None] = mapped_column(UTCDateTime)
 
     subject: Mapped[Subject | None] = relationship(lazy="joined")

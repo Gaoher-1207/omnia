@@ -8,6 +8,7 @@ import 'package:http/testing.dart';
 import 'package:omnia_ui/app.dart';
 import 'package:omnia_ui/core/auth/auth_controller.dart';
 import 'package:omnia_ui/core/api/api_client.dart';
+import 'package:omnia_ui/core/api/api_exception.dart';
 import 'package:omnia_ui/core/auth/token_store.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/features/focus/focus_timer_controller.dart';
@@ -15,6 +16,7 @@ import 'package:omnia_ui/features/home/home_page.dart';
 import 'package:omnia_ui/features/plan/data/api_plan_repository.dart';
 import 'package:omnia_ui/features/plan/data/mock_plan_repository.dart';
 import 'package:omnia_ui/features/plan/domain/daily_plan.dart';
+import 'package:omnia_ui/features/plan/domain/manual_plan_item.dart';
 import 'package:omnia_ui/features/plan/domain/plan_repository.dart';
 import 'package:omnia_ui/features/plan/plan_controller.dart';
 import 'package:omnia_ui/features/plan/widgets/daily_plan_view.dart';
@@ -291,6 +293,80 @@ void main() {
     },
   );
 
+  group('replan proposal failures', () {
+    ApiPlanRepository repositoryFor(
+      Future<http.Response> Function(http.Request) handler,
+    ) {
+      final api = ApiClient(
+        baseUrl: 'http://test/api',
+        tokens: MemoryTokenStore(),
+        httpClient: MockClient(handler),
+      );
+      addTearDown(api.close);
+      return ApiPlanRepository(
+        api,
+        replanTimeout: const Duration(milliseconds: 50),
+      );
+    }
+
+    test('a proposal that never answers stops with a clear reason', () async {
+      final repository = repositoryFor(
+        (_) => Completer<http.Response>().future,
+      );
+      await expectLater(
+        repository.createReplanProposal('Move it'),
+        throwsA(
+          isA<ApiException>().having(
+            (error) => error.message,
+            'message',
+            allOf(contains('OmniAI took too long'), contains('Nothing was')),
+          ),
+        ),
+      );
+    });
+
+    test('the default timeout stays bounded above the server budget', () {
+      expect(
+        ApiPlanRepository.defaultReplanTimeout,
+        greaterThan(const Duration(seconds: 45)),
+      );
+      expect(
+        ApiPlanRepository.defaultReplanTimeout,
+        lessThanOrEqualTo(const Duration(seconds: 75)),
+      );
+    });
+
+    for (final (status, code) in [
+      (504, 'replan_provider_timeout'),
+      (503, 'replan_provider_unavailable'),
+      (422, 'replan_invalid'),
+    ]) {
+      test('a $status keeps the server code and message', () async {
+        final repository = repositoryFor(
+          (_) async => http.Response(
+            jsonEncode({
+              'error': {'code': code, 'message': 'Server says why.'},
+            }),
+            status,
+          ),
+        );
+        await expectLater(
+          repository.createReplanProposal('Move it'),
+          throwsA(
+            isA<ApiException>()
+                .having((error) => error.statusCode, 'status', status)
+                .having((error) => error.code, 'code', code)
+                .having(
+                  (error) => error.message,
+                  'message',
+                  'Server says why.',
+                ),
+          ),
+        );
+      });
+    }
+  });
+
   test('controller serializes operations, preserves failed read state, ignores disposed results', () async {
     final repo = PendingRepository();
     final controller = PlanController(repo);
@@ -353,6 +429,17 @@ void main() {
 }
 
 class PendingRepository implements PlanRepository {
+  @override
+  Future<Never> addItem(
+    DateTime day,
+    ManualPlanItemDraft draft, {
+    int? baseRevision,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<Never> removeItem(DateTime day, String itemKey, {int? baseRevision}) =>
+      throw UnimplementedError();
+
   var pending = Completer<DailyPlan?>();
   int calls = 0;
   @override
@@ -379,4 +466,12 @@ class PendingRepository implements PlanRepository {
   @override
   Future<Never> dismissReplanProposal(String proposalId) async =>
       throw StateError('Not used in this test.');
+
+  @override
+  Future<Never> recordOutcome(
+    DateTime day,
+    String itemKey,
+    String? status, {
+    int? minutes,
+  }) => throw UnimplementedError();
 }

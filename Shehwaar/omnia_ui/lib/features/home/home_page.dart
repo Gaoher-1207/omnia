@@ -1,10 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:omnia_ui/features/assistant/widgets/ask_omnia_button.dart';
+import 'package:omnia_ui/core/widgets/omnia_icon_button.dart';
 import 'package:omnia_ui/core/auth/auth_controller.dart';
 import 'package:omnia_ui/core/widgets/info_dialog.dart';
 import 'package:omnia_ui/core/widgets/state_views.dart';
-import 'package:omnia_ui/features/assistant/assistant_page.dart';
 import 'package:omnia_ui/features/home/dashboard_controller.dart';
 import 'package:omnia_ui/features/home/dashboard_format.dart';
 import 'package:omnia_ui/features/home/domain/dashboard.dart';
@@ -75,7 +76,8 @@ class HomePage extends StatelessWidget {
       onRefresh: () => _refresh(context, controller),
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(18),
+        // The last item can scroll clear of the floating Ask OmniAI button.
+        padding: EdgeInsets.fromLTRB(18, 18, 18, askOmniaClearance(context)),
         children: [
           Row(
             children: [
@@ -95,16 +97,12 @@ class HomePage extends StatelessWidget {
                   ),
                 ),
               ),
-              IconButton.filledTonal(
+              OmniaIconButton(
                 tooltip: 'Settings',
+                icon: Icons.settings_outlined,
                 onPressed: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const SettingsPage()),
-                ),
-                icon: const Icon(Icons.settings_outlined),
-                style: IconButton.styleFrom(
-                  backgroundColor: context.actionBackground,
-                  foregroundColor: context.actionForeground,
                 ),
               ),
             ],
@@ -246,8 +244,6 @@ class HomePage extends StatelessWidget {
                 ],
               ),
             ),
-          const SizedBox(height: 10),
-          const _AskOmniaEntry(),
           const SizedBox(height: 18),
           const GoalsPreview(),
           const SizedBox(height: 10),
@@ -454,43 +450,4 @@ class _TodayNextUpState extends State<_TodayNextUp> {
       ),
     );
   }
-}
-
-/// Opens Ask OmniAI, the read-only assistant for questions about today.
-class _AskOmniaEntry extends StatelessWidget {
-  const _AskOmniaEntry();
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    button: true,
-    child: HardCard(
-      color: paper,
-      shadowOffset: const Offset(2, 3),
-      onTap: () => AssistantPage.open(context),
-      child: Row(
-        children: [
-          const Icon(Icons.chat_bubble_outline_rounded),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Ask OmniAI',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'What should I prioritize tonight?',
-                  style: TextStyle(color: context.mutedForeground),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          const Icon(Icons.chevron_right_rounded),
-        ],
-      ),
-    ),
-  );
 }

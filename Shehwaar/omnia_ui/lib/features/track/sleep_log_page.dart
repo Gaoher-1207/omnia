@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:omnia_ui/core/api/api_exception.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/core/widgets/area_header.dart';
+import 'package:omnia_ui/core/widgets/number_wheel.dart';
 import 'package:omnia_ui/core/widgets/section_header.dart';
 import 'package:omnia_ui/core/widgets/select_field.dart';
 import 'package:omnia_ui/core/widgets/solid_action.dart';
@@ -41,8 +41,10 @@ const _qualities = {1: 'Awful', 2: 'Poor', 3: 'OK', 4: 'Good', 5: 'Great'};
 
 class _SleepLogPageState extends State<SleepLogPage> {
   final _form = GlobalKey<FormState>();
-  final _hours = TextEditingController();
-  final _minutes = TextEditingController();
+  // Chosen on two wheels. Nothing counts as chosen until a wheel moves (or a
+  // stored entry fills them), so an untouched form can't save 0 by accident.
+  int _hours = 0, _minutes = 0;
+  bool _chosen = false;
   int? _quality;
 
   /// The stored entry, whose bedtime and wake time are sent back unchanged.
@@ -55,13 +57,6 @@ class _SleepLogPageState extends State<SleepLogPage> {
   void initState() {
     super.initState();
     _load();
-  }
-
-  @override
-  void dispose() {
-    _hours.dispose();
-    _minutes.dispose();
-    super.dispose();
   }
 
   Future<void> _load() async {
@@ -77,8 +72,9 @@ class _SleepLogPageState extends State<SleepLogPage> {
       setState(() {
         _entry = entry;
         if (entry != null) {
-          _hours.text = '${entry.durationMinutes ~/ 60}';
-          _minutes.text = '${entry.durationMinutes % 60}';
+          _hours = entry.durationMinutes ~/ 60;
+          _minutes = entry.durationMinutes % 60;
+          _chosen = true;
           _quality = entry.quality;
         }
         _loading = false;
@@ -93,11 +89,7 @@ class _SleepLogPageState extends State<SleepLogPage> {
     }
   }
 
-  int? get _total {
-    final hours = _hours.text.trim(), minutes = _minutes.text.trim();
-    if (hours.isEmpty && minutes.isEmpty) return null;
-    return (int.tryParse(hours) ?? 0) * 60 + (int.tryParse(minutes) ?? 0);
-  }
+  int? get _total => _chosen ? _hours * 60 + _minutes : null;
 
   Future<void> _run(
     Future<TrackSave> Function(TrackController track) change,
@@ -168,30 +160,21 @@ class _SleepLogPageState extends State<SleepLogPage> {
     await _run((track) => track.deleteSleep(widget.day), 'Sleep entry removed');
   }
 
-  String? _validateHours(String? _) {
+  String? _validateDuration(int? _) {
     final total = _total;
-    if (total == null) return 'Enter how long you slept';
-    final hours = int.tryParse(_hours.text.trim()) ?? 0;
-    if (hours > 24 || total > 24 * 60) return 'At most 24 hours';
+    if (total == null) return 'Choose how long you slept';
+    if (total > 24 * 60) return 'At most 24 hours';
     return null;
   }
 
-  String? _validateMinutes(String? text) {
-    final minutes = int.tryParse(text?.trim() ?? '') ?? 0;
-    return minutes > 59 ? 'Enter 0 to 59' : null;
-  }
+  void _set({int? hours, int? minutes}) => setState(() {
+    _hours = hours ?? _hours;
+    _minutes = minutes ?? _minutes;
+    _chosen = true;
+  });
 
-  Widget _number(
-    TextEditingController controller,
-    String label,
-    FormFieldValidator<String> validator,
-  ) => TextFormField(
-    controller: controller,
-    keyboardType: TextInputType.number,
-    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-    decoration: InputDecoration(labelText: label, errorMaxLines: 3),
-    validator: validator,
-  );
+  static final _hourValues = [for (var h = 0; h <= 24; h++) h];
+  static final _minuteValues = [for (var m = 0; m < 60; m++) m];
 
   @override
   Widget build(BuildContext context) {
@@ -230,15 +213,74 @@ class _SleepLogPageState extends State<SleepLogPage> {
                   ),
                   const SizedBox(height: 24),
                   const SectionHeader('How long you slept'),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: _number(_hours, 'Hours', _validateHours)),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _number(_minutes, 'Minutes', _validateMinutes),
-                      ),
-                    ],
+                  FormField<int>(
+                    validator: _validateDuration,
+                    builder: (field) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // The chosen value, always in view (and read out).
+                        Semantics(
+                          liveRegion: true,
+                          child: Text(
+                            _chosen
+                                ? formatMinutes(_hours * 60 + _minutes)
+                                : 'Not chosen yet',
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w900,
+                              color: _chosen
+                                  ? context.foreground
+                                  : context.mutedForeground,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Scroll the hours and minutes.',
+                          style: TextStyle(color: context.mutedForeground),
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 14,
+                          runSpacing: 12,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            _Labelled(
+                              label: 'Hours',
+                              child: NumberWheel(
+                                label: 'Hours slept',
+                                values: _hourValues,
+                                value: _hours,
+                                format: (h) => '$h h',
+                                onChanged: (h) {
+                                  _set(hours: h);
+                                  field.didChange(_total);
+                                },
+                              ),
+                            ),
+                            _Labelled(
+                              label: 'Minutes',
+                              child: NumberWheel(
+                                label: 'Minutes slept',
+                                values: _minuteValues,
+                                value: _minutes,
+                                format: (m) => '$m min',
+                                width: 96,
+                                onChanged: (m) {
+                                  _set(minutes: m);
+                                  field.didChange(_total);
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (field.errorText case final error?)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(error, style: TextStyle(color: danger)),
+                          ),
+                      ],
+                    ),
                   ),
                   if (_error?.fieldMessage('duration_minutes') case final m?)
                     Padding(
@@ -293,4 +335,23 @@ class _SleepLogPageState extends State<SleepLogPage> {
             ),
     );
   }
+}
+
+class _Labelled extends StatelessWidget {
+  const _Labelled({required this.label, required this.child});
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      ExcludeSemantics(
+        child: Text(label.toUpperCase(), style: OmniaText.label),
+      ),
+      const SizedBox(height: 6),
+      child,
+    ],
+  );
 }

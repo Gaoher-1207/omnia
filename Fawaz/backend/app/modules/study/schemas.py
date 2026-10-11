@@ -94,6 +94,10 @@ class BacklogOut(ORMModel):
 # Study sessions
 class SessionCreate(InputModel):
     duration_minutes: int = Field(ge=1, le=720)
+    source: Literal["manual", "focus"] = Field(
+        default="manual", description="`focus` for a finished Focus phase; plan credits are made by the server"
+    )
+    started_at: datetime | None = Field(default=None, description="When the time started (Focus phases)")
     subject_id: uuid.UUID | None = None
     backlog_item_id: uuid.UUID | None = None
     session_date: date | None = Field(default=None, description="Defaults to today in your timezone")
@@ -105,6 +109,8 @@ class SessionOut(ORMModel):
     id: uuid.UUID
     session_date: date
     duration_minutes: int
+    source: Literal["manual", "focus", "plan"] = "manual"
+    started_at: datetime | None = None
     notes: str | None
     backlog_item_id: uuid.UUID | None
     subject: SubjectRef | None

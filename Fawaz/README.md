@@ -7,6 +7,7 @@ The FastAPI + PostgreSQL API for OMNIA: study, tasks, fitness, sleep and food, p
 ```
 Fawaz/
   backend/               FastAPI API, migrations, tests
+  docs/OPERATIONS.md     releases, migrations, rollback, backups, secrets, monitoring
   docs/API.md            every endpoint, request and response
   docs/ARCHITECTURE.md   how the pieces fit, data model, security
   docs/INTEGRATION.md    how the app talks to the API; setup per platform; troubleshooting

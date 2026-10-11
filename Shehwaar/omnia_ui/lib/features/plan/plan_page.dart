@@ -1,5 +1,6 @@
 import 'package:omnia_ui/features/plan/widgets/daily_plan_view.dart';
 import 'package:flutter/material.dart';
+import 'package:omnia_ui/features/assistant/widgets/ask_omnia_button.dart';
 import 'package:omnia_ui/core/app_dependencies.dart';
 import 'package:omnia_ui/core/widgets/section_header.dart';
 import 'package:omnia_ui/core/widgets/state_views.dart';
@@ -14,6 +15,7 @@ import 'package:omnia_ui/core/widgets/info_dialog.dart';
 import 'package:omnia_ui/core/widgets/label_tag.dart';
 import 'package:omnia_ui/core/widgets/omnia_mark.dart';
 import 'package:omnia_ui/core/widgets/solid_action.dart';
+import 'package:omnia_ui/features/plan/plan_controller.dart';
 import 'package:omnia_ui/features/plan/plan_item.dart';
 import 'package:omnia_ui/features/plan/widgets/timeline_row.dart';
 
@@ -31,13 +33,17 @@ class _PlanPageState extends State<PlanPage> {
   @override
   Widget build(BuildContext context) {
     final sample = AppDependenciesScope.of(context).sampleContent;
-    if (!sample) {
-      return DailyPlanView(today: DashboardScope.of(context).dashboard?.date);
+    final day = DashboardScope.of(context).dashboard?.date;
+    final plans = PlanScope.maybeOf(context);
+    // Mock mode shows the sample day until the user plans a day by hand.
+    if (!sample ||
+        plans != null && (plans.plan != null || plans.selectedDate != null)) {
+      return DailyPlanView(today: day);
     }
     final items = sample ? samplePlan : const <PlanItem>[];
-    final day = DashboardScope.of(context).dashboard?.date;
     return ListView(
-      padding: const EdgeInsets.all(18),
+      // The last item can scroll clear of the floating Ask OmniAI button.
+      padding: EdgeInsets.fromLTRB(18, 18, 18, askOmniaClearance(context)),
       children: [
         Center(
           child: Semantics(
@@ -59,6 +65,7 @@ class _PlanPageState extends State<PlanPage> {
             style: OmniaText.meta.copyWith(color: context.mutedForeground),
           ),
         ),
+        if (day != null && plans != null) AddToPlanButton(day: day, today: day),
         const SizedBox(height: 22),
         if (items.isEmpty) ...[
           const EmptyCard(

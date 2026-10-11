@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:omnia_ui/core/widgets/number_wheel.dart';
 import 'package:omnia_ui/app.dart';
 import 'package:omnia_ui/core/api/api_client.dart';
 import 'package:omnia_ui/core/api/api_exception.dart';
@@ -25,6 +26,7 @@ import 'package:omnia_ui/features/track/track_controller.dart';
 import 'package:omnia_ui/features/areas/areas_page.dart';
 
 import 'support/fake_auth_backend.dart';
+import 'support/wheel.dart';
 import 'support/select.dart';
 
 const sam = 'sam@example.com', ada = 'ada@example.com';
@@ -165,6 +167,10 @@ class _GatedTrack implements TrackRepository {
     await gate.future;
     return _inner.saveActivity(activity);
   }
+
+  @override
+  Future<ActivityHistory> activityHistory(DateTime from, DateTime to) =>
+      _inner.activityHistory(from, to);
 
   @override
   Future<SleepEntry?> getSleep(DateTime day) => _inner.getSleep(day);
@@ -562,8 +568,10 @@ void main() {
 
       await tapCard(tester, 'Sleep');
       expect(find.byType(SleepLogPage), findsOneWidget);
-      expect(find.text('7'), findsOneWidget);
-      expect(find.text('30'), findsOneWidget);
+      // The stored duration is on the wheels and in the readout.
+      expect(find.text('7h 30m'), findsOneWidget);
+      expect(tester.widget<NumberWheel>(wheel('Hours slept')).value, 7);
+      expect(tester.widget<NumberWheel>(wheel('Minutes slept')).value, 30);
       expect(find.text('4 · Good'), findsOneWidget);
       expect(
         find.text(
@@ -572,8 +580,9 @@ void main() {
         findsOneWidget,
       );
 
-      await enter(tester, 'Hours', '8');
-      await enter(tester, 'Minutes', '15');
+      await spinTo(tester, 'Hours slept', 8);
+      await spinTo(tester, 'Minutes slept', 15);
+      expect(find.text('8h 15m'), findsOneWidget);
       await save(tester);
       final (path, body) = lastPut(server);
       expect(path, '/sleep/$today');
@@ -595,7 +604,8 @@ void main() {
       await tapCard(tester, 'Sleep');
       expect(find.textContaining('not logged yet'), findsOneWidget);
       expect(find.text('Remove entry'), findsNothing);
-      await enter(tester, 'Hours', '6');
+      expect(find.text('Not chosen yet'), findsOneWidget);
+      await spinTo(tester, 'Hours slept', 6);
       await save(tester);
       expect(lastPut(server).$2, {
         'duration_minutes': 360,
@@ -686,11 +696,11 @@ void main() {
 
       await tapCard(tester, 'Sleep');
       await save(tester);
-      expect(find.text('Enter how long you slept'), findsOneWidget);
-      await enter(tester, 'Hours', '7');
-      await enter(tester, 'Minutes', '75');
+      expect(find.text('Choose how long you slept'), findsOneWidget);
+      await spinTo(tester, 'Hours slept', 24);
+      await spinTo(tester, 'Minutes slept', 30);
       await save(tester);
-      expect(find.text('Enter 0 to 59'), findsOneWidget);
+      expect(find.text('At most 24 hours'), findsOneWidget);
       expect(server.trackPuts, isEmpty);
     });
 
@@ -710,7 +720,7 @@ void main() {
       final server = backend();
       await startApp(tester, server);
       await tapCard(tester, 'Sleep');
-      await enter(tester, 'Hours', '7');
+      await spinTo(tester, 'Hours slept', 7);
       server.dashboardDown = true;
       await save(tester);
       expect(find.byType(SleepLogPage), findsNothing, reason: 'it saved');
@@ -816,8 +826,11 @@ void main() {
             await tapCard(tester, name);
             expect(tester.takeException(), isNull);
             for (var i = 0; i < 8; i++) {
-              await tester.drag(
-                find.byType(ListView).last,
+              // Scroll the page beside the form controls: dragging on a
+              // number wheel spins the wheel instead.
+              final page = tester.getRect(find.byType(ListView).last);
+              await tester.dragFrom(
+                Offset(page.right - 8, page.center.dy),
                 const Offset(0, -300),
               );
               await tester.pumpAndSettle();

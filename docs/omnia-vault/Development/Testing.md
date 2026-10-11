@@ -51,7 +51,7 @@ cd Fawaz/backend && ruff check . && pytest
 - **Backend** (`Fawaz/backend`): `ruff check .`, `ruff format --check .`, `pytest` on SQLite and again on a PostgreSQL 16 service, and `alembic upgrade head` → `alembic check` → `alembic downgrade base` → `alembic upgrade head` on both databases.
 - **Frontend** (`Shehwaar/omnia_ui`): `flutter pub get`, `flutter analyze`, `flutter test`, and `flutter build web --release`.
 
-Any failing step fails the run; nothing is allowed to fail silently. `Fawaz/backend/tests/test_ci_workflow.py` fails if a gate is removed or a failure is swallowed.
+Any failing step fails the run; nothing is allowed to fail silently. The first run (#38130470928) failed at the PostgreSQL tests because the `commitments.enabled` model had an integer default; that is fixed and guarded (`test_model_server_defaults_are_valid_postgresql`), and the PostgreSQL steps now pass locally against PostgreSQL 16.2. A green GitHub run still needs a push. `Fawaz/backend/tests/test_ci_workflow.py` fails if a gate is removed or a failure is swallowed.
 
 ## Phase 3
 

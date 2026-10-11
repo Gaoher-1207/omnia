@@ -10,6 +10,7 @@ import 'package:omnia_ui/core/data/mock_data.dart';
 import 'package:omnia_ui/features/assistant/data/api_assistant_repository.dart';
 import 'package:omnia_ui/features/assistant/data/mock_assistant_repository.dart';
 import 'package:omnia_ui/features/assistant/domain/assistant_repository.dart';
+import 'package:omnia_ui/features/goals/data/api_goal_repository.dart';
 import 'package:omnia_ui/features/goals/data/mock_goal_repository.dart';
 import 'package:omnia_ui/features/goals/domain/goal_repository.dart';
 import 'package:omnia_ui/features/home/data/api_dashboard_repository.dart';
@@ -65,17 +66,16 @@ class AppDependencies {
     );
   }
 
-  /// API mode: tasks, the dashboard, activity, sleep, study subjects and
-  /// exams, and Ask Omnia's answers come from the backend. Goals stay
-  /// in-memory until their own integration phase, and start empty: the
-  /// user's, never the demo's. The
+  /// API mode: tasks, long-term goals, the dashboard, activity, sleep,
+  /// study subjects and exams, plans, and Ask Omnia's answers come from the
+  /// backend. The
   /// demo revision session has no backend twin; screens hide it while
   /// [sampleContent] is false.
   factory AppDependencies.api(ApiClient api) {
     final local = AppDependencies.mock();
     return AppDependencies(
       tasks: ApiTaskRepository(api),
-      goals: MockGoalRepository(seed: const []),
+      goals: ApiGoalRepository(api),
       study: ApiStudyRepository(api),
       revision: local.revision,
       dashboard: ApiDashboardRepository(api),
@@ -114,6 +114,10 @@ class AppDependenciesScope extends InheritedWidget {
   static AppDependencies of(BuildContext context) => context
       .dependOnInheritedWidgetOfExactType<AppDependenciesScope>()!
       .dependencies;
+
+  static AppDependencies? maybeOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<AppDependenciesScope>()
+      ?.dependencies;
 
   @override
   bool updateShouldNotify(AppDependenciesScope oldWidget) =>

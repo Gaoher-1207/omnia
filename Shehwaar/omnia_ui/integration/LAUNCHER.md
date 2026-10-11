@@ -9,12 +9,14 @@ Machine settings live in `integration/.env.launcher` (git-ignored). If absent,
 `launcher.env.example` is used. Change **ASSISTANT_MODEL** in the local file to
 an already installed Ollama model, then stop the backend with Ctrl+C and restart
 the launcher. Only process-local environment variables are set; backend `.env`
-still supplies database, authentication and other application settings. This uses
-the current assistant configuration interface; it does not refactor OmniAI or
-change the separate planner/photo AI provider.
+still supplies database, authentication and other application settings. For the
+local demo the launcher also sets `PLANNER_AI_PROVIDER=ollama`, so daily plans and
+"Adjust today's plan" use the same local model as Ask OmniAI. Deployments choose
+their own provider (see `Fawaz/backend/docs/adaptive-replanning.md`).
 
 The launcher validates paths, reads the Android SDK from `android/local.properties`,
-starts/reuses Ollama, polls `/api/tags`, and checks the selected model exists.
+starts/reuses Ollama, polls `/api/tags`, checks the selected model exists, and
+preloads it (`keep_alive` 30 minutes) so the first AI request doesn't wait for it.
 It starts the backend with `.venv/Scripts/python.exe -m alembic upgrade head`,
 then `-m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000`, from
 `Fawaz/backend`. Migrations are the documented normal startup procedure and may

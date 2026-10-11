@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.time import local_now
 from app.modules.activity.service import get_day as activity_on
-from app.modules.ai.service import latest_plan, plan_out
+from app.modules.ai.service import latest_plan, plan_out_for
 from app.modules.dashboard.schemas import DashboardOut, NextExam, TodaySummary
 from app.modules.nutrition.service import meals_on, totals
 from app.modules.progress.service import STREAK_LOOKBACK_DAYS, compute_streaks, daily_facts
@@ -67,5 +67,5 @@ def dashboard(db: Session, user: User) -> DashboardOut:
         next_exam=next_exam,
         upcoming_tasks=open_tasks_for_planning(db, user.id, limit=5),
         study_today=study_service.study_plan(db, user, days=1).days[0].blocks,
-        ai_plan=plan_out(plan) if plan else None,
+        ai_plan=plan_out_for(db, plan) if plan else None,
     )

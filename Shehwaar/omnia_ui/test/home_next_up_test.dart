@@ -101,6 +101,34 @@ void main() {
     },
   );
 
+  test('blocks recorded as done or skipped are no longer Next up', () async {
+    final backend = FakeAuthBackend()
+      ..addUser('Sam', email, 'password-123', signedIn: true)
+      ..dashboardDate = '2026-09-28'
+      ..dashboardOffsetMinutes = 330;
+    backend.plans[email] = {
+      ...payload,
+      'plan_date': '2026-09-28',
+      'items': [
+        {...item('Workout', '08:00', '09:00'), 'outcome': 'done'},
+        {...item('Reading', '09:00', '10:00'), 'outcome': 'skipped'},
+        {...item('Essay', '10:00', '11:00'), 'outcome': 'partial'},
+      ],
+    };
+    final api = backend.client();
+    addTearDown(api.close);
+    await api.restoreToken();
+    final dashboard = await ApiDashboardRepository(api).getDashboard();
+    // 08:30 local: the in-progress workout is done, the reading skipped.
+    final next = nextUp(
+      dashboard,
+      dashboard.aiPlan,
+      DateTime.utc(2026, 9, 28, 3, 0),
+    );
+    expect(next?.item.title, 'Essay');
+    expect(next?.inProgress, isFalse);
+  });
+
   for (final source in ['ollama', 'rules']) {
     testWidgets('Today reads $source suggestion from shared session snapshot', (
       tester,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:omnia_ui/features/study/domain/study_log.dart';
 import 'package:omnia_ui/core/api/api_exception.dart';
 import 'package:omnia_ui/core/app_dependencies.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
@@ -150,6 +151,27 @@ class _StudyPageState extends State<StudyPage> {
               detail: 'Timed study blocks with breaks.',
             ),
             const FocusTimerEntry(),
+            const SizedBox(height: 24),
+            const SectionHeader(
+              'Recent study',
+              detail: 'Last two weeks, from Focus, check-offs and logs.',
+            ),
+            if (!study.loaded && study.loadError == null)
+              const SizedBox.shrink()
+            else if (study.recentError != null && study.recent.isEmpty)
+              Text(
+                "Couldn't load your study history. Pull down to try again.",
+                style: TextStyle(color: context.mutedForeground),
+              )
+            else if (study.recent.isEmpty)
+              const EmptyCard(
+                title: 'No study logged yet.',
+                detail:
+                    'Finish a Focus session or check off a study block in '
+                    'your plan.',
+              )
+            else
+              for (final entry in study.recent.take(8)) _StudyLogRow(entry),
             if (sample) ...[
               const SizedBox(height: 24),
               const SectionHeader('Revision', action: LabelTag(text: 'SAMPLE')),
@@ -207,6 +229,50 @@ class _StudyPageState extends State<StudyPage> {
     }
     return isEmpty ? [empty] : items;
   }
+}
+
+class _StudyLogRow extends StatelessWidget {
+  const _StudyLogRow(this.entry);
+  final StudyLog entry;
+
+  static String _source(StudySource source) => switch (source) {
+    StudySource.plan => 'Plan check-off',
+    StudySource.focus => 'Focus',
+    StudySource.manual => 'Logged',
+  };
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: MergeSemantics(
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  entry.subjectName ?? 'Study',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+                Text(
+                  '${formatLongDate(entry.day)}  ·  ${_source(entry.source)}',
+                  style: OmniaText.meta.copyWith(
+                    color: context.mutedForeground,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            formatMinutes(entry.minutes),
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _AddButton extends StatelessWidget {

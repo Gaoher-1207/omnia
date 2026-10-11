@@ -13,6 +13,7 @@ import 'package:omnia_ui/features/assistant/assistant_controller.dart';
 import 'package:omnia_ui/features/assistant/assistant_rich_text.dart';
 import 'package:omnia_ui/features/assistant/domain/assistant_message.dart';
 import 'package:omnia_ui/features/assistant/domain/assistant_repository.dart';
+import 'package:omnia_ui/features/assistant/plan_change_offer.dart';
 
 /// Ask OmniAI: questions about the user's day, answered from their OMNIA data.
 /// Read-only; the conversation belongs to the session's [AssistantController].
@@ -175,9 +176,13 @@ class _Conversation extends StatelessWidget {
   Widget build(BuildContext context) {
     final messages = controller.messages;
     final pending = controller.pending;
+    final change = controller.sending || pending != null
+        ? null
+        : PlanChangeOffer.requestFor(context, messages);
     final items = <Widget>[
       for (final (i, message) in messages.indexed)
         _Bubble(message, announce: i == messages.length - 1),
+      if (change != null) PlanChangeOffer(request: change),
       if (pending != null) _Bubble(AssistantMessage.user(pending)),
       if (controller.sending) const _Thinking(),
       if (!controller.sending && controller.error != null)

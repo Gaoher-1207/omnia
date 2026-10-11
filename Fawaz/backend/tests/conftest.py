@@ -48,6 +48,7 @@ CLOCK_TARGETS = (
     "app.core.time.utcnow",
     "app.modules.ai.assistant.utcnow",
     "app.modules.ai.service.utcnow",
+    "app.modules.goals.service.utcnow",
     "app.modules.study.service.utcnow",
     "app.modules.tasks.service.utcnow",
 )

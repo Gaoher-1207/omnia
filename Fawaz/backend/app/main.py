@@ -11,6 +11,7 @@ from app.modules.ai.router import router as ai_router
 from app.modules.auth.router import router as auth_router
 from app.modules.commitments.router import router as commitments_router
 from app.modules.dashboard.router import router as dashboard_router
+from app.modules.goals.router import router as goals_router
 from app.modules.integrations.router import router as integrations_router
 from app.modules.nutrition.router import router as nutrition_router
 from app.modules.progress.router import achievements_router
@@ -68,6 +69,7 @@ def create_app() -> FastAPI:
         profile_router,
         dashboard_router,
         tasks_router,
+        goals_router,
         study_router,
         activity_router,
         progress_router,

@@ -14,6 +14,7 @@ from app.core.rate_limit import limiter
 from app.core.time import local_today
 from app.modules.activity.models import ActivityDay
 from app.modules.ai.models import AIPlan
+from app.modules.goals.models import Goal
 from app.modules.integrations.ics import Calendar
 from app.modules.integrations.models import CalendarFeed
 from app.modules.nutrition.models import Meal
@@ -153,6 +154,7 @@ def export(user: CurrentUser, db: DbSession):
         "account": {"email": user.email, "created_at": user.created_at.isoformat()},
         "profile": ProfileOut.model_validate(user.profile).model_dump(mode="json"),
         "tasks": _rows(db, Task, user.id),
+        "goals": _rows(db, Goal, user.id),
         "subjects": _rows(db, Subject, user.id),
         "exams": _rows(db, Exam, user.id),
         "backlog": _rows(db, BacklogItem, user.id),

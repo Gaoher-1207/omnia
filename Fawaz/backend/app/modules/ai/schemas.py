@@ -8,6 +8,7 @@ from app.common.schemas import InputModel, Text
 from app.modules.commitments.schemas import IntervalOut
 
 Category = Literal["study", "task", "fitness", "break", "recovery", "other"]
+OutcomeStatus = Literal["done", "partial", "skipped"]
 _HHMM = r"^([01]\d|2[0-3]):[0-5]\d$"
 
 
@@ -61,6 +62,19 @@ class ContextCommitment(BaseModel):
     end_minutes: int
 
 
+class ContextOutcome(BaseModel):
+    """A block of today's plan whose outcome the user recorded."""
+
+    item_key: str
+    title: str
+    category: str
+    start: str
+    end: str
+    status: OutcomeStatus
+    task_ref: str | None = None
+    study_ref: str | None = None
+
+
 class PlanContext(BaseModel):
     planning_start_minutes: int = 480
     planning_end_minutes: int = 1320
@@ -82,6 +96,8 @@ class PlanContext(BaseModel):
     account_age_days: int = Field(default=30, description="0 on sign-up day, so 'yesterday' means nothing yet")
     last_night_sleep: ContextSleep | None = None
     omitted_tasks: int = 0
+    # What actually happened to today's planned blocks, as recorded by the user.
+    plan_outcomes: list[ContextOutcome] = Field(default_factory=list)
 
 
 # ---- What a provider must return (validated before it reaches the app) ----
@@ -188,6 +204,47 @@ class PlanItemOut(BaseModel):
     detail: str | None = None
     task_id: uuid.UUID | None = None
     subject_id: uuid.UUID | None = Field(default=None, description="For study items: the subject it belongs to")
+    outcome: OutcomeStatus | None = Field(default=None, description="What the user recorded for this block")
+    outcome_minutes: int | None = Field(default=None, description="Minutes actually done, for a partly done block")
+    manual: bool = Field(default=False, description="Added by the user; planners work around it and never move it")
+
+
+class ManualPlanItemIn(InputModel):
+    """A block the user adds to a day's plan by hand. Task and study titles come from the linked record."""
+
+    category: Category
+    start: str = Field(pattern=_HHMM)
+    duration_minutes: int = Field(ge=5, le=720)
+    title: Text(120) | None = None
+    task_id: uuid.UUID | None = None
+    subject_id: uuid.UUID | None = None
+    base_revision: int | None = Field(
+        default=None, ge=1, description="The plan revision the client is showing; 409 `plan_stale` if it changed"
+    )
+
+    @model_validator(mode="after")
+    def _links_match_category(self):
+        if self.category == "task":
+            if self.task_id is None or self.subject_id is not None:
+                raise ValueError("A task block needs task_id (and no subject_id)")
+        elif self.category == "study":
+            if self.subject_id is None or self.task_id is not None:
+                raise ValueError("A study block needs subject_id (and no task_id)")
+        elif self.task_id is not None or self.subject_id is not None:
+            raise ValueError("Only task and study blocks link to a task or subject")
+        elif not self.title:
+            raise ValueError("A title is required")
+        return self
+
+
+class PlanOutcomeIn(InputModel):
+    status: OutcomeStatus
+    minutes: int | None = Field(
+        default=None,
+        ge=1,
+        le=720,
+        description="Partly done only: the minutes actually done (less than the block). Study blocks earn these.",
+    )
 
 
 class ReplanProposalOut(BaseModel):

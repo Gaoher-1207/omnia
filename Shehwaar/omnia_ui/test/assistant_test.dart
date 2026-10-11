@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:omnia_ui/features/assistant/widgets/ask_omnia_button.dart';
 import 'package:omnia_ui/core/api/api_exception.dart';
 import 'package:omnia_ui/core/app_dependencies.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
@@ -13,9 +14,8 @@ import 'package:omnia_ui/features/assistant/assistant_rich_text.dart';
 import 'package:omnia_ui/features/assistant/data/mock_assistant_repository.dart';
 import 'package:omnia_ui/features/assistant/domain/assistant_message.dart';
 import 'package:omnia_ui/features/assistant/domain/assistant_repository.dart';
-import 'package:omnia_ui/features/home/home_page.dart';
 
-import 'track_logging_test.dart' show reveal, startApp;
+import 'track_logging_test.dart' show startApp;
 
 /// Answers only when the test says so, and records what it was asked.
 class ScriptedAssistant implements AssistantRepository {
@@ -70,10 +70,9 @@ Widget host(
 
 Finder get composer => find.byType(TextField);
 
+/// The floating Ask OmniAI button over the main tabs.
 Future<void> openAssistant(WidgetTester tester) async {
-  final entry = find.text('Ask OmniAI');
-  await reveal(tester, HomePage, entry);
-  await tester.tap(entry);
+  await tester.tap(find.byType(AskOmniaButton));
   await tester.pumpAndSettle();
 }
 

@@ -1,6 +1,6 @@
 # Backend stack for the Flutter app: PostgreSQL + API on http://localhost:8000/api
 # 1. cp .env.example .env and fill in the values
-# 2. docker compose up --build
+# 2. docker compose up --build   (runs the one-off `migrate` step, then starts the API)
 # 3. optional demo data: docker compose exec backend python -m app.scripts.seed
 # Then run the Flutter app from Shehwaar/omnia_ui (see README) pointing at http://localhost:8000/api.
 
@@ -19,6 +19,20 @@ services:
       retries: 10
     # No published port: the database is only reachable from the backend.
 
+  # Release step: applies migrations once, then exits. The API waits for it to succeed
+  # and never migrates on its own (see docs/OPERATIONS.md).
+  migrate:
+    build: ./backend
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      DATABASE_URL: postgresql+psycopg://omnia:${POSTGRES_PASSWORD}@db:5432/omnia
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
   backend:
     build: ./backend
     environment:
@@ -35,6 +49,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/ready')"]
       interval: 10s

@@ -9,7 +9,7 @@ backend_connected: true
 # AI Assistant
 
 > [!info] What exists today
-> **Ask Omnia** (`ed47dac`) is a read-only, context-aware assistant: in API mode it calls `POST /ai/chat` and answers from the user's own data; it never creates, edits or applies anything. AI **planning** lives in [[Plan]]: the daily plan (AI-assisted with a deterministic rules fallback) and adaptive replanning proposals that change nothing until the user taps Apply. Mock mode uses canned sample answers. Cross-domain learning and recommendations below are still vision.
+> **Ask Omnia** (`ed47dac`) opens from a floating "Ask OmniAI" button above the navigation bar on all four main tabs (`features/assistant/widgets/ask_omnia_button.dart`); there is no Today card any more. It is a read-only, context-aware assistant: in API mode it calls `POST /ai/chat` and answers from the user's own data; it never creates, edits or applies anything. AI **planning** lives in [[Plan]]: the daily plan (AI-assisted with a deterministic rules fallback) and adaptive replanning proposals that change nothing until the user taps Apply. Mock mode uses canned sample answers. Cross-domain learning and recommendations below are still vision.
 
 ## What exists in the backend today
 

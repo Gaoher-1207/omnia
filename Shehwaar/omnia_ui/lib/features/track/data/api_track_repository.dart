@@ -24,6 +24,28 @@ class ApiTrackRepository implements TrackRepository {
         ),
       );
 
+  /// `GET /activity?from&to` answers every day in the range; days without a
+  /// stored row come back as placeholders with no `id`, so they are dropped
+  /// here rather than shown as zero.
+  @override
+  Future<ActivityHistory> activityHistory(DateTime from, DateTime to) async {
+    final json = asMap(
+      await _api.get(
+        '/activity',
+        query: {'from': formatDay(from), 'to': formatDay(to)},
+      ),
+    );
+    return ActivityHistory(
+      from: from,
+      to: to,
+      stepGoal: json['step_goal'] as int,
+      logged: [
+        for (final day in asMapList(json['days']))
+          if (day['id'] != null) activityFromApi(day),
+      ],
+    );
+  }
+
   @override
   Future<SleepEntry?> getSleep(DateTime day) async =>
       sleepFromApi(asMap(await _api.get('/sleep/${formatDay(day)}')));

@@ -29,6 +29,23 @@ class MockTrackRepository implements TrackRepository {
       _activity[formatDay(activity.day)] = activity.normalized();
 
   @override
+  Future<ActivityHistory> activityHistory(DateTime from, DateTime to) async {
+    final first = DateTime(from.year, from.month, from.day);
+    final last = DateTime(to.year, to.month, to.day);
+    return ActivityHistory(
+      from: first,
+      to: last,
+      stepGoal: stepGoal,
+      logged: _activity.values.where(
+        (day) => !day.day.isBefore(first) && !day.day.isAfter(last),
+      ),
+    );
+  }
+
+  /// The sample profile's target (see `MockData`).
+  static const stepGoal = 8000;
+
+  @override
   Future<SleepEntry?> getSleep(DateTime day) async => _sleep[formatDay(day)];
 
   @override

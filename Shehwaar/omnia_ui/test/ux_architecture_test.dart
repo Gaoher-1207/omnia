@@ -20,6 +20,7 @@ import 'package:omnia_ui/features/tasks/tasks_page.dart';
 import 'support/select.dart';
 import 'track_logging_test.dart'
     show backend, lastPut, reveal, sam, save, startApp, tapCard, today;
+import 'support/wheel.dart';
 
 Future<void> openTab(WidgetTester tester, String name) async {
   await tester.tap(find.text(name).last);
@@ -194,20 +195,21 @@ void main() {
     testWidgets('Insights invents nothing', (tester) async {
       await startApp(tester, backend());
       await openTab(tester, 'Insights');
-      expect(find.text('No insights yet'), findsOneWidget);
+      // Nothing logged: an honest empty state, never zeros or sample charts.
+      expect(find.text('Nothing logged this week yet.'), findsOneWidget);
+      expect(find.text('Workouts'.toUpperCase()), findsNothing);
       expect(find.textContaining('SAMPLE'), findsNothing);
     });
 
-    testWidgets('Goals start empty and say they are not synced', (
-      tester,
-    ) async {
+    testWidgets('Goals come from the account and start empty', (tester) async {
       await startApp(tester, backend());
       await openTab(tester, 'Areas');
       expect(find.text('0 active'), findsOneWidget);
       await tapCard(tester, 'Goals', page: AreasPage);
       expect(find.text('No goals yet'), findsOneWidget);
       expect(find.text('Finish DBMS chapters'), findsNothing);
-      expect(find.textContaining('aren’t synced'), findsOneWidget);
+      // Saved to the account now: no "not saved" sample-mode warning.
+      expect(find.textContaining('aren’t saved'), findsNothing);
     });
 
     testWidgets('Study shows the real exam and no demo revision', (
@@ -265,7 +267,7 @@ void main() {
       final server = backend();
       await startApp(tester, server);
       await tapCard(tester, 'Sleep');
-      await tester.enterText(find.widgetWithText(TextFormField, 'Hours'), '7');
+      await spinTo(tester, 'Hours slept', 7);
       await pick(tester, 'How did you sleep?', '5 · Great');
       expect(find.text('5 · Great'), findsOneWidget);
       await save(tester);

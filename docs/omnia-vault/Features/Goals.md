@@ -1,9 +1,9 @@
 ---
 type: feature
-status: local-functional
+status: api-connected
 frontend: canonical
 backend_available: false
-backend_connected: false
+backend_connected: true
 donor: false
 aliases: [Long-term Goals]
 ---
@@ -42,7 +42,7 @@ Completion is always the **user's decision**. Reaching the target doesn't comple
 
 ## Backend
 
-**None.** `Fawaz/backend` has no long-term goals module or table. The donor's `ApiGoalRepository` targets `/dashboard` and `/profile` daily targets and is **incompatible**. See [[Fawaz Donor Map]].
+**`/api/goals`** (`modules/goals`, migration `0009`, October 11, uncommitted): list, create, get, patch (including completing and reopening) and delete, owner-scoped. Measurable or completion-only is enforced by the API and a database check; completion never changes the values. In API mode the app uses `ApiGoalRepository` (server-assigned ids); mock mode keeps `MockGoalRepository` and says goals aren't saved. Not the profile's [[Daily Targets]].
 
 ## Data Flow
 

@@ -10,7 +10,7 @@ from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
-from sqlalchemy import create_engine
+from sqlalchemy import Boolean, create_engine
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.sql import Select
 
@@ -71,3 +71,17 @@ def test_adaptive_replanning_migration_compiles_for_postgresql(monkeypatch):
     assert "CREATE TABLE replan_proposals" in sql
     assert "UUID NOT NULL" in sql and "TIMESTAMP WITH TIME ZONE" in sql
     assert any(statement.lstrip().startswith("UPDATE ai_plans") for statement in compiled_backfill)
+
+
+def test_model_server_defaults_are_valid_postgresql():
+    """Booleans need TRUE/FALSE defaults: PostgreSQL rejects an integer default such as 1."""
+    dialect = postgresql.dialect()
+    problems = []
+    for table in Base.metadata.sorted_tables:
+        for column in table.columns:
+            if column.server_default is None or not isinstance(column.type, Boolean):
+                continue
+            default = str(column.server_default.arg.compile(dialect=dialect)).strip().lower()
+            if default not in {"true", "false"}:
+                problems.append(f"{table.name}.{column.name} DEFAULT {default}")
+    assert problems == []

@@ -91,9 +91,22 @@ class DailyPlanItem {
       title = json['title'] as String,
       detail = json['detail'] as String?,
       taskId = json['task_id'] as String?,
-      subjectId = json['subject_id'] as String?;
+      subjectId = json['subject_id'] as String?,
+      outcome = json['outcome'] as String?,
+      outcomeMinutes = json['outcome_minutes'] as int?,
+      manual = json['manual'] as bool? ?? false;
   final String start, end, category, title;
+
+  /// Added by the user; planners keep it where it is.
+  final bool manual;
   final String? itemKey;
+
+  /// What the user recorded for this block: `done`, `partial`, `skipped`, or
+  /// null when nothing was recorded (never assumed from the clock).
+  final String? outcome;
+
+  /// Minutes actually done, for a partly done block (null when not given).
+  final int? outcomeMinutes;
   final String? detail, taskId, subjectId;
   int get minutes => _minutes(end) - _minutes(start);
   static int minutesOf(String time) => _minutes(time);

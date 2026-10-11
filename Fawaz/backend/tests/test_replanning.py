@@ -181,7 +181,10 @@ def test_context_change_during_model_call_prevents_proposal_persistence(app, cli
 
 
 @pytest.mark.parametrize("invalid_kind", ["overlap", "unknown_ref", "commitment"])
-def test_invalid_schedule_is_rejected(app, client, headers, fixed_clock, invalid_kind):
+def test_invalid_ai_schedule_is_never_used(app, client, headers, fixed_clock, invalid_kind):
+    """An AI schedule that fails the checks is retried once, then replaced by the
+    validated rules planner, with a warning. It is never stored."""
+
     def transform(items):
         task = next((item for item in items if item["category"] == "task"), None)
         if invalid_kind == "unknown_ref":
@@ -213,8 +216,17 @@ def test_invalid_schedule_is_rejected(app, client, headers, fixed_clock, invalid
         )
     setup_day(client, headers, fixed_clock)
     response = make_proposal(client, headers)
-    assert response.status_code == 422
-    assert client.get("/api/ai/daily-plan", headers=headers).status_code == 200
+    assert response.status_code == 201, response.text
+    body = response.json()
+    assert body["validation"]["fallback_used"] is True
+    assert body["validation"]["attempts"] == 2
+    assert body["validation"]["ai_failure"].startswith("validation:")
+    assert any("didn't pass the schedule checks" in warning for warning in body["warnings"])
+    titles = {item["title"] for item in body["schedule"]}
+    assert "fake" not in titles and "Overlap" not in titles
+    starts = sorted((item["start"], item["end"]) for item in body["schedule"])
+    assert all(a[1] <= b[0] for a, b in zip(starts, starts[1:], strict=False))
+    assert client.get("/api/ai/daily-plan", headers=headers).json()["revision"] == 1
 
 
 def test_explicit_request_intent_is_checked(app, client, headers, fixed_clock):
@@ -230,7 +242,9 @@ def test_explicit_request_intent_is_checked(app, client, headers, fixed_clock):
     ]
 
     rejected = make_proposal(client, headers, "Move Finish assignment to 16:00")
+    # Neither the AI's answer nor the rules planner satisfies "16:00": a clear 422.
     assert rejected.status_code == 422
+    assert "didn't pass the schedule checks" in rejected.json()["error"]["message"]
     assert client.get("/api/ai/daily-plan", headers=headers).json()["revision"] == 1
 
 
@@ -250,7 +264,10 @@ def test_study_work_in_current_plan_cannot_be_removed(app, client, headers, fixe
     plan = setup_day(client, headers, fixed_clock)
     assert any(item["category"] == "study" for item in plan["items"])
     response = make_proposal(client, headers)
-    assert response.status_code == 422
+    # The AI dropped required study, so its answer isn't used; the rules plan keeps it.
+    assert response.status_code == 201, response.text
+    assert response.json()["validation"]["fallback_used"] is True
+    assert any(item["category"] == "study" for item in response.json()["schedule"])
     assert client.get("/api/ai/daily-plan", headers=headers).json()["id"] == plan["id"]
 
 
@@ -390,18 +407,38 @@ def test_chat_remains_read_only(app, client, headers, fixed_clock):
     assert client.get("/api/ai/daily-plan", headers=headers).json()["id"] == plan["id"]
 
 
-def test_ollama_replan_uses_structured_schema():
-    from app.modules.ai.ollama import OllamaPlanProvider
-
-    expected = {
-        "summary": "Keep the plan",
-        "explanation": "No changes are needed.",
-        "items": [],
+def _protocol_payload():
+    return {
+        "request": "Keep the plan",
+        "current_schedule": [
+            {
+                "item_key": "k1",
+                "start": "10:00",
+                "end": "10:30",
+                "category": "task",
+                "title": "Essay",
+                "detail": None,
+                "task_ref": "t1",
+                "study_ref": None,
+            },
+        ],
+        "context": {"open_tasks": [{"ref": "t1", "title": "Essay", "estimated_minutes": 30}], "study_blocks": []},
+        "hard_constraints": {"earliest_start": "09:00", "latest_end": "22:00", "free_intervals": []},
     }
+
+
+def test_ollama_replan_uses_the_compact_edit_schema():
+    from app.modules.ai.ollama import OllamaPlanProvider
+    from app.modules.ai.replan_protocol import EDIT_SCHEMA
+
+    expected = {"summary": "Keep the plan", "explanation": "No changes are needed.", "changes": []}
 
     def handler(request):
         body = json.loads(request.content)
-        assert body["format"]["additionalProperties"] is False
+        assert body["format"] == EDIT_SCHEMA
+        assert body["options"]["num_predict"] == 700
+        assert body["keep_alive"] == "30m"
+        assert "item_key" not in body["messages"][1]["content"]  # short keys only
         return httpx.Response(200, json={"message": {"content": json.dumps(expected)}})
 
     provider = OllamaPlanProvider(
@@ -411,18 +448,21 @@ def test_ollama_replan_uses_structured_schema():
         context_tokens=2048,
         client=httpx.Client(transport=httpx.MockTransport(handler)),
     )
-    assert provider.generate_replan({"request": "Keep the plan"}).summary == expected["summary"]
+    draft = provider.generate_replan(_protocol_payload())
+    assert draft.summary == expected["summary"]
+    assert [(item.start, item.task_ref) for item in draft.items] == [("10:00", "t1")]
 
 
 def test_openrouter_replan_uses_configured_model_and_json_schema():
     from app.modules.ai.openrouter import OpenRouterPlanProvider
 
-    expected = {"summary": "Keep the plan", "explanation": "No changes are needed.", "items": []}
+    expected = {"summary": "Keep the plan", "explanation": "No changes are needed.", "changes": []}
 
     def handler(request):
         body = json.loads(request.content)
         assert body["model"] == "configured/model"
         assert body["response_format"]["type"] == "json_schema"
+        assert body["max_tokens"] == 700
         return httpx.Response(
             200,
             json={"model": "configured/model", "choices": [{"message": {"content": json.dumps(expected)}}]},
@@ -435,7 +475,7 @@ def test_openrouter_replan_uses_configured_model_and_json_schema():
         timeout=1,
         client=httpx.Client(transport=httpx.MockTransport(handler)),
     )
-    assert provider.generate_replan({"request": "Keep the plan"}).summary == expected["summary"]
+    assert provider.generate_replan(_protocol_payload()).summary == expected["summary"]
 
 
 def test_openrouter_replan_rejects_malformed_ai_output():
@@ -455,4 +495,4 @@ def test_openrouter_replan_rejects_malformed_ai_output():
         client=httpx.Client(transport=httpx.MockTransport(handler)),
     )
     with pytest.raises(ProviderError, match="invalid_response"):
-        provider.generate_replan({"request": "Keep the plan"})
+        provider.generate_replan(_protocol_payload())

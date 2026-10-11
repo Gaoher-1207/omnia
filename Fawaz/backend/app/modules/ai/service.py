@@ -2,6 +2,7 @@ import hashlib
 import json
 import logging
 import re
+import time
 import uuid
 from collections import Counter
 from datetime import date, timedelta
@@ -10,10 +11,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.common.planning_lock import lock_planning_state
+from app.core import metrics
 from app.core.config import get_settings
 from app.core.errors import AppError, NotFoundError
 from app.core.rate_limit import limiter
-from app.core.time import local_now, utcnow
+from app.core.time import local_now, local_today, utcnow
+from app.modules.ai import study_credit
 from app.modules.ai.constraints import (
     DEFAULT_TASK_MINUTES,
     hhmm,
@@ -24,7 +27,8 @@ from app.modules.ai.constraints import (
 )
 from app.modules.ai.context import build_context
 from app.modules.ai.explanation import explain_plan
-from app.modules.ai.models import AIPlan, ReplanProposal
+from app.modules.ai.manual import is_manual, manual_items, with_manual
+from app.modules.ai.models import AIPlan, PlanItemOutcome, ReplanProposal
 from app.modules.ai.providers import (
     AnthropicProvider,
     PlanProvider,
@@ -43,6 +47,7 @@ from app.modules.ai.schemas import (
     ReplanProposalOut,
     ReplanRequest,
 )
+from app.modules.tasks.models import Task
 from app.modules.users.models import User
 
 logger = logging.getLogger("omnia.ai")
@@ -80,8 +85,21 @@ def latest_plan(db: Session, user_id: uuid.UUID, plan_date: date) -> AIPlan | No
     )
 
 
-def plan_out(plan: AIPlan) -> AIPlanOut:
+def plan_outcomes(db: Session, user_id: uuid.UUID, plan_date: date) -> dict[str, PlanItemOutcome]:
+    rows = db.scalars(
+        select(PlanItemOutcome).where(PlanItemOutcome.user_id == user_id, PlanItemOutcome.plan_date == plan_date)
+    )
+    return {row.item_key: row for row in rows}
+
+
+def plan_out_for(db: Session, plan: AIPlan) -> AIPlanOut:
+    """The plan with each block's recorded outcome."""
+    return plan_out(plan, plan_outcomes(db, plan.user_id, plan.plan_date))
+
+
+def plan_out(plan: AIPlan, outcomes: dict[str, PlanItemOutcome] | None = None) -> AIPlanOut:
     content = plan.content
+    outcomes = outcomes or {}
     return AIPlanOut(
         id=plan.id,
         revision=plan.revision,
@@ -91,8 +109,15 @@ def plan_out(plan: AIPlan) -> AIPlanOut:
         created_at=plan.created_at,
         summary=content["summary"],
         items=[
-            PlanItemOut.model_validate({"item_key": item.get("item_key") or f"{plan.id.hex}:{index}", **item})
-            for index, item in enumerate(content["items"])
+            PlanItemOut.model_validate(
+                {
+                    **item,
+                    "item_key": key,
+                    "outcome": outcomes[key].status if key in outcomes else None,
+                    "outcome_minutes": outcomes[key].minutes if key in outcomes else None,
+                }
+            )
+            for key, item in ((_item_key(plan, item, index), item) for index, item in enumerate(content["items"]))
         ],
         tips=content["tips"],
         adjustments=content["adjustments"],
@@ -199,18 +224,27 @@ def generate_daily_plan(
 
     source, fallback_reason = provider.name, None
     validation_success = False
-    try:
+    with metrics.timer() as call:
         try:
-            content = validate_candidate(provider.generate(context), context)
-            validation_success = True
-        except ValueError as exc:
-            raise ProviderError("invalid_plan") from exc
-    except ProviderError as exc:
-        if provider.name == RulesProvider.name:
-            raise
-        logger.warning("AI provider %s failed (%s); using rules fallback", provider.name, exc.reason)
-        content = validate_candidate(RulesProvider().generate(context), context)
-        source, fallback_reason = RulesProvider.name, exc.reason
+            try:
+                content = validate_candidate(provider.generate(context), context)
+                validation_success = True
+            except ValueError as exc:
+                raise ProviderError("invalid_plan") from exc
+        except ProviderError as exc:
+            if provider.name == RulesProvider.name:
+                metrics.record("ai.plan", provider=provider.name, result="error", reason=exc.reason)
+                raise
+            logger.warning("AI provider %s failed (%s); using rules fallback", provider.name, exc.reason)
+            content = validate_candidate(RulesProvider().generate(context), context)
+            source, fallback_reason = RulesProvider.name, exc.reason
+    metrics.record(
+        "ai.plan",
+        provider=provider.name,
+        result="fallback" if fallback_reason else "primary",
+        reason=fallback_reason or "none",
+        latency_ms=call["latency_ms"],
+    )
 
     metadata = getattr(provider, "last_metadata", None)
     if metadata is not None:
@@ -229,6 +263,9 @@ def generate_daily_plan(
         )
 
     previous = latest_plan(db, user.id, now.date())
+    stored = _to_stored(content, refs, context)
+    # Blocks the user added by hand were fixed time for the planner; they stay as they are.
+    stored["items"] = with_manual(stored["items"], manual_items(previous))
     plan = AIPlan(
         user_id=user.id,
         plan_date=now.date(),
@@ -236,7 +273,7 @@ def generate_daily_plan(
         source=source,
         is_fallback=fallback_reason is not None,
         fallback_reason=fallback_reason,
-        content=_to_stored(content, refs, context),
+        content=stored,
     )
     db.add(plan)
     db.commit()
@@ -345,10 +382,15 @@ def _validate_required_work(
     after: list[dict], context: PlanContext, refs: dict[str, uuid.UUID], before: list[dict]
 ) -> None:
     start = window_start(context)
+    # Work the user already recorded as done today is not required again.
+    done = [outcome for outcome in context.plan_outcomes if outcome.status == "done"]
+    done_task_refs = {outcome.task_ref for outcome in done if outcome.task_ref}
+    done_keys = {outcome.item_key for outcome in done}
     due_today_refs = {
         task.ref
         for task in context.open_tasks
         if task.due_in_days == 0
+        and task.ref not in done_task_refs
         and task_deadline(task, context.planning_end_minutes) - start
         >= (task.estimated_minutes or DEFAULT_TASK_MINUTES)
     }
@@ -360,7 +402,8 @@ def _validate_required_work(
 
     required_study = Counter()
     for item in before:
-        if item.get("category") == "study" and minutes(item["start"]) >= start:
+        future = minutes(item["start"]) >= start
+        if item.get("category") == "study" and future and item.get("item_key") not in done_keys:
             key = str(item.get("subject_id") or item.get("title"))
             required_study[key] += minutes(item["end"]) - minutes(item["start"])
     scheduled_study = Counter()
@@ -624,6 +667,45 @@ def _proposal_out(proposal: ReplanProposal) -> ReplanProposalOut:
     )
 
 
+# A model call needs at least this long to be worth starting, and a retry this long.
+REPLAN_MIN_CALL_SECONDS = 4.0
+REPLAN_RETRY_MIN_SECONDS = 12.0
+
+
+def _fallback_warning(reason: str | None) -> str:
+    if reason and reason.startswith("provider_timeout"):
+        return "OmniAI took too long, so this proposal uses the deterministic rules planner."
+    if reason and reason.startswith(("invalid_response", "validation:")):
+        return "OmniAI's answer didn't pass the schedule checks, so this proposal uses the deterministic rules planner."
+    return "OmniAI was unavailable, so this proposal uses the deterministic rules planner."
+
+
+def _replan_failure(reason: str | None, budget: float) -> AppError:
+    """A clear, actionable error when neither OmniAI nor the rules planner can help."""
+    if reason is None:
+        return ReplanUnavailableError(
+            "The rules planner couldn't make this change safely. Try rewording it, or use a configured AI provider."
+        )
+    if reason.startswith("provider_timeout"):
+        error = ReplanUnavailableError(
+            f"OmniAI didn't answer within {round(budget)} seconds, and the rules planner couldn't make this change "
+            "on its own. Try again, or ask for something simpler."
+        )
+        error.status_code, error.code = 504, "replan_provider_timeout"
+        return error
+    if reason in {"provider_unreachable", "model_missing", "provider_unavailable", "provider_rate_limited"}:
+        error = ReplanUnavailableError(
+            "OmniAI isn't available right now (the AI service may be offline or busy), and the rules planner "
+            "couldn't make this change on its own. Try again in a moment."
+        )
+        error.code = "replan_provider_unavailable"
+        return error
+    return ReplanInvalidError(
+        "OmniAI's suggestion didn't pass the schedule checks, and the rules planner couldn't make this change on "
+        "its own. Try rewording the request."
+    )
+
+
 def create_replan_proposal(
     db: Session, user: User, request: ReplanRequest, provider: PlanProvider
 ) -> ReplanProposalOut:
@@ -638,9 +720,11 @@ def create_replan_proposal(
     limiter.hit(f"ai:{user.id}", get_settings().ai_rate_limit_per_hour, 3600)
     context, refs = build_context(db, user, now, None)
     method = getattr(provider, "generate_replan", None)
+    # Manual blocks are fixed time (see manual.py): never part of what a planner may change.
     baseline = [
         {**item, "item_key": _item_key(plan, item, index), **_provider_schedule_item(item, refs)}
         for index, item in enumerate(plan.content.get("items", []))
+        if not is_manual(item)
     ]
     current = [
         {
@@ -663,36 +747,87 @@ def create_replan_proposal(
     }
     base_fingerprint = _planning_fingerprint(plan, context, refs)
     db.commit()  # Release the owner lock while waiting for the model.
+    budget = get_settings().replan_timeout_seconds
+    deadline = time.monotonic() + budget
     effective_provider = provider
     fallback_used = False
-    try:
-        if method is None:
-            raise ProviderError("provider_does_not_support_replanning")
-        draft = method(payload)
-    except ProviderError as exc:
-        logger.warning("Replan provider failed (%s); using deterministic rules fallback", exc.reason)
-        effective_provider = RulesProvider()
-        fallback_used = True
-        try:
-            draft = effective_provider.generate_replan(payload)
-        except (ProviderError, ValueError, TypeError, KeyError):
-            raise ReplanUnavailableError(
-                "Neither the configured AI provider nor the deterministic replanner could prepare a safe proposal."
-            ) from None
-    try:
+    ai_failure: str | None = None  # why the AI's answer wasn't used, for the warning and the logs
+    attempts = 0
+    started = time.monotonic()
+
+    def _proposal_metric(result: str) -> None:
+        metrics.record(
+            "ai.replan.proposal",
+            provider=provider.name,
+            result=result,
+            fallback_used=fallback_used,
+            attempts=attempts,
+            reason=ai_failure or "none",
+            latency_ms=round((time.monotonic() - started) * 1000),
+        )
+
+    def _checked(draft: ReplanDraft) -> tuple[list[dict], dict, list[dict]]:
+        """The authoritative checks; raise ValueError/TypeError when anything is off."""
         schedule = _stored_schedule(draft, refs, context)
         _validate_required_work(schedule, context, refs, baseline)
-        semantic_validation = _validate_request_semantics(request.request, baseline, schedule, context, refs)
+        semantic = _validate_request_semantics(request.request, baseline, schedule, context, refs)
         operations = _operations(baseline, schedule, draft.explanation)
         _validate_operations(baseline, schedule, operations, refs)
-    except (ValueError, TypeError) as exc:
-        logger.info("Replan proposal rejected by validation (%s)", type(exc).__name__)
-        if fallback_used:
-            raise ReplanUnavailableError(
-                "The deterministic fallback could not prepare a proposal that satisfies the request "
-                "and plan constraints."
-            ) from None
-        raise ReplanInvalidError("OmniAI returned a schedule that did not pass validation.") from None
+        return schedule, semantic, operations
+
+    result = None
+    feedback: str | None = None
+    if method is not None and provider.name != RulesProvider.name:
+        # At most two bounded calls: a second only for a fixable answer, and only when
+        # enough of the budget remains. Timeouts and outages are not retried.
+        while result is None:
+            remaining = deadline - time.monotonic()
+            if remaining < REPLAN_MIN_CALL_SECONDS:
+                ai_failure = ai_failure or "provider_timeout"
+                break
+            attempts += 1
+            call_started = time.monotonic()
+            try:
+                draft = method({**payload, "_timeout_seconds": remaining, "_feedback": feedback})
+                result = (draft, *_checked(draft))
+                outcome = "ok"
+            except ProviderError as exc:
+                ai_failure = exc.reason
+                outcome = exc.reason
+            except (ValueError, TypeError) as exc:
+                ai_failure = f"validation:{exc.args[0] if exc.args else type(exc).__name__}"
+                outcome = ai_failure
+            logger.info(
+                "Replan attempt provider=%s attempt=%s outcome=%s latency_ms=%s",
+                provider.name,
+                attempts,
+                outcome,
+                round((time.monotonic() - call_started) * 1000),
+            )
+            if result is not None:
+                break
+            fixable = ai_failure.startswith(("invalid_response", "validation:"))
+            if not fixable or attempts >= 2 or deadline - time.monotonic() < REPLAN_RETRY_MIN_SECONDS:
+                break
+            # Only a short, content-free reason goes back to the model.
+            feedback = ai_failure.split(":", 1)[-1]
+    elif method is None and provider.name != RulesProvider.name:
+        ai_failure = "provider_does_not_support_replanning"
+
+    if result is None:
+        # The deterministic rules planner: fast, offline, validated the same way.
+        if ai_failure:
+            logger.warning("Replan using rules fallback (reason=%s)", ai_failure)
+        effective_provider = RulesProvider()
+        fallback_used = provider.name != RulesProvider.name
+        try:
+            draft = effective_provider.generate_replan(payload)
+            result = (draft, *_checked(draft))
+        except (ProviderError, ValueError, TypeError, KeyError) as exc:
+            logger.info("Rules replan rejected (%s)", type(exc).__name__)
+            _proposal_metric("unavailable" if ai_failure else "invalid")
+            raise _replan_failure(ai_failure, budget) from None
+    draft, schedule, semantic_validation, operations = result
     lock_planning_state(db, user.id)
     fresh_plan = latest_plan(db, user.id, plan_date)
     fresh_now = local_now(user.profile.timezone)
@@ -703,6 +838,7 @@ def create_replan_proposal(
         or _planning_fingerprint(fresh_plan, fresh_context, fresh_refs) != base_fingerprint
     ):
         db.rollback()
+        _proposal_metric("stale")
         raise ReplanConflictError(
             "The plan or planning state changed while OmniAI prepared the proposal.", "replan_proposal_stale"
         )
@@ -720,12 +856,12 @@ def create_replan_proposal(
         operations=operations,
         schedule=schedule,
         warnings=[
-            "Existing plan blocks have no completion flag; past blocks are historical and are not marked complete.",
             *(
-                ["The configured AI provider was unavailable; this proposal uses the deterministic rules planner."]
-                if fallback_used
-                else []
+                []
+                if context.plan_outcomes
+                else ["No outcomes are recorded for today's blocks; past blocks are treated as history, not as done."]
             ),
+            *([_fallback_warning(ai_failure)] if fallback_used else []),
             *(
                 ["Some parts of the request could not be checked deterministically; review the full schedule."]
                 if semantic_validation["other_intent"]
@@ -737,6 +873,8 @@ def create_replan_proposal(
             "validator": "validate_candidate",
             "applicable": True,
             "fallback_used": fallback_used,
+            "attempts": attempts,
+            "ai_failure": ai_failure,
             "semantic": semantic_validation,
             "operations_validated": True,
         },
@@ -745,6 +883,7 @@ def create_replan_proposal(
     db.add(proposal)
     db.commit()
     db.refresh(proposal)
+    _proposal_metric("created")
     return _proposal_out(proposal)
 
 
@@ -800,30 +939,36 @@ def apply_replan_proposal(db: Session, user: User, proposal_id: uuid.UUID) -> AI
         raise NotFoundError("Replan proposal")
     now_utc = utcnow()
     if proposal.status != "pending":
+        metrics.record("ai.replan.apply", result="not_pending")
         raise ReplanConflictError("This replan proposal is no longer pending.")
     if proposal.expires_at <= now_utc:
         proposal.status = "expired"
         db.commit()
+        metrics.record("ai.replan.apply", result="expired")
         raise ReplanConflictError("This replan proposal has expired.", "replan_proposal_expired")
     now = local_now(user.profile.timezone)
     current = latest_plan(db, user.id, proposal.plan_date)
     if current is None or current.id != proposal.base_plan_id or current.revision != proposal.base_revision:
         proposal.status = "stale"
         db.commit()
+        metrics.record("ai.replan.apply", result="stale")
         raise ReplanConflictError("The plan or planning state changed after this proposal.", "replan_proposal_stale")
     context, refs = build_context(db, user, now, None)
     if _planning_fingerprint(current, context, refs) != proposal.base_fingerprint:
         proposal.status = "stale"
         db.commit()
+        metrics.record("ai.replan.apply", result="stale")
         raise ReplanConflictError("The plan or planning state changed after this proposal.", "replan_proposal_stale")
     if any(minutes(item["start"]) < window_start(context) for item in proposal.schedule):
         proposal.status = "stale"
         db.commit()
+        metrics.record("ai.replan.apply", result="stale")
         raise ReplanConflictError("The proposed schedule is now in the past.", "replan_proposal_stale")
     try:
         baseline = [
             {**item, "item_key": _item_key(current, item, index), **_provider_schedule_item(item, refs)}
             for index, item in enumerate(current.content.get("items", []))
+            if not is_manual(item)
         ]
         _validate_operations(baseline, proposal.schedule, proposal.operations, refs)
         draft = _proposal_to_draft(proposal, refs)
@@ -841,11 +986,13 @@ def apply_replan_proposal(db: Session, user: User, proposal_id: uuid.UUID) -> AI
             previous = by_identity.get(identity, [])
             if previous:
                 item["item_key"] = previous.pop(0)["item_key"]
+        stored["items"] = with_manual(stored["items"], manual_items(current))
         stored["summary"] = proposal.summary
         stored["adjustments"] = [proposal.explanation[:280]]
     except (ValueError, TypeError, KeyError) as exc:
         proposal.status = "invalid"
         db.commit()
+        metrics.record("ai.replan.apply", result="invalid")
         logger.info("Stored replan failed revalidation (%s)", type(exc).__name__)
         raise ReplanInvalidError("This replan proposal no longer passes validation.") from None
     try:
@@ -866,7 +1013,81 @@ def apply_replan_proposal(db: Session, user: User, proposal_id: uuid.UUID) -> AI
     except Exception:
         db.rollback()
         raise
-    return plan_out(result)
+    metrics.record("ai.replan.apply", result="applied", provider=proposal.provider)
+    return plan_out_for(db, result)
+
+
+class PlanOutcomeError(AppError):
+    status_code = 422
+    code = "plan_outcome_invalid"
+
+    def __init__(self, message: str):
+        super().__init__(message)
+
+
+def record_outcome(
+    db: Session, user: User, plan_date: date, item_key: str, status: str | None, minutes_done: int | None = None
+) -> AIPlanOut:
+    """Record (or clear, with None) what happened to one block of the latest plan.
+
+    Outcomes are planning context, so this takes the planning lock: a replan
+    proposal prepared before the change becomes stale instead of being applied
+    over it.
+    """
+    lock_planning_state(db, user.id)
+    if plan_date > local_today(user.profile.timezone):
+        raise PlanOutcomeError("Outcomes can only be recorded for today or earlier.")
+    plan = latest_plan(db, user.id, plan_date)
+    if plan is None:
+        raise NotFoundError("Plan")
+    items = {_item_key(plan, item, index): item for index, item in enumerate(plan.content.get("items", []))}
+    item = items.get(item_key)
+    if item is None:
+        raise ReplanConflictError(
+            "This block is no longer in the latest plan. Refresh the plan and try again.", "plan_item_stale"
+        )
+    existing = db.scalar(
+        select(PlanItemOutcome).where(
+            PlanItemOutcome.user_id == user.id,
+            PlanItemOutcome.plan_date == plan_date,
+            PlanItemOutcome.item_key == item_key,
+        )
+    )
+    planned = minutes(item["end"]) - minutes(item["start"])
+    if minutes_done is not None and (status != "partial" or minutes_done >= planned):
+        raise PlanOutcomeError(
+            f"Minutes can only be given for a partly done block, and must be less than its {planned} minutes."
+        )
+    if status is None:
+        if existing is not None:
+            study_credit.remove_credit(db, user.id, existing)
+            db.delete(existing)
+    else:
+        row = existing or PlanItemOutcome(user_id=user.id, plan_date=plan_date, item_key=item_key)
+        row.plan_id = plan.id
+        row.status = status
+        row.category = item["category"]
+        row.title = item["title"][:120]
+        row.start = item["start"]
+        row.end = item["end"]
+        row.task_id = uuid.UUID(str(item["task_id"])) if item.get("task_id") else None
+        row.subject_id = uuid.UUID(str(item["subject_id"])) if item.get("subject_id") else None
+        row.recorded_at = utcnow()
+        row.minutes = minutes_done if status == "partial" else None
+        db.add(row)
+        db.flush()
+        # Study blocks done (or partly done, with minutes) become study time.
+        study_credit.sync_credit(db, user.id, user.profile.timezone, row)
+        # The Tasks tab reads Task.status, not plan outcomes. Keep that canonical
+        # task state in sync when its linked plan block is explicitly completed.
+        if status == "done" and item["category"] == "task" and row.task_id is not None:
+            task = db.scalar(select(Task).where(Task.id == row.task_id, Task.user_id == user.id))
+            if task is not None and task.status != "done":
+                task.status = "done"
+                task.completed_at = utcnow()
+    db.commit()
+    metrics.record("plan.outcome", status=status or "cleared", category=item["category"])
+    return plan_out_for(db, plan)
 
 
 def dismiss_replan_proposal(db: Session, user_id: uuid.UUID, proposal_id: uuid.UUID) -> ReplanProposalOut:
@@ -886,5 +1107,6 @@ def dismiss_replan_proposal(db: Session, user_id: uuid.UUID, proposal_id: uuid.U
         proposal.status = "dismissed"
         proposal.dismissed_at = utcnow()
     db.commit()
+    metrics.record("ai.replan.dismiss", result=proposal.status)
     db.refresh(proposal)
     return _proposal_out(proposal)

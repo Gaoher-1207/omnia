@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omnia_ui/app.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/core/widgets/omnia_mark.dart';
 import 'package:omnia_ui/features/home/home_page.dart';
 import 'package:omnia_ui/features/onboarding/onboarding_page.dart';
+import 'package:omnia_ui/features/onboarding/onboarding_store.dart';
 import 'package:omnia_ui/features/settings/settings_page.dart';
+
+import 'support/fake_auth_backend.dart';
 
 void phoneSize(WidgetTester tester, Size size) {
   tester.view.physicalSize = size;
@@ -28,7 +32,17 @@ void main() {
 
     await tester.tap(find.text('GET STARTED'));
     await tester.pumpAndSettle();
-    expect(find.text('Next onboarding page'), findsOneWidget);
+    expect(find.text('How Omnia works'), findsOneWidget);
+    for (final title in [
+      'Bring it together',
+      'Get a plan for today',
+      'Stay in control',
+    ]) {
+      expect(find.text(title), findsOneWidget);
+    }
+    // The placeholder copy is gone for good.
+    expect(find.textContaining('Next onboarding page'), findsNothing);
+    expect(find.textContaining('reserved for the next'), findsNothing);
     expect(find.byType(HomePage), findsNothing);
     expect(find.bySemanticsLabel('Onboarding page 2 of 2'), findsOneWidget);
 
@@ -52,10 +66,79 @@ void main() {
     );
     expect(tester.takeException(), isNull);
 
-    // No persistence yet: a fresh app instance starts with onboarding again.
+    // Without a store nothing is saved: a fresh app starts with the intro.
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(const OmniaApp());
     expect(find.byType(OnboardingPage), findsOneWidget);
+  });
+
+  for (final exit in ['SKIP →', 'ENTER OMNIA']) {
+    testWidgets('$exit saves completion; the next launch opens the app', (
+      tester,
+    ) async {
+      phoneSize(tester, const Size(430, 932));
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final store = MemoryOnboardingStore();
+      await tester.pumpWidget(OmniaApp(onboardingStore: store));
+      expect(find.byType(OnboardingPage), findsOneWidget);
+      if (exit == 'ENTER OMNIA') {
+        await tester.tap(find.text('GET STARTED'));
+        await tester.pumpAndSettle();
+      }
+      await tester.tap(find.text(exit));
+      await tester.pumpAndSettle();
+      expect(find.byType(HomePage), findsOneWidget);
+      expect(store.complete, isTrue);
+      expect(store.writes, 1);
+
+      // A relaunch reads the store first (see main.dart) and skips the intro.
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(
+        OmniaApp(
+          onboardingStore: store,
+          onboardingComplete: await store.isComplete(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(OnboardingPage), findsNothing);
+      expect(find.byType(HomePage), findsOneWidget);
+      expect(store.writes, 1);
+    });
+  }
+
+  testWidgets('a restored sign-in also records the intro as done', (
+    tester,
+  ) async {
+    phoneSize(tester, const Size(430, 932));
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final backend = FakeAuthBackend()
+      ..addUser('Sam', 'sam@example.com', 'password-123', signedIn: true);
+    final api = backend.client();
+    addTearDown(api.close);
+    final store = MemoryOnboardingStore();
+    await tester.pumpWidget(OmniaApp(api: api, onboardingStore: store));
+    await tester.pumpAndSettle();
+    expect(find.byType(HomePage), findsOneWidget);
+    expect(store.complete, isTrue);
+  });
+
+  group('SecureOnboardingStore', () {
+    test('round-trips through the platform secure store', () async {
+      FlutterSecureStorage.setMockInitialValues({});
+      final store = SecureOnboardingStore();
+      expect(await store.isComplete(), isFalse);
+      await store.markComplete();
+      expect(await store.isComplete(), isTrue);
+      expect(await SecureOnboardingStore().isComplete(), isTrue);
+    });
+
+    test('an unreadable store shows the intro instead of failing', () async {
+      final store = SecureOnboardingStore(_BrokenStorage());
+      expect(await store.isComplete(), isFalse);
+      await store.markComplete();
+    });
   });
 
   testWidgets(
@@ -135,7 +218,18 @@ void main() {
           await tester.pumpAndSettle();
           await tester.tap(find.text('GET STARTED'));
           await tester.pumpAndSettle();
-          expect(find.text('Next onboarding page'), findsOneWidget);
+          expect(find.text('How Omnia works'), findsOneWidget);
+          await tester.scrollUntilVisible(
+            find.text('ENTER OMNIA'),
+            160,
+            scrollable: find
+                .descendant(
+                  of: find.byType(CustomScrollView).last,
+                  matching: find.byType(Scrollable),
+                )
+                .first,
+          );
+          expect(tester.takeException(), isNull);
           expect(tester.takeException(), isNull);
           await tester.tap(find.text('SKIP →'));
           await tester.pumpAndSettle();
@@ -144,4 +238,29 @@ void main() {
       },
     );
   }
+}
+
+class _BrokenStorage extends FlutterSecureStorage {
+  @override
+  Future<String?> read({
+    required String key,
+    IOSOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    MacOsOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async => throw StateError('keystore unavailable');
+
+  @override
+  Future<void> write({
+    required String key,
+    required String? value,
+    IOSOptions? iOptions,
+    AndroidOptions? aOptions,
+    LinuxOptions? lOptions,
+    WebOptions? webOptions,
+    MacOsOptions? mOptions,
+    WindowsOptions? wOptions,
+  }) async => throw StateError('keystore unavailable');
 }

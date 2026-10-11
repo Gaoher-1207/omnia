@@ -14,6 +14,7 @@ import 'package:omnia_ui/features/focus/focus_timer_controller.dart';
 import 'package:omnia_ui/features/focus/widgets/focus_phase_feedback.dart';
 import 'package:omnia_ui/core/app_dependencies.dart';
 import 'package:omnia_ui/features/onboarding/onboarding_page.dart';
+import 'package:omnia_ui/features/onboarding/onboarding_store.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/core/theme/theme_controller.dart';
@@ -21,9 +22,17 @@ import 'package:omnia_ui/features/home/home_page.dart';
 import 'package:omnia_ui/features/insights/insights_page.dart';
 import 'package:omnia_ui/features/plan/plan_page.dart';
 import 'package:omnia_ui/features/areas/areas_page.dart';
+import 'package:omnia_ui/features/assistant/widgets/ask_omnia_button.dart';
 
 class OmniaApp extends StatefulWidget {
-  const OmniaApp({super.key, this.dependencies, this.api});
+  const OmniaApp({
+    super.key,
+    this.dependencies,
+    this.api,
+    this.onboardingStore,
+    this.onboardingComplete = false,
+    this.focusTimer,
+  });
 
   /// Feature repositories for every session; null gives each session fresh
   /// in-memory mocks. API-backed repositories arrive feature by feature.
@@ -32,17 +41,28 @@ class OmniaApp extends StatefulWidget {
   /// The backend. When set, or when built with `--dart-define=OMNIA_DATA=api`,
   /// the app signs in first; otherwise it runs on mock data with no sign-in.
   final ApiClient? api;
+
+  /// Where first-run completion is saved; `main` passes the secure store.
+  /// Null keeps it in memory, so every fresh app starts with the intro.
+  final OnboardingStore? onboardingStore;
+
+  /// Read from [onboardingStore] before the first frame (see `main`), so a
+  /// returning user never sees the intro flash.
+  final bool onboardingComplete;
+
+  /// The app-wide Focus timer; tests pass one with a controllable clock.
+  /// One passed in is not disposed by the app.
+  final FocusTimerController? focusTimer;
   @override
   State<OmniaApp> createState() => _OmniaAppState();
 }
 
 class _OmniaAppState extends State<OmniaApp> {
-  // In-memory first-run gate. Load/save a local preference here when persistent
-  // onboarding completion is introduced; no feature page needs to know about it.
-  bool _onboardingComplete = false;
+  // First-run gate; no feature page needs to know about it.
+  late bool _onboardingComplete = widget.onboardingComplete;
   // App-lifetime state; per-user state lives in [UserSession].
   final theme = ThemeController();
-  final focusTimer = FocusTimerController();
+  late final focusTimer = widget.focusTimer ?? FocusTimerController();
   late final ApiClient? api = widget.api ?? _environmentApi();
   late final AuthController? auth = api == null
       ? null
@@ -59,13 +79,20 @@ class _OmniaAppState extends State<OmniaApp> {
   @override
   void dispose() {
     theme.dispose();
-    focusTimer.dispose();
+    if (widget.focusTimer == null) focusTimer.dispose();
     auth?.dispose();
     if (widget.api == null) api?.close();
     super.dispose();
   }
 
-  void _finishOnboarding() => setState(() => _onboardingComplete = true);
+  void _finishOnboarding() {
+    _rememberOnboarding();
+    setState(() => _onboardingComplete = true);
+  }
+
+  void _rememberOnboarding() {
+    if (!widget.onboardingComplete) widget.onboardingStore?.markComplete();
+  }
 
   Widget _app(Widget home) => ValueListenableBuilder<ThemeMode>(
     valueListenable: theme,
@@ -112,6 +139,7 @@ class _OmniaAppState extends State<OmniaApp> {
           if (auth.status == AuthStatus.signedIn && user != null) {
             // Past the intro: signing out or an expired session goes
             // straight back to sign-in, not onboarding.
+            if (!_onboardingComplete) _rememberOnboarding();
             _onboardingComplete = true;
             return _session(const OmniaHome(), key: ValueKey(user.id));
           }
@@ -223,6 +251,25 @@ class _OmniaHomeState extends State<OmniaHome> {
     for (final tab in RootTab.values) tab: GlobalKey<NavigatorState>(),
   };
 
+  /// Tabs whose own stack has a screen open over their first page. The
+  /// floating Ask OmniAI button shows only on a tab's first page.
+  final _deep = <RootTab>{};
+  late final _observers = {
+    for (final tab in RootTab.values)
+      tab: _StackObserver(() => _syncDepth(tab)),
+  };
+
+  void _syncDepth(RootTab tab) {
+    // Route changes are reported mid-build; settle after this frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final deep = _stacks[tab]!.currentState?.canPop() ?? false;
+      if (deep != _deep.contains(tab)) {
+        setState(() => deep ? _deep.add(tab) : _deep.remove(tab));
+      }
+    });
+  }
+
   /// Choosing the open tab again returns it to its first screen.
   void _select(RootTab next) {
     if (next == tab) {
@@ -265,24 +312,41 @@ class _OmniaHomeState extends State<OmniaHome> {
                 ),
               ),
             Expanded(
-              child: IndexedStack(
-                index: tab.index,
+              child: Stack(
                 children: [
-                  for (final option in RootTab.values)
-                    // System back pops the visible tab's own stack first.
-                    if (_visited.contains(option))
-                      NavigatorPopHandler<Object?>(
-                        enabled: option == tab,
-                        onPopWithResult: (_) =>
-                            _stacks[option]!.currentState?.maybePop(),
-                        child: Navigator(
-                          key: _stacks[option],
-                          onGenerateRoute: (_) =>
-                              MaterialPageRoute(builder: (_) => _root(option)),
-                        ),
-                      )
-                    else
-                      const SizedBox.shrink(),
+                  Positioned.fill(
+                    child: IndexedStack(
+                      index: tab.index,
+                      children: [
+                        for (final option in RootTab.values)
+                          // System back pops the visible tab's own stack first.
+                          if (_visited.contains(option))
+                            NavigatorPopHandler<Object?>(
+                              enabled: option == tab,
+                              onPopWithResult: (_) =>
+                                  _stacks[option]!.currentState?.maybePop(),
+                              child: Navigator(
+                                key: _stacks[option],
+                                observers: [_observers[option]!],
+                                onGenerateRoute: (_) => MaterialPageRoute(
+                                  builder: (_) => _root(option),
+                                ),
+                              ),
+                            )
+                          else
+                            const SizedBox.shrink(),
+                      ],
+                    ),
+                  ),
+                  // One entry for all four tabs, above the navigation bar.
+                  // Hidden over deeper screens and while typing.
+                  if (!_deep.contains(tab) &&
+                      MediaQuery.viewInsetsOf(context).bottom == 0)
+                    const Positioned(
+                      right: 16,
+                      bottom: 12,
+                      child: AskOmniaButton(),
+                    ),
                 ],
               ),
             ),
@@ -375,4 +439,23 @@ class _OmniaHomeState extends State<OmniaHome> {
       ),
     );
   }
+}
+
+/// Reports every change to a tab's own stack.
+class _StackObserver extends NavigatorObserver {
+  _StackObserver(this.onChange);
+  final VoidCallback onChange;
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      onChange();
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      onChange();
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      onChange();
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) =>
+      onChange();
 }

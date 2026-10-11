@@ -8,6 +8,7 @@ import 'package:omnia_ui/features/plan/plan_controller.dart';
 import 'package:omnia_ui/features/plan/plan_preferences_page.dart';
 import 'package:omnia_ui/features/plan/plan_time.dart';
 import 'package:omnia_ui/features/plan/domain/daily_plan.dart';
+import 'package:omnia_ui/features/plan/domain/manual_plan_item.dart';
 import 'package:omnia_ui/features/plan/domain/plan_repository.dart';
 import 'package:omnia_ui/features/plan/widgets/daily_plan_view.dart';
 import 'package:omnia_ui/features/plan/widgets/plan_date_strip.dart';
@@ -440,6 +441,17 @@ void main() {
 }
 
 class DatedRepository implements PlanRepository {
+  @override
+  Future<Never> addItem(
+    DateTime day,
+    ManualPlanItemDraft draft, {
+    int? baseRevision,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<Never> removeItem(DateTime day, String itemKey, {int? baseRevision}) =>
+      throw UnimplementedError();
+
   final dates = <DateTime?>[];
   final requests = <Completer<DailyPlan?>>[];
   @override
@@ -468,4 +480,12 @@ class DatedRepository implements PlanRepository {
   @override
   Future<Never> dismissReplanProposal(String proposalId) =>
       throw UnimplementedError();
+
+  @override
+  Future<Never> recordOutcome(
+    DateTime day,
+    String itemKey,
+    String? status, {
+    int? minutes,
+  }) => throw UnimplementedError();
 }

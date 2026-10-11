@@ -112,6 +112,7 @@ It is reloaded after every activity, sleep or profile change and when the app re
 |---|---|---|
 | `GET /activity/{day}` | — | `Activity`; a day with nothing logged returns zeros, not 404 |
 | `PUT /activity/{day}` | all four fields | `Activity` |
+| `GET /activity?from=&to=` | days (≤ 93 apart) | `{ "step_goal": int, "days": [Activity + "id"] }`, every day in the range; a day never logged has `"id": null` and is **not** counted by Insights |
 
 `Activity`: `day` day, `steps` int, `workout_done` bool, `workout_minutes` int, `workout_type` string?.
 
@@ -154,6 +155,37 @@ Rules the frontend relies on:
 - Another user's subject or exam id answers `404`, like a missing one; deleting something already gone is treated as done.
 - `GET /dashboard` `next_exam` is the first of `GET /study/exams`, so after any study change the app reloads the dashboard and Today follows.
 
+Finished Focus phases are saved as study time with `POST /study/sessions` `{ "duration_minutes": int (1–720), "source": "focus", "started_at": timestamp }` (dated "today" by the server); the response is ignored and the dashboard reloads. `GET /study/sessions?from=&to=` lists study for Study's history and the Insights Study card; each session has `source` (`manual` \| `focus` \| `plan`).
+
+## Long-term goals
+
+| Call | Request | Success response |
+|---|---|---|
+| `GET /goals` | — | `[Goal]` |
+| `POST /goals` | `GoalBody` | `Goal` (`201`, server-assigned `id`) |
+| `PATCH /goals/{id}` | `GoalBody`, or `{ "completed": bool }` | `Goal` |
+| `DELETE /goals/{id}` | — | ignored (`204`) |
+
+`Goal`: `id`, `title`, `description`?, `category` (as tasks), `target_value` number?, `current_value` number?, `unit` string?, `deadline` day?, `completed` bool. Measurable goals have all three of target/current/unit; completion-only goals have none. `GoalBody` sends every field, so a cleared field is cleared on the server.
+
+## Daily plan, outcomes and replanning
+
+| Call | Request | Success response |
+|---|---|---|
+| `GET /ai/daily-plan?date=` | — | `Plan` (`404` = none yet) |
+| `POST /ai/daily-plan` | `{ "regenerate": true }` | `Plan` |
+| `POST /ai/daily-plan/{day}/items` | `{ "category", "start": "HH:MM", "duration_minutes", "title"? , "task_id"?, "subject_id"?, "base_revision"? }` | `Plan` with the block added (`manual: true`); 409 `plan_item_conflict` / `plan_stale`, 422 `plan_item_invalid` change nothing |
+| `DELETE /ai/daily-plan/{day}/items/{item_key}?base_revision=` | — | `Plan` without the block (generated or manual); 409 `plan_item_stale` / `plan_stale` refresh the plan and remove nothing |
+| `PUT /ai/daily-plan/{day}/items/{item_key}/outcome` | `{ "status": "done" \| "partial" \| "skipped", "minutes": int? }` (`minutes` only for a partly done study block) | `Plan` with that item's `outcome`; study blocks are credited as study time by the server |
+| `DELETE /ai/daily-plan/{day}/items/{item_key}/outcome` | — | `Plan` with the outcome cleared |
+| `POST /ai/replan/proposals` | `{ "request": string, "plan_date": day? }` | `Proposal` (`201`); the plan is unchanged |
+| `GET /ai/replan/proposals/{id}` | — | `Proposal` |
+| `POST /ai/replan/proposals/{id}/apply` | — | the new `Plan` revision |
+| `POST /ai/replan/proposals/{id}/dismiss` | — | `Proposal` |
+| `GET /commitments`, `POST`/`PUT`/`DELETE /commitments/{id}`, `GET /commitments/availability?day=` | | fixed commitments and free time |
+
+Plan items carry `item_key` (stable across revisions) and `outcome` (`null` when nothing is recorded). `409` with `code: plan_item_stale` means the item is no longer in the latest plan: the app reloads the plan. `409` `replan_proposal_stale` / `replan_proposal_expired` and `422` `replan_invalid` retire the preview without changing anything.
+
 ## Ask Omnia (read-only assistant)
 
 | Call | Body | Response |
@@ -163,13 +195,13 @@ Rules the frontend relies on:
 Rules the frontend relies on:
 
 - The server builds the signed-in user's context itself; the body never carries ids, a user or context, and unknown fields are refused with `422`.
-- Asking changes nothing on the server.
+- Asking changes nothing on the server. When a question reads like a change to today's plan, the app offers a preview through `POST /ai/replan/proposals`; only the user's Apply changes the plan.
 - `503` = the assistant is switched off, offline or has no model (shown as "unavailable", with `error.message`); `502` = the model timed out or gave an unusable answer; `429` = too many questions this hour.
 - A first answer can take a while (the server may be loading its model), so the app waits up to 75 s.
 - `reply` is plain text.
 
 ## Not used by the frontend (yet)
 
-Present in the reference backend, not called: `/study/backlog`, `/study/sessions` (study minutes arrive through `/dashboard`), `/study/plan`, `/ai/daily-plan` (Phase 5C), `/progress`, `/achievements`, `/meals` and nutrition, `/social/*`, `/integrations/*`. Long-term Goals have **no endpoint anywhere**; the app keeps them in memory.
+Present in the reference backend, not called: `/study/backlog`, `GET /study/sessions`, `/study/plan`, `/progress`, `/achievements`, `/meals` and nutrition, `/social/*`, `/integrations/*`.
 
 Optional but recommended: `GET /health` → `{ "status": "ok" }`. The app doesn't call it; `run_frontend.ps1` and the checklist use it.

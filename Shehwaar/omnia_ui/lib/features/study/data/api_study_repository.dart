@@ -1,6 +1,7 @@
 import 'package:omnia_ui/core/api/api_client.dart';
 import 'package:omnia_ui/core/api/json.dart';
 import 'package:omnia_ui/features/study/domain/exam.dart';
+import 'package:omnia_ui/features/study/domain/study_log.dart';
 import 'package:omnia_ui/features/study/domain/study_repository.dart';
 import 'package:omnia_ui/features/study/domain/subject.dart';
 
@@ -44,6 +45,27 @@ class ApiStudyRepository implements StudyRepository {
 
   @override
   Future<void> deleteExam(String id) => _api.delete('/study/exams/$id');
+
+  /// `POST /study/sessions`; the server dates it in the user's timezone.
+  @override
+  Future<void> logStudyMinutes(int minutes, {required DateTime startedAt}) =>
+      _api.post(
+        '/study/sessions',
+        body: {
+          'duration_minutes': minutes,
+          'source': 'focus',
+          'started_at': startedAt.toUtc().toIso8601String(),
+        },
+      );
+
+  @override
+  Future<List<StudyLog>> getStudyLog(DateTime from, DateTime to) async =>
+      asMapList(
+        await _api.get(
+          '/study/sessions',
+          query: {'from': formatDay(from), 'to': formatDay(to)},
+        ),
+      ).map(studyLogFromApi).toList();
 }
 
 Subject subjectFromApi(Map<String, dynamic> json) =>

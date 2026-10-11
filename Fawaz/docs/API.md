@@ -102,6 +102,20 @@ Empty state: zeros, `next_exam: null`, empty lists, `ai_plan: null`.
 
 `Task`: `{ id, title, notes, priority, status, due_date, due_time, estimated_minutes, category, completed_at, created_at, updated_at }`
 
+## Goals
+
+Long-term goals, separate from the profile's daily targets. A goal is either **measurable** (`target_value` > 0, `current_value` ≥ 0, `unit`) or **completion-only** (all three null). Completion is always explicit and never changes the values.
+
+| Method & path | Input | Success | Errors |
+|---|---|---|---|
+| `GET /goals` | | `Goal[]`: open first, then nearest deadline (none last), then newest | |
+| `POST /goals` | `title` (1–120), `description` (≤500), `category` (as tasks), `target_value`, `current_value` (defaults to 0 when a target is set), `unit` (1–24), `deadline` (date), `completed` | 201 `Goal` | 422 (half-measured goal, unknown field, over 200 goals) |
+| `GET /goals/{id}` | | `Goal` | 404 |
+| `PATCH /goals/{id}` | any create field; `completed` sets/clears `completed_at`; clear `target_value`, `current_value` and `unit` together to make it completion-only | `Goal` | 404 · 422 |
+| `DELETE /goals/{id}` | | 204 | 404 |
+
+`Goal`: `{ id, title, description, category, target_value, current_value, unit, deadline, completed, completed_at, created_at, updated_at }`
+
 ## Study
 
 | Method & path | Input | Success | Errors |
@@ -118,7 +132,7 @@ Empty state: zeros, `next_exam: null`, empty lists, `ai_plan: null`.
 | `PATCH /study/backlog/{id}` | any field, including `status` (sets/clears `completed_at`) | 200 | 404 · 422 |
 | `DELETE /study/backlog/{id}` | | 204 | 404 |
 | `GET /study/sessions` | query `from`, `to` (default: last 14 days, max 1 year) | `StudySession[]` newest first | 400 bad range |
-| `POST /study/sessions` | `duration_minutes` (1–720), optional `subject_id`, `backlog_item_id`, `session_date` (default today, not in the future), `notes`, `complete_backlog_item` | 201 | 404 · 422 future date or subject ≠ item's subject |
+| `POST /study/sessions` | `duration_minutes` (1–720), optional `subject_id`, `backlog_item_id`, `session_date` (default today, not in the future), `notes`, `complete_backlog_item`, `source` (`manual` default, or `focus`), `started_at` (Focus) | 201 | 404 · 422 future date or subject ≠ item's subject |
 | `DELETE /study/sessions/{id}` | | 204 | 404 |
 | `GET /study/plan` | query `days` (1–28, default 7) | `StudyPlan` | 422 |
 
@@ -131,7 +145,7 @@ Planner rules are documented at the top of `backend/app/modules/study/planner.py
 
 | Method & path | Input | Success | Errors |
 |---|---|---|---|
-| `GET /activity` | query `from`, `to` (default last 14 days, max 93) | `{ start, end, step_goal, days: [ActivityDay] }`, every day present (zeros if not logged) | 422 |
+| `GET /activity` | query `from`, `to` (default last 14 days, max 93) | `{ start, end, step_goal, days: [ActivityDay] }`, every day present; a day that was never logged has `id: null` (zeros are placeholders, not data) | 422 |
 | `GET /activity/{day}` | | `ActivityDay` (zeros if not logged) | 422 bad date |
 | `PUT /activity/{day}` | `steps` (0–200000), `workout_done`, `workout_minutes` (0–600), `workout_type` (≤40) | 200 `ActivityDay`. Idempotent: a repeat submit updates the same row | 422 future date |
 
@@ -149,6 +163,12 @@ Streak rules (in `backend/app/modules/progress/streaks.py`): a day counts for **
 |---|---|---|---|
 | `POST /ai/daily-plan` | `regenerate` (default false), `note` (≤280, e.g. "slept badly") | **200** with today's existing plan, or **201** with a new one | 422 · 429 (per user per hour, new generations only) |
 | `GET /ai/daily-plan` | query `date` (default today) | latest `AIPlan` for that date | 404 none yet |
+| `POST /ai/daily-plan/{date}/items` | `category`; `start` (`HH:MM`); `duration_minutes` (5–720); `task_id` (task blocks) or `subject_id` (study blocks), else `title` (≤120); optional `base_revision` | **200** the latest plan with the block added as a new revision, or **201** a new `source: "manual"` plan for a day that had none. Nothing else moves | 404 task/subject not yours · 409 `plan_item_conflict` (`details` lists each overlapping block or fixed commitment) · 409 `plan_stale` (`base_revision` is not the latest) · 422 `plan_item_invalid` (past day or time, more than 60 days ahead, past 23:59, task already in the plan, task done) |
+| `DELETE /ai/daily-plan/{date}/items/{item_key}` | query `base_revision` (optional) | the latest plan without that block, as a new revision; nothing else changes. Its task, subject, recorded outcome and credited study time are kept | 404 no plan · 409 `plan_item_stale` (block not in the latest plan; fixed commitments are never plan blocks) · 409 `plan_stale` · 422 `plan_item_invalid` (past day) |
+| `PUT /ai/daily-plan/{date}/items/{item_key}/outcome` | `status`: `done` / `partial` / `skipped`; `minutes` (partial only, less than the block) | the `AIPlan` with the block's `outcome` (and `outcome_minutes`) set; the schedule is unchanged | 404 no plan · 409 `plan_item_stale` (block not in the latest plan) · 422 future date or invalid minutes |
+| `DELETE /ai/daily-plan/{date}/items/{item_key}/outcome` | | the `AIPlan` with the outcome cleared | 404 · 409 · 422 |
+
+Each item also has `item_key` (stable across replans), `outcome` (`null` when nothing was recorded), `outcome_minutes` and `manual` (added by hand). **Manual blocks are fixed:** generation and replanning treat them like fixed commitments (subtracted from free time, never moved or removed) and copy them unchanged into every new revision; a task with a manual block is not scheduled again. **Study credit:** a study block marked `done` becomes a study session (`source: "plan"`) for its subject, date and planned length; `partial` with `minutes` earns those minutes; anything else earns nothing. Minutes of Focus sessions (`source: "focus"`, with `started_at`) that fall inside the block are subtracted, recomputed whenever either changes, so the same time is never counted twice. Outcomes are planning context: recording one makes an open replan proposal stale, and replanning does not schedule work already marked done. Replan proposals: see `backend/docs/adaptive-replanning.md`.
 
 `AIPlan`: `{ id, plan_date, source ("rules" | "anthropic"), is_fallback, created_at, summary, items: [{ start "HH:MM", end, category (study/task/fitness/break/recovery/other), title, detail, task_id | null, subject_id | null }], tips: [string], adjustments: [string] }`
 

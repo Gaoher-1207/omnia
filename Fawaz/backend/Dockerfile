@@ -11,5 +11,7 @@ RUN useradd --create-home --uid 10001 omnia && chown -R omnia /app
 USER omnia
 
 EXPOSE 8000
-# Migrations run on start so a fresh database is ready; move to a release step once deploys are automated.
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers --no-access-log"]
+# The API never migrates on start: several replicas racing `alembic upgrade` is unsafe,
+# and a failed migration must stop a release, not crash-loop the API. Run the release
+# step first with the same image:  docker compose run --rm migrate  (see docs/OPERATIONS.md).
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--no-access-log"]

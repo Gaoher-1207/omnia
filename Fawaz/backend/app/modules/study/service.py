@@ -211,8 +211,16 @@ def create_session(db: Session, user: User, data: SessionCreate) -> StudySession
         session_date=session_date,
         duration_minutes=data.duration_minutes,
         notes=data.notes,
+        source=data.source,
+        started_at=data.started_at,
     )
     db.add(session)
+    if data.source == "focus" and data.started_at is not None:
+        from app.modules.ai import study_credit  # the AI module imports this one
+
+        # Focus time inside a block already marked done must not be credited twice.
+        db.flush()
+        study_credit.resync_day(db, user.id, user.profile.timezone, session_date)
     if item is not None and data.complete_backlog_item and item.status != "done":
         item.status = "done"
         item.completed_at = utcnow()
@@ -221,10 +229,16 @@ def create_session(db: Session, user: User, data: SessionCreate) -> StudySession
     return session
 
 
-def delete_session(db: Session, user_id: uuid.UUID, session_id: uuid.UUID) -> None:
-    lock_planning_state(db, user_id)
-    session = get_owned(db, StudySession, session_id, user_id, "Study session")
+def delete_session(db: Session, user: User, session_id: uuid.UUID) -> None:
+    from app.modules.ai import study_credit  # the AI module imports this one
+
+    lock_planning_state(db, user.id)
+    session = get_owned(db, StudySession, session_id, user.id, "Study session")
+    day, focus = session.session_date, session.source == "focus"
     db.delete(session)
+    if focus:
+        db.flush()
+        study_credit.resync_day(db, user.id, user.profile.timezone, day)
     db.commit()
 
 

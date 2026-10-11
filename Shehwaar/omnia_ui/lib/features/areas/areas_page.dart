@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:omnia_ui/features/assistant/widgets/ask_omnia_button.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/features/areas/widgets/area_tile.dart';
@@ -25,7 +26,8 @@ class AreasPage extends StatelessWidget {
     final sleep = today?.sleepMinutes;
     final tasks = TaskScope.of(context), goals = GoalScope.of(context);
     return ListView(
-        padding: const EdgeInsets.all(18),
+        // The last item can scroll clear of the floating Ask OmniAI button.
+        padding: EdgeInsets.fromLTRB(18, 18, 18, askOmniaClearance(context)),
         children: [
           Semantics(
             header: true,

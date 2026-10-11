@@ -1,12 +1,11 @@
 """OpenRouter daily-plan provider: strict parse; service owns final validation."""
 
-import json
-
 import httpx
 from pydantic import ValidationError
 
+from app.modules.ai import replan_protocol
 from app.modules.ai.openrouter_client import OpenRouterClient
-from app.modules.ai.providers import SYSTEM_PROMPT, ProviderError, _extract_json
+from app.modules.ai.providers import SYSTEM_PROMPT, ProviderError
 from app.modules.ai.schemas import AIPlanContent, PlanContext, ReplanDraft
 
 
@@ -59,7 +58,7 @@ class OpenRouterPlanProvider:
                 success=True,
             )
             try:
-                return AIPlanContent.model_validate(_extract_json(completion.content))
+                return AIPlanContent.model_validate(replan_protocol.parse_json_object(completion.content))
             except (ValueError, ValidationError, TypeError):
                 self.last_metadata["success"] = False
                 raise ProviderError("invalid_response") from None
@@ -73,22 +72,19 @@ class OpenRouterPlanProvider:
             raise
 
     def generate_replan(self, payload: dict) -> ReplanDraft:
-        schema = ReplanDraft.model_json_schema()
-        prompt = (
-            "You are Omnia's schedule replanning assistant. Propose a complete schedule for the same day. "
-            "Return only the required structured object. The backend validates all times and references. "
-            "Use only task_ref/study_ref values supplied in context; never invent references or IDs. "
-            "Preserve fixed commitments and do not schedule in the past. "
-            "Keep completed work absent from work requests. "
-            "A task must retain its exact estimate. Study blocks may be split into blocks up to 60 minutes and "
-            "cannot exceed the supplied study budget. Include concise explanations."
+        """One bounded call in the compact edit protocol. Transport failures keep their
+        reason (timeout, rate limit, unavailable) so the user gets the right message."""
+        completion = self._router.complete(
+            [
+                {"role": "system", "content": replan_protocol.SYSTEM_PROMPT},
+                {"role": "user", "content": replan_protocol.user_message(payload, payload.get("_feedback"))},
+            ],
+            temperature=0,
+            schema=replan_protocol.EDIT_SCHEMA,
+            timeout=payload.get("_timeout_seconds"),
+            max_tokens=700,
         )
         try:
-            completion = self._router.complete(
-                [{"role": "system", "content": prompt}, {"role": "user", "content": json.dumps(payload)}],
-                temperature=0,
-                schema=schema,
-            )
-            return ReplanDraft.model_validate(_extract_json(completion.content))
-        except (ProviderError, ValueError, ValidationError, TypeError):
-            raise ProviderError("invalid_response") from None
+            return replan_protocol.to_draft(completion.content, payload)
+        except replan_protocol.EditProtocolError as exc:
+            raise ProviderError(f"invalid_response:{exc.code}") from None

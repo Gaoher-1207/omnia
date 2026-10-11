@@ -1,9 +1,9 @@
 ---
 type: feature
-status: local-functional
+status: api-connected
 frontend: canonical
 backend_available: true
-backend_connected: false
+backend_connected: true
 donor: true
 ---
 
@@ -53,7 +53,7 @@ Plan hosts the entry point and today's sample "focus activity". Focus does not k
 
 ## Backend
 
-There's no focus module. The closest backend concept is `POST /study/sessions` (log minutes studied, optionally against a subject or backlog item). See [[Study API]]. The donor's `focus_session_page.dart` does exactly that with a simple stopwatch. **It shouldn't replace this timer** ([[Fawaz Donor Map]]).
+There's no focus module; the timer itself is app-wide and not stored. Since October 11 (uncommitted), each Focus phase that **runs to the end** is saved as study time with `POST /study/sessions` by the signed-in session (skipped or reset phases are not). A failed save is retried on the next finished phase or when the app returns to the foreground, never double-counted, and never credited to another account; Today's study minutes then reload. See [[Study API]]. The donor's `focus_session_page.dart` does exactly that with a simple stopwatch. **It shouldn't replace this timer** ([[Fawaz Donor Map]]).
 
 ## Related Features
 

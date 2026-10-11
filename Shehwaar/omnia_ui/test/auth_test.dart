@@ -103,7 +103,7 @@ void main() {
     expect(backend.requests.first, 'GET /auth/me');
     expect(
       backend.requests.skip(1),
-      unorderedEquals(['GET /dashboard', 'GET /tasks']),
+      unorderedEquals(['GET /dashboard', 'GET /tasks', 'GET /goals']),
     );
 
     await openSettings(tester);

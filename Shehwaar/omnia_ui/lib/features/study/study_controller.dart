@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:omnia_ui/core/api/api_exception.dart';
 import 'package:omnia_ui/features/home/dashboard_controller.dart';
 import 'package:omnia_ui/features/study/domain/exam.dart';
+import 'package:omnia_ui/features/study/domain/study_log.dart';
 import 'package:omnia_ui/features/study/domain/study_repository.dart';
 import 'package:omnia_ui/features/study/domain/subject.dart';
 
@@ -15,6 +16,8 @@ class StudyController extends ChangeNotifier {
 
   List<Subject> _subjects = const [];
   List<Exam> _exams = const [];
+  List<StudyLog> _recent = const [];
+  Object? _recentError;
   bool _loading = false, _loaded = false, _busy = false, _disposed = false;
   Object? _loadError;
 
@@ -23,6 +26,14 @@ class StudyController extends ChangeNotifier {
 
   /// Upcoming, nearest first.
   List<Exam> get exams => _exams;
+
+  /// Study logged in the last two weeks, newest first: by hand, from Focus,
+  /// or from plan blocks checked off. Its failure never hides the lists.
+  List<StudyLog> get recent => _recent;
+  Object? get recentError => _recentError;
+
+  /// How many days [recent] covers.
+  static const recentDays = 14;
   bool get loading => _loading;
 
   /// True once the lists have loaded at least once; a later failed reload
@@ -56,6 +67,17 @@ class StudyController extends ChangeNotifier {
       _loaded = true;
     } on ParallelWaitError<dynamic, dynamic> catch (error) {
       _loadError = error.errors.$1?.error ?? error.errors.$2?.error;
+    }
+    try {
+      final today = _dashboard.dashboard?.date ?? DateTime.now();
+      final day = DateTime(today.year, today.month, today.day);
+      _recent = await _repository.getStudyLog(
+        day.subtract(const Duration(days: recentDays - 1)),
+        day,
+      );
+      _recentError = null;
+    } catch (error) {
+      _recentError = error;
     } finally {
       _loading = false;
       _notify();

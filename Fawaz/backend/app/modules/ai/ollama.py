@@ -5,6 +5,7 @@ import json
 import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.modules.ai import replan_protocol
 from app.modules.ai.constraints import DEFAULT_TASK_MINUTES, hhmm, minutes, task_deadline, window_start
 from app.modules.ai.providers import SYSTEM_PROMPT, ProviderError, RulesProvider
 from app.modules.ai.schemas import AIPlanContent, Category, PlanContext, ReplanDraft
@@ -30,21 +31,34 @@ class OllamaTransport:
         self._context_tokens = context_tokens
         self._client = client
 
-    def complete(self, system: str, messages: list[dict[str, str]], schema: dict | None = None) -> str:
+    def complete(
+        self,
+        system: str,
+        messages: list[dict[str, str]],
+        schema: dict | None = None,
+        *,
+        timeout: float | None = None,
+        max_tokens: int | None = None,
+    ) -> str:
         payload = {
             "model": self._model,
             "stream": False,
             "think": False,
-            "keep_alive": "10m",
+            # Keep the model loaded between requests: reloading it costs seconds.
+            "keep_alive": "30m",
             "options": {"num_ctx": self._context_tokens, "temperature": 0.3},
             "messages": [{"role": "system", "content": system}, *messages],
         }
         if schema is not None:
             payload["format"] = schema
             payload["options"]["temperature"] = 0
-        client = self._client or httpx.Client(timeout=self._timeout)
+        if max_tokens is not None:
+            # A hard cap on generation, so a rambling answer can't run out the clock.
+            payload["options"]["num_predict"] = max_tokens
+        limit = min(self._timeout, timeout) if timeout is not None else self._timeout
+        client = self._client or httpx.Client(timeout=limit)
         try:
-            response = client.post(self._url, json=payload, timeout=self._timeout)
+            response = client.post(self._url, json=payload, timeout=limit)
         except httpx.TimeoutException:
             raise ProviderError("provider_timeout") from None
         except httpx.HTTPError:
@@ -126,20 +140,23 @@ class OllamaPlanProvider(OllamaTransport):
         facts["rules_draft"] = baseline
         facts["output_schema"] = DurationPlanContent.model_json_schema()
         try:
-            proposal = DurationPlanContent.model_validate_json(
-                self.complete(
-                    SYSTEM_PROMPT.split("Reply with only a JSON object")[0]
-                    + "Reply only with JSON matching the supplied schema. For each item supply start and "
-                    "duration_minutes, not end. Task duration_minutes MUST equal hard_constraints.tasks.exact_minutes. "
-                    "Never extend a task to fill a slot. The server calculates end times. "
-                    "Use task_ref/study_ref exactly; titles are display labels, never entity identifiers. "
-                    "The rules_draft is a feasible starting point. Keep it unless a change improves priorities "
-                    "without violating hard constraints. Every block must fit wholly within one "
-                    "hard_constraints.free_intervals interval; commitments are fixed busy time. "
-                    "Do not change task durations. "
-                    "Only explain items actually scheduled.",
-                    [{"role": "user", "content": json.dumps(facts)}],
-                    DurationPlanContent.model_json_schema(),
+            proposal = DurationPlanContent.model_validate(
+                replan_protocol.parse_json_object(
+                    self.complete(
+                        SYSTEM_PROMPT.split("Reply with only a JSON object")[0]
+                        + "Reply only with JSON matching the supplied schema. For each item supply start and "
+                        "duration_minutes, not end. "
+                        "Task duration_minutes MUST equal hard_constraints.tasks.exact_minutes. "
+                        "Never extend a task to fill a slot. The server calculates end times. "
+                        "Use task_ref/study_ref exactly; titles are display labels, never entity identifiers. "
+                        "The rules_draft is a feasible starting point. Keep it unless a change improves priorities "
+                        "without violating hard constraints. Every block must fit wholly within one "
+                        "hard_constraints.free_intervals interval; commitments are fixed busy time. "
+                        "Do not change task durations. "
+                        "Only explain items actually scheduled.",
+                        [{"role": "user", "content": json.dumps(facts)}],
+                        DurationPlanContent.model_json_schema(),
+                    )
                 )
             )
             content = proposal.model_dump()
@@ -151,18 +168,15 @@ class OllamaPlanProvider(OllamaTransport):
             raise ProviderError("invalid_response") from None
 
     def generate_replan(self, payload: dict) -> ReplanDraft:
-        prompt = (
-            "You are Omnia's schedule replanning assistant. Return only JSON matching the supplied schema. "
-            "Propose the complete schedule for the same day using only supplied task_ref/study_ref values. "
-            "Do not invent IDs, move fixed commitments, or schedule in the past. Preserve exact task durations. "
-            "Study blocks must fit the supplied budgets and be at most 60 minutes. Explain important changes briefly."
+        """One bounded model call in the compact edit protocol (see replan_protocol)."""
+        raw = self.complete(
+            replan_protocol.SYSTEM_PROMPT,
+            [{"role": "user", "content": replan_protocol.user_message(payload, payload.get("_feedback"))}],
+            replan_protocol.EDIT_SCHEMA,
+            timeout=payload.get("_timeout_seconds"),
+            max_tokens=700,
         )
         try:
-            raw = self.complete(
-                prompt,
-                [{"role": "user", "content": json.dumps(payload)}],
-                ReplanDraft.model_json_schema(),
-            )
-            return ReplanDraft.model_validate_json(raw)
-        except (ValueError, TypeError):
-            raise ProviderError("invalid_response") from None
+            return replan_protocol.to_draft(raw, payload)
+        except replan_protocol.EditProtocolError as exc:
+            raise ProviderError(f"invalid_response:{exc.code}") from None

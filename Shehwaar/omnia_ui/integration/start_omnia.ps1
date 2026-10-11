@@ -97,6 +97,8 @@ try {
                 throw 'Port 8000 is already in use by a server outside this launcher. Stop it and retry so the assistant configuration can be applied reliably.'
             }
             foreach ($key in $settings.Keys | Where-Object { $_ -like 'ASSISTANT_*' }) { [Environment]::SetEnvironmentVariable($key, $settings[$key], 'Process') }
+            # The local demo plans and replans with the same local Ollama model as Ask OmniAI.
+            $env:PLANNER_AI_PROVIDER = 'ollama'
             Set-Location -LiteralPath $backend
             & $python -m alembic upgrade head
             if ($LASTEXITCODE -ne 0) { throw 'Backend database migration failed; Uvicorn was not started.' }
@@ -119,6 +121,12 @@ try {
             Open-Service 'Ollama'
             $tags = Wait-Ready { Probe 'http://127.0.0.1:11434/api/tags' } 60 'Ollama'
             if ($tags.models.name -notcontains $settings.ASSISTANT_MODEL) { throw "Model '$($settings.ASSISTANT_MODEL)' is not installed in the running Ollama server. No model will be downloaded automatically." }
+            # Load the model into memory now, so the first plan or replan doesn't wait for it.
+            try {
+                $warm = @{ model = $settings.ASSISTANT_MODEL; keep_alive = '30m' } | ConvertTo-Json
+                $null = Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:11434/api/generate' -Body $warm -ContentType 'application/json' -TimeoutSec 120
+                Write-Host "Model $($settings.ASSISTANT_MODEL) is loaded."
+            } catch { Write-Warning 'Could not preload the model; the first AI request may be slower.' }
             if (Get-NetTCPConnection -State Listen -LocalPort 8000 -ErrorAction SilentlyContinue) {
                 $existingBackend = $null
                 try { $existingBackend = [System.Threading.Mutex]::OpenExisting('Local\OMNIA.Dev.Backend') }

@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:omnia_ui/features/plan/plan_controller.dart';
 import 'package:omnia_ui/features/plan/commitment_controller.dart';
 import 'package:flutter/widgets.dart';
 import 'package:omnia_ui/core/app_dependencies.dart';
 import 'package:omnia_ui/features/assistant/assistant_controller.dart';
+import 'package:omnia_ui/features/focus/focus_timer_controller.dart';
 import 'package:omnia_ui/features/goals/goal_controller.dart';
 import 'package:omnia_ui/features/home/dashboard_controller.dart';
 import 'package:omnia_ui/features/home/domain/dashboard.dart';
@@ -47,6 +50,13 @@ class _UserSessionState extends State<UserSession> {
   // Held only in memory: a new session starts a new conversation.
   late final assistant = AssistantController(dependencies.assistant);
   late final AppLifecycleListener _lifecycle;
+  StreamSubscription<FocusCompletion>? _focus;
+
+  /// Focus phases that could not be saved yet; retried on the next finished
+  /// phase or when the app returns to the foreground. Never double-counted:
+  /// each entry leaves the queue only after the server accepted it.
+  final _unsavedFocus = <FocusCompletion>[];
+  bool _savingFocus = false;
 
   @override
   void initState() {
@@ -56,6 +66,7 @@ class _UserSessionState extends State<UserSession> {
     // The day may have changed while the app was in the background.
     _lifecycle = AppLifecycleListener(
       onResume: () {
+        _saveFocusMinutes();
         dashboard.load();
         if (plan.selectedDate != null) plan.load();
       },
@@ -73,7 +84,45 @@ class _UserSessionState extends State<UserSession> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Only this signed-in session hears completions; a signed-out app or the
+    // next account never receives another account's focus time.
+    _focus ??= context
+        .dependOnInheritedWidgetOfExactType<FocusTimerScope>()
+        ?.notifier
+        ?.focusCompleted
+        .listen((completed) {
+          _unsavedFocus.add(completed);
+          _saveFocusMinutes();
+        });
+  }
+
+  Future<void> _saveFocusMinutes() async {
+    if (_savingFocus || _unsavedFocus.isEmpty) return;
+    _savingFocus = true;
+    var saved = false;
+    try {
+      while (_unsavedFocus.isNotEmpty && mounted) {
+        final next = _unsavedFocus.first;
+        await dependencies.study.logStudyMinutes(
+          next.length.inMinutes,
+          startedAt: next.endedAt.subtract(next.length),
+        );
+        _unsavedFocus.removeAt(0);
+        saved = true;
+      }
+    } catch (_) {
+      // Kept for the next attempt.
+    } finally {
+      _savingFocus = false;
+    }
+    if (saved && mounted) dashboard.load();
+  }
+
+  @override
   void dispose() {
+    _focus?.cancel();
     _lifecycle.dispose();
     dashboard.removeListener(_syncTodayPlan);
     plan.dispose();

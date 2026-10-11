@@ -98,11 +98,19 @@ class RulesProvider:
 
         if tired and context.study_blocks:
             adjustments.append(f"{why_tired}, so study is split into shorter 35-minute blocks.")
+        done_blocks = [o for o in context.plan_outcomes if o.status == "done"]
+        if done_blocks:
+            count = len(done_blocks)
+            adjustments.append(
+                f"{count} planned block{'s are' if count != 1 else ' is'} already done, "
+                "so that work isn't scheduled again."
+            )
         queue = self._flexible_queue(context, tired, exam.days_left if exam else None, adjustments)
         items, _unplaced = self._place(queue, fixed, start, day_end, available)
 
         workout_at = None
-        if not context.today.workout_done and len(items) < 20:
+        fitness_done = any(o.category == "fitness" and o.status == "done" for o in context.plan_outcomes)
+        if not context.today.workout_done and not fitness_done and len(items) < 20:
             duration, title = 45, "Workout"
             if tired:
                 duration, title = 20, "Light stretch or easy walk"
@@ -146,11 +154,22 @@ class RulesProvider:
     @staticmethod
     def _flexible_queue(context: PlanContext, tired: bool, exam_days: int | None, adjustments: list[str]):
         chunk = 35 if tired else 50
+        # Work the user recorded as done today is not planned again; partly done
+        # and skipped blocks still need their time.
+        done = [o for o in context.plan_outcomes if o.status == "done"]
+        done_tasks = {o.task_ref for o in done if o.task_ref}
+        done_study: dict[str, int] = {}
+        for o in done:
+            if o.study_ref:
+                done_study[o.study_ref] = done_study.get(o.study_ref, 0) + _parse(o.end) - _parse(o.start)
         study = []
         for block in context.study_blocks:
+            remaining = block.minutes - done_study.get(block.ref, 0)
+            if remaining <= 0:
+                continue
             # Split into even sessions (60 → 2×30, not 50 + 10) so no block is a useless sliver.
-            pieces = max(1, math.ceil(block.minutes / chunk))
-            base, extra = divmod(block.minutes, pieces)
+            pieces = max(1, math.ceil(remaining / chunk))
+            base, extra = divmod(remaining, pieces)
             for n in range(pieces):
                 minutes = base + (1 if n < extra else 0)
                 study.append(
@@ -173,6 +192,7 @@ class RulesProvider:
                 task_deadline(t, context.planning_end_minutes),
             )
             for t in context.open_tasks
+            if t.ref not in done_tasks
         ]
         yesterday_goal = context.goals.get("study_minutes", 0)
         if (
@@ -186,7 +206,11 @@ class RulesProvider:
                 f"{yesterday_goal} min), so study starts early today."
             )
         # Deadlines today/tomorrow precede elective study and fitness.
-        urgent_refs = {t.ref for t in context.open_tasks if t.due_in_days is not None and t.due_in_days <= 1}
+        urgent_refs = {
+            t.ref
+            for t in context.open_tasks
+            if t.due_in_days is not None and t.due_in_days <= 1 and t.ref not in done_tasks
+        }
         queue = [t for t in tasks if t[4] in urgent_refs]
         tasks = [t for t in tasks if t[4] not in urgent_refs]
         if exam_days is not None and exam_days <= 7:

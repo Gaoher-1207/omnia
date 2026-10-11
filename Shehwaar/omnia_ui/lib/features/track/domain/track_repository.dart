@@ -6,6 +6,9 @@ abstract interface class TrackRepository {
   Future<ActivityDay> getActivity(DateTime day);
   Future<ActivityDay> saveActivity(ActivityDay activity);
 
+  /// Stored activity for [from]–[to] (inclusive). Unlogged days are absent.
+  Future<ActivityHistory> activityHistory(DateTime from, DateTime to);
+
   /// Null when no sleep is logged for the night ending on [day].
   Future<SleepEntry?> getSleep(DateTime day);
   Future<SleepEntry> saveSleep(SleepEntry entry);

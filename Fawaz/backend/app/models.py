@@ -2,8 +2,9 @@
 
 from app.db.base import Base
 from app.modules.activity.models import ActivityDay
-from app.modules.ai.models import AIPlan, ReplanProposal
+from app.modules.ai.models import AIPlan, PlanItemOutcome, ReplanProposal
 from app.modules.commitments.models import Commitment
+from app.modules.goals.models import Goal
 from app.modules.integrations.models import CalendarFeed
 from app.modules.nutrition.models import Meal
 from app.modules.sleep.models import SleepLog
@@ -23,6 +24,7 @@ from app.modules.users.models import Profile, User
 
 __all__ = [
     "AIPlan",
+    "PlanItemOutcome",
     "ReplanProposal",
     "ActivityDay",
     "BacklogItem",
@@ -32,6 +34,7 @@ __all__ = [
     "Challenge",
     "ChallengeParticipant",
     "Exam",
+    "Goal",
     "Friendship",
     "GroupMember",
     "GroupMessage",

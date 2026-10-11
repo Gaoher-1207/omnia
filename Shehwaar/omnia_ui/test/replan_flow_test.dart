@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:omnia_ui/core/api/api_exception.dart';
@@ -5,6 +7,7 @@ import 'package:omnia_ui/core/auth/auth_controller.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
 import 'package:omnia_ui/features/focus/focus_timer_controller.dart';
 import 'package:omnia_ui/features/plan/domain/daily_plan.dart';
+import 'package:omnia_ui/features/plan/domain/manual_plan_item.dart';
 import 'package:omnia_ui/features/plan/domain/plan_repository.dart';
 import 'package:omnia_ui/features/plan/domain/replan_proposal.dart';
 import 'package:omnia_ui/features/plan/plan_controller.dart';
@@ -487,7 +490,56 @@ void main() {
       expect(find.text('Plan changes'), findsNothing);
     });
 
+    testWidgets('a slow proposal shows progress, then the timeout reason', (
+      tester,
+    ) async {
+      final repository = _ReplanRepository()
+        ..createGate = Completer<void>()
+        ..createFailure = const ApiException(
+          statusCode: 504,
+          code: 'replan_provider_timeout',
+          message: "OmniAI didn't answer within 45 seconds.",
+        );
+      final controller = _readyController(repository);
+      await _pump(tester, controller);
+      await tester.scrollUntilVisible(
+        find.text('Adjust today’s plan'),
+        200,
+        scrollable: find
+            .byWidgetPredicate(
+              (widget) =>
+                  widget is Scrollable &&
+                  widget.axisDirection == AxisDirection.down,
+            )
+            .first,
+      );
+      await tester.tap(find.text('Adjust today’s plan'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'Move it to 16:00');
+      await tester.tap(find.text('Preview changes'));
+      await tester.pump();
+      await tester.pump();
+
+      // While the backend works: a labelled spinner, and no second request.
+      expect(find.text('Preparing changes…'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      await tester.tap(find.text('Preparing changes…'));
+      await tester.pump();
+      expect(repository.createCalls, 1);
+
+      repository.createGate!.complete();
+      await tester.pumpAndSettle();
+      expect(
+        find.text("OmniAI didn't answer within 45 seconds."),
+        findsOneWidget,
+      );
+      expect(find.text('Adjust today’s plan'), findsOneWidget);
+      expect(find.text('Plan changes'), findsNothing);
+      expect(controller.plan?.revision, 4);
+    });
+
     testWidgets('an empty request is not sent', (tester) async {
+      _tallScreen(tester);
       final repository = _ReplanRepository();
       final controller = _readyController(repository);
       await _pump(tester, controller);
@@ -500,6 +552,7 @@ void main() {
     });
 
     testWidgets('the entry point is limited to today’s plan', (tester) async {
+      _tallScreen(tester);
       final controller = _readyController(_ReplanRepository());
       await _pump(tester, controller);
       expect(find.text('Adjust today’s plan'), findsOneWidget);
@@ -573,6 +626,13 @@ Future<void> _pump(
   await tester.pumpAndSettle();
 }
 
+/// Tall enough that the whole plan builds without scrolling.
+void _tallScreen(WidgetTester tester) {
+  tester.view.physicalSize = const Size(800, 2400);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+}
+
 Future<void> _openPreview(WidgetTester tester) async {
   await tester.scrollUntilVisible(
     find.text('Adjust today’s plan'),
@@ -606,10 +666,22 @@ DailyPlan _newPlan(int revision) => DailyPlan.fromJson({
 });
 
 class _ReplanRepository implements PlanRepository {
+  @override
+  Future<Never> addItem(
+    DateTime day,
+    ManualPlanItemDraft draft, {
+    int? baseRevision,
+  }) => throw UnimplementedError();
+
+  @override
+  Future<Never> removeItem(DateTime day, String itemKey, {int? baseRevision}) =>
+      throw UnimplementedError();
+
   DailyPlan currentPlan = DailyPlan.fromJson(_planJson);
   DailyPlan? appliedPlan;
   Map<String, dynamic> proposal = _proposalJson();
   Object? createFailure, applyFailure;
+  Completer<void>? createGate;
   int createCalls = 0, getProposalCalls = 0, applyCalls = 0, dismissCalls = 0;
   int readCalls = 0;
   String? lastRequest;
@@ -630,6 +702,7 @@ class _ReplanRepository implements PlanRepository {
   }) async {
     createCalls++;
     lastRequest = request;
+    await createGate?.future;
     if (createFailure case final failure?) throw failure;
     return ReplanProposal.fromJson(proposal);
   }
@@ -653,4 +726,12 @@ class _ReplanRepository implements PlanRepository {
     dismissCalls++;
     return ReplanProposal.fromJson({...proposal, 'status': 'dismissed'});
   }
+
+  @override
+  Future<Never> recordOutcome(
+    DateTime day,
+    String itemKey,
+    String? status, {
+    int? minutes,
+  }) => throw UnimplementedError();
 }

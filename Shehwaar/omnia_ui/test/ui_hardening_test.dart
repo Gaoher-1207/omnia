@@ -120,7 +120,7 @@ void main() {
     );
     await tester.tap(find.text('GET STARTED'));
     await tester.pump();
-    expect(find.text('Next onboarding page').hitTestable(), findsOneWidget);
+    expect(find.text('How Omnia works').hitTestable(), findsOneWidget);
   });
 
   testWidgets('a completed revision undoes only when asked; reset is a menu', (

@@ -1,23 +1,26 @@
 import 'package:flutter/material.dart';
+import 'package:omnia_ui/features/assistant/widgets/ask_omnia_button.dart';
 import 'package:omnia_ui/core/api/api_exception.dart';
 import 'package:omnia_ui/core/app_dependencies.dart';
 import 'package:omnia_ui/core/auth/auth_controller.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
-import 'package:omnia_ui/core/widgets/action_row.dart';
 import 'package:omnia_ui/core/widgets/hard_card.dart';
+import 'package:omnia_ui/core/widgets/number_wheel.dart';
 import 'package:omnia_ui/core/widgets/section_header.dart';
 import 'package:omnia_ui/core/widgets/solid_action.dart';
 import 'package:omnia_ui/core/widgets/state_views.dart';
 import 'package:omnia_ui/features/home/dashboard_format.dart';
 import 'package:omnia_ui/features/focus/widgets/focus_timer_entry.dart';
+import 'package:omnia_ui/features/home/dashboard_controller.dart';
+import 'package:omnia_ui/features/plan/add_plan_item_page.dart';
 import 'package:omnia_ui/features/plan/domain/daily_plan.dart';
 import 'package:omnia_ui/features/plan/domain/commitment.dart';
 import 'package:omnia_ui/features/plan/commitment_controller.dart';
 import 'package:omnia_ui/features/plan/plan_controller.dart';
 import 'package:omnia_ui/features/plan/plan_preferences_page.dart';
 import 'package:omnia_ui/features/plan/plan_time.dart';
-import 'package:omnia_ui/features/plan/replan_change_format.dart';
+import 'package:omnia_ui/features/plan/widgets/replan_preview.dart';
 import 'package:omnia_ui/features/plan/widgets/plan_date_strip.dart';
 import 'package:omnia_ui/features/tasks/task_controller.dart';
 import 'package:omnia_ui/features/tasks/task_form_page.dart';
@@ -102,40 +105,7 @@ class _DailyPlanViewState extends State<DailyPlanView> {
       builder: (_) => const _ReplanRequestDialog(),
     );
     if (!mounted || request == null) return;
-    final created = await controller.createReplanProposal(request);
-    if (!mounted) return;
-    if (!created) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            friendlyError(controller.replanError ?? StateError('failed')),
-          ),
-        ),
-      );
-      return;
-    }
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (context) => ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height * .85,
-        ),
-        child: _ReplanPreviewSheet(controller: controller),
-      ),
-    );
-    // A preview closed without Apply or Cancel is still discarded server-side.
-    if (controller.replanProposal != null) {
-      await controller.dismissReplanProposal();
-    }
-    if (!mounted) return;
-    final notice = controller.replanNotice;
-    if (notice != null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(notice)));
-      controller.clearReplanNotice();
-    }
+    await previewReplan(context, controller, request);
   }
 
   void _details(DailyPlan plan, String format) => showModalBottomSheet<void>(
@@ -192,6 +162,13 @@ class _DailyPlanViewState extends State<DailyPlanView> {
     final isToday =
         controller.selectedDate == null ||
         (today != null && DateUtils.isSameDay(selected, today));
+    // Mock mode keeps blocks added by hand but has no planner to call.
+    final canPlan =
+        !(AppDependenciesScope.maybeOf(context)?.sampleContent ?? false);
+    final canAdd =
+        today != null &&
+        selected != null &&
+        !DateUtils.dateOnly(selected).isBefore(DateUtils.dateOnly(today));
     final changedHours =
         plan != null &&
         profile != null &&
@@ -211,7 +188,8 @@ class _DailyPlanViewState extends State<DailyPlanView> {
       onRefresh: controller.load,
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(18),
+        // The last item can scroll clear of the floating Ask OmniAI button.
+        padding: EdgeInsets.fromLTRB(18, 18, 18, askOmniaClearance(context)),
         children: [
           Row(
             children: [
@@ -247,6 +225,7 @@ class _DailyPlanViewState extends State<DailyPlanView> {
               selected: selected,
               onSelect: controller.selectDate,
             ),
+          if (canAdd) AddToPlanButton(day: selected, today: today),
           const SizedBox(height: 10),
           if (commitments?.error != null)
             TextButton(
@@ -273,8 +252,12 @@ class _DailyPlanViewState extends State<DailyPlanView> {
               controller.error == null)
             EmptyCard(
               title: 'No plan for this date.',
-              detail: isToday
+              detail: !canPlan
+                  ? 'Add a block to plan this day.'
+                  : isToday
                   ? 'Generate a suggestion from your Omnia data.'
+                  : canAdd
+                  ? 'Add a block to plan this day, or return to Today to generate a suggestion.'
                   : 'No persisted suggestion. Return to Today to generate one.',
             ),
           if (availability != null && availability.freeIntervals.isEmpty)
@@ -297,9 +280,11 @@ class _DailyPlanViewState extends State<DailyPlanView> {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     spacing: 12,
                     children: [
-                      const Text(
-                        'Suggested plan',
-                        style: TextStyle(fontWeight: FontWeight.w900),
+                      Text(
+                        plan.source == 'manual'
+                            ? 'Your plan'
+                            : 'Suggested plan',
+                        style: const TextStyle(fontWeight: FontWeight.w900),
                       ),
                       TextButton(
                         onPressed: () => _details(plan, format),
@@ -308,7 +293,9 @@ class _DailyPlanViewState extends State<DailyPlanView> {
                     ],
                   ),
                   Text(
-                    plan.isFallback
+                    plan.source == 'manual'
+                        ? 'Added by you'
+                        : plan.isFallback
                         ? 'Rules fallback'
                         : plan.source == 'rules'
                         ? 'Planned with rules'
@@ -348,7 +335,22 @@ class _DailyPlanViewState extends State<DailyPlanView> {
             const SizedBox(height: 12),
             for (final entry in timeline)
               if (entry.item != null)
-                _timelineItem(entry.item!, format)
+                _timelineItem(
+                  entry.item!,
+                  format,
+                  canRecord:
+                      plan != null &&
+                      today != null &&
+                      !DateUtils.dateOnly(plan.date).isAfter(today),
+                  // History stays as it was; today and later can change.
+                  removeFrom:
+                      plan != null &&
+                          today != null &&
+                          !DateUtils.dateOnly(plan.date)
+                              .isBefore(DateUtils.dateOnly(today))
+                      ? plan
+                      : null,
+                )
               else
                 _commitmentItem(entry.fixed!, format),
           ],
@@ -380,7 +382,7 @@ class _DailyPlanViewState extends State<DailyPlanView> {
             ],
           ],
           const SizedBox(height: 16),
-          if (!controller.busy && isToday)
+          if (!controller.busy && isToday && canPlan)
             SolidAction(
               label: plan == null
                   ? 'Generate suggestion'
@@ -389,6 +391,7 @@ class _DailyPlanViewState extends State<DailyPlanView> {
             ),
           if (!controller.busy &&
               isToday &&
+              canPlan &&
               plan != null &&
               (selected == null ||
                   DateUtils.isSameDay(plan.date, selected))) ...[
@@ -408,7 +411,11 @@ class _DailyPlanViewState extends State<DailyPlanView> {
                         ),
                       )
                     : const Icon(Icons.auto_awesome_outlined, size: 18),
-                label: const Text('Adjust today’s plan'),
+                label: Text(
+                  controller.creatingProposal
+                      ? 'Preparing changes…'
+                      : 'Adjust today’s plan',
+                ),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: context.foreground,
                   padding: const EdgeInsets.symmetric(vertical: 15),
@@ -428,7 +435,60 @@ class _DailyPlanViewState extends State<DailyPlanView> {
     );
   }
 
-  Widget _timelineItem(DailyPlanItem item, String format) {
+  Future<void> _recordOutcome(DailyPlanItem item, String? status) async {
+    final controller = PlanScope.of(context);
+    final tasks = TaskScope.of(context);
+    int? minutes;
+    // A study block partly done counts only the minutes actually studied.
+    if (status == 'partial' && item.category == 'study' && item.minutes > 1) {
+      final picked = await showDialog<int>(
+        context: context,
+        builder: (_) => _PartialMinutesDialog(item: item),
+      );
+      if (!mounted || picked == null) return;
+      minutes = picked;
+    }
+    final saved = await controller.recordOutcome(
+      item,
+      status,
+      minutes: minutes,
+    );
+    if (!mounted) return;
+    if (saved) {
+      // Task outcomes update the canonical task record on the backend. The
+      // Tasks tab keeps an app-session snapshot, so reload it after completion.
+      if (item.category == 'task' && status == 'done') {
+        await tasks.load();
+        if (!mounted) return;
+      }
+      // Study check-offs change today's study minutes.
+      if (item.category == 'study') {
+        context
+            .getInheritedWidgetOfExactType<DashboardScope>()
+            ?.notifier
+            ?.load();
+      }
+      return;
+    }
+    final failure = controller.outcomeError;
+    if (failure == null) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          failure is ApiException && failure.code == 'plan_item_stale'
+              ? 'Your plan changed, so it was refreshed. Try again.'
+              : friendlyError(failure),
+        ),
+      ),
+    );
+  }
+
+  Widget _timelineItem(
+    DailyPlanItem item,
+    String format, {
+    bool canRecord = false,
+    DailyPlan? removeFrom,
+  }) {
     final start = formatPlanTime(item.start, format),
         end = formatPlanTime(item.end, format);
     final VoidCallback? action = item.taskId != null
@@ -463,7 +523,9 @@ class _DailyPlanViewState extends State<DailyPlanView> {
               child: Semantics(
                 button: action != null,
                 label:
-                    '${item.title}, $start to $end. ${item.detail ?? ''}. $destination',
+                    '${item.title}, $start to $end. ${item.detail ?? ''}. '
+                    '${item.outcome == null ? '' : '${_outcomeText(item)}. '}'
+                    '$destination',
                 child: HardCard(
                   color: switch (item.category) {
                     'task' => yellow,
@@ -476,22 +538,60 @@ class _DailyPlanViewState extends State<DailyPlanView> {
                     constraints: BoxConstraints(
                       minHeight: (item.minutes * 1.2).clamp(42, 144),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(
-                          item.title,
-                          style: const TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                        Text('$start–$end · ${item.minutes} min'),
-                        if (item.detail != null) Text(item.detail!),
-                        if (action != null)
-                          Text(
-                            destination,
-                            style: const TextStyle(
-                              decoration: TextDecoration.underline,
-                            ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                item.title,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              Text(
+                                '$start–$end · ${item.minutes} min'
+                                '${item.manual ? ' · Added by you' : ''}',
+                              ),
+                              if (item.detail != null) Text(item.detail!),
+                              if (item.outcome != null)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text(
+                                    _outcomeText(item).toUpperCase(),
+                                    style: OmniaText.label,
+                                  ),
+                                ),
+                              if (action != null)
+                                Text(
+                                  destination,
+                                  style: const TextStyle(
+                                    decoration: TextDecoration.underline,
+                                  ),
+                                ),
+                            ],
                           ),
+                        ),
+                        if ((canRecord || removeFrom != null) &&
+                            item.itemKey != null) ...[
+                          const SizedBox(width: 10),
+                          _OutcomeButton(
+                            item: item,
+                            busy:
+                                PlanScope.of(context)
+                                    .outcomeBusy(item.itemKey!) ||
+                                PlanScope.of(context).removing(item.itemKey!),
+                            onSelected: canRecord
+                                ? (status) => _recordOutcome(item, status)
+                                : null,
+                            onRemove: removeFrom == null
+                                ? null
+                                : () =>
+                                      _confirmRemove(removeFrom, item, format),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -499,6 +599,73 @@ class _DailyPlanViewState extends State<DailyPlanView> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Press and hold a block's status square: say which block, then ask once
+  /// more before removing it. Cancel at either step changes nothing.
+  Future<void> _confirmRemove(
+    DailyPlan plan,
+    DailyPlanItem item,
+    String format,
+  ) async {
+    final controller = PlanScope.of(context);
+    final when =
+        '${formatPlanTime(item.start, format)}–'
+        '${formatPlanTime(item.end, format)} · ${formatLongDate(plan.date)}';
+    final wantsRemove = await showModalBottomSheet<bool>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      builder: (context) => _RemoveSheet(item: item, when: when),
+    );
+    if (wantsRemove != true || !mounted) return;
+    final kept = item.taskId != null
+        ? 'The task stays in Tasks.'
+        : item.subjectId != null
+        ? 'The subject and any study time already logged stay.'
+        : null;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Remove “${item.title}”?'),
+        content: Text(
+          'It comes off this day’s plan ($when). '
+          'Nothing else in the plan changes.${kept == null ? '' : ' $kept'}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final removed = await controller.removeItem(plan, item);
+    if (!mounted) return;
+    final failure = controller.removeError;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          removed
+              ? 'Removed ${item.title} from your plan.'
+              : failure is ApiException &&
+                    (failure.code == 'plan_stale' ||
+                        failure.code == 'plan_item_stale')
+              ? 'Your plan changed, so it was refreshed. Nothing was removed.'
+              : friendlyError(failure ?? StateError('failed')),
         ),
       ),
     );
@@ -554,6 +721,31 @@ class _DailyPlanViewState extends State<DailyPlanView> {
   }
 }
 
+/// Opens the hand-added block form for [day]. The same full-width outline
+/// style as "Adjust today's plan".
+class AddToPlanButton extends StatelessWidget {
+  const AddToPlanButton({super.key, required this.day, required this.today});
+  final DateTime day, today;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(top: 8),
+    child: SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        onPressed: () => AddPlanItemPage.open(context, day: day, today: today),
+        icon: const Icon(Icons.add, size: 18),
+        label: const Text('Add to plan'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: context.foreground,
+          padding: const EdgeInsets.symmetric(vertical: 15),
+          side: BorderSide(color: context.outline, width: 1.5),
+        ),
+      ),
+    ),
+  );
+}
+
 class _ReplanRequestDialog extends StatefulWidget {
   const _ReplanRequestDialog();
   @override
@@ -605,104 +797,6 @@ class _ReplanRequestDialogState extends State<_ReplanRequestDialog> {
       ),
       FilledButton(onPressed: submit, child: const Text('Preview changes')),
     ],
-  );
-}
-
-/// A compact preview: one action-and-title line per change, then Apply or Cancel.
-/// Proposal internals (summary, reasons, schedule, validation) stay hidden.
-class _ReplanPreviewSheet extends StatelessWidget {
-  const _ReplanPreviewSheet({required this.controller});
-
-  final PlanController controller;
-
-  Future<void> _apply(BuildContext context) async {
-    final applied = await controller.applyReplanProposal();
-    if (context.mounted && (applied || controller.replanProposal == null)) {
-      Navigator.pop(context);
-    }
-  }
-
-  Future<void> _cancel(BuildContext context) async {
-    final dismissed = await controller.dismissReplanProposal();
-    if (context.mounted && dismissed) Navigator.pop(context);
-  }
-
-  @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: controller,
-    builder: (context, _) {
-      final proposal = controller.replanProposal;
-      if (proposal == null) return const SizedBox.shrink();
-      final changes = describeReplanChanges(proposal.operations);
-      final busy = controller.proposalActionBusy;
-      final error = controller.replanError;
-      return ListView(
-        shrinkWrap: true,
-        padding: const EdgeInsets.all(20),
-        children: [
-          Semantics(
-            header: true,
-            child: const Text(
-              'Plan changes',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-            ),
-          ),
-          const SizedBox(height: 12),
-          if (changes.isEmpty)
-            const Text('No changes needed.')
-          else
-            for (final change in changes)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const ExcludeSemantics(child: Text('•  ')),
-                    Expanded(child: Text(change)),
-                  ],
-                ),
-              ),
-          if (error != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                friendlyError(error),
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
-              ),
-            ),
-          const SizedBox(height: 16),
-          if (busy) ...[
-            const LinearProgressIndicator(semanticsLabel: 'Updating plan'),
-            const SizedBox(height: 12),
-          ],
-          AbsorbPointer(
-            absorbing: busy,
-            child: changes.isEmpty
-                ? SizedBox(
-                    width: double.infinity,
-                    child: OutlineAction(
-                      icon: Icons.close,
-                      label: 'Close',
-                      onPressed: () => _cancel(context),
-                    ),
-                  )
-                : ActionRow(
-                    primary: SolidAction(
-                      label: 'Apply',
-                      onTap: () => _apply(context),
-                    ),
-                    secondary: [
-                      OutlineAction(
-                        icon: Icons.close,
-                        label: 'Cancel',
-                        onPressed: () => _cancel(context),
-                      ),
-                    ],
-                  ),
-          ),
-        ],
-      );
-    },
   );
 }
 
@@ -818,4 +912,273 @@ class _PlanExplanationSheetState extends State<_PlanExplanationSheet> {
       ],
     );
   }
+}
+
+String _outcomeLabel(String outcome) => switch (outcome) {
+  'done' => 'Done',
+  'partial' => 'Partly done',
+  'skipped' => 'Not done',
+  _ => outcome,
+};
+
+/// "Partly done · 20 min" when the minutes are known.
+String _outcomeText(DailyPlanItem item) {
+  final label = _outcomeLabel(item.outcome!);
+  final minutes = item.outcomeMinutes;
+  return item.outcome == 'partial' && minutes != null
+      ? '$label · $minutes min'
+      : label;
+}
+
+/// The check-off square inside a block: neutral until something is recorded,
+/// then green ✓ (done), yellow – (partly done) or red × (not done). Opens a
+/// menu to choose or clear. Its own semantics node, so the block itself stays
+/// one control (open task/subject) for screen readers.
+class _OutcomeButton extends StatelessWidget {
+  const _OutcomeButton({
+    required this.item,
+    required this.busy,
+    required this.onSelected,
+    this.onRemove,
+  });
+  final DailyPlanItem item;
+  final bool busy;
+
+  /// Null on a later day: outcomes are recorded on the day.
+  final ValueChanged<String?>? onSelected;
+
+  /// Press and hold; null where blocks can't be removed (past days).
+  final VoidCallback? onRemove;
+
+  static const _clear = 'clear';
+
+  @override
+  Widget build(BuildContext context) {
+    final outcome = item.outcome;
+    final fill = switch (outcome) {
+      'done' => outcomeDone,
+      'partial' => outcomePartial,
+      'skipped' => outcomeNotDone,
+      _ => null,
+    };
+    final record = onSelected;
+    final remove = busy ? null : onRemove;
+    final label = record == null
+        ? '${item.title}: checked off on the day'
+        : outcome == null
+        ? 'Not checked off: ${item.title}. Record what happened'
+        : '${_outcomeText(item)}: ${item.title}. Change';
+    return Semantics(
+      container: true,
+      button: true,
+      enabled: !busy,
+      label: label,
+      hint: remove == null ? null : 'Hold to remove from plan',
+      excludeSemantics: true,
+      onTap: busy ? null : () {},
+      onLongPress: remove,
+      child: GestureDetector(
+        // Only a deliberate hold offers removal; a tap never does.
+        onLongPress: remove,
+        // The menu's tooltip would otherwise claim the hold on touch screens;
+        // it still shows on hover, and the label above is what is announced.
+        child: TooltipTheme(
+          data: TooltipTheme.of(context)
+              .copyWith(triggerMode: TooltipTriggerMode.manual),
+          child: PopupMenuButton<String>(
+            enabled: !busy,
+            tooltip: label,
+            onSelected: (value) => record?.call(value == _clear ? null : value),
+            itemBuilder: (context) => [
+              if (record == null)
+                const PopupMenuItem<String>(
+                  enabled: false,
+                  child: Text('You can check this off on the day.'),
+                )
+              else ...[
+                for (final status in const ['done', 'partial', 'skipped'])
+                  CheckedPopupMenuItem<String>(
+                    value: status,
+                    checked: outcome == status,
+                    child: Text(_outcomeLabel(status)),
+                  ),
+                if (outcome != null)
+                  const PopupMenuItem<String>(
+                    value: _clear,
+                    child: Text('Clear'),
+                  ),
+              ],
+              if (remove != null) ...[
+                const PopupMenuDivider(),
+                const PopupMenuItem<String>(
+                  enabled: false,
+                  child: Text('Hold the square to remove this block'),
+                ),
+              ],
+            ],
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                // Cards stay pastel in both themes, so ink reads on every state;
+                // the unchecked square is a light, unfilled box.
+                color: fill ?? Colors.white.withValues(alpha: .5),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: ink, width: 2),
+                boxShadow: fill == null
+                    ? null
+                    : const [BoxShadow(color: ink, offset: Offset(2, 2))],
+              ),
+              child: busy
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: ink,
+                      ),
+                    )
+                  : outcome == null
+                  ? null
+                  : CustomPaint(painter: _OutcomeMark(outcome)),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The first step of removing a block: names exactly which one.
+class _RemoveSheet extends StatelessWidget {
+  const _RemoveSheet({required this.item, required this.when});
+  final DailyPlanItem item;
+  final String when;
+
+  @override
+  Widget build(BuildContext context) {
+    final error = Theme.of(context).colorScheme.error;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(18, 4, 18, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Semantics(
+            header: true,
+            child: Text(
+              item.title,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+            ),
+          ),
+          Text(when),
+          if (item.manual) const Text('Added by you'),
+          const SizedBox(height: 18),
+          OutlinedButton.icon(
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.delete_outline),
+            label: const Text('Remove from plan…'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: error,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              side: BorderSide(color: error, width: 1.5),
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bold ✓, – and × drawn in ink, so they read on every fill in both themes.
+class _OutcomeMark extends CustomPainter {
+  const _OutcomeMark(this.outcome);
+  final String outcome;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final pen = Paint()
+      ..color = ink
+      ..strokeWidth = size.width * .11
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..style = PaintingStyle.stroke;
+    final w = size.width, h = size.height;
+    final path = Path();
+    switch (outcome) {
+      case 'done':
+        path
+          ..moveTo(w * .26, h * .52)
+          ..lineTo(w * .43, h * .68)
+          ..lineTo(w * .75, h * .33);
+      case 'partial':
+        path
+          ..moveTo(w * .28, h * .5)
+          ..lineTo(w * .72, h * .5);
+      default:
+        path
+          ..moveTo(w * .31, h * .31)
+          ..lineTo(w * .69, h * .69)
+          ..moveTo(w * .69, h * .31)
+          ..lineTo(w * .31, h * .69);
+    }
+    canvas.drawPath(path, pen);
+  }
+
+  @override
+  bool shouldRepaint(_OutcomeMark old) => old.outcome != outcome;
+}
+
+/// "How long did you study?" for a study block that was partly done: only
+/// these minutes count as study time, never the whole block.
+class _PartialMinutesDialog extends StatefulWidget {
+  const _PartialMinutesDialog({required this.item});
+  final DailyPlanItem item;
+
+  @override
+  State<_PartialMinutesDialog> createState() => _PartialMinutesDialogState();
+}
+
+class _PartialMinutesDialogState extends State<_PartialMinutesDialog> {
+  late final List<int> options = [
+    if (widget.item.minutes >= 10)
+      for (var m = 5; m < widget.item.minutes; m += 5) m
+    else
+      for (var m = 1; m < widget.item.minutes; m++) m,
+  ];
+  late int minutes = options[(options.length - 1) ~/ 2];
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('How long did you study?'),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('Only these minutes count as study for "${widget.item.title}".'),
+        const SizedBox(height: 16),
+        NumberWheel(
+          label: 'Minutes studied',
+          values: options,
+          value: minutes,
+          format: (value) => '$value min',
+          width: 120,
+          onChanged: (value) => setState(() => minutes = value),
+        ),
+      ],
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: () => Navigator.pop(context, minutes),
+        child: Text('Save $minutes min'),
+      ),
+    ],
+  );
 }

@@ -2,7 +2,8 @@ import 'package:omnia_ui/features/home/domain/dashboard.dart';
 import 'package:omnia_ui/features/plan/domain/daily_plan.dart';
 
 /// Compares trusted plan times with the current instant in the profile zone.
-/// It never treats an already-ended snapshot block as upcoming.
+/// It never treats an already-ended snapshot block as upcoming, nor one the
+/// user already recorded as done or skipped.
 ({DailyPlanItem item, bool inProgress})? nextUp(
   Dashboard dashboard,
   DailyPlan? plan,
@@ -14,8 +15,16 @@ import 'package:omnia_ui/features/plan/domain/daily_plan.dart';
   );
   if (!_sameDay(local, dashboard.date)) return null;
   final minute = local.hour * 60 + local.minute;
-  final remaining = plan.items.where((item) => _minutes(item.end) > minute).toList()
-    ..sort((a, b) => a.start.compareTo(b.start));
+  final remaining =
+      plan.items
+          .where(
+            (item) =>
+                _minutes(item.end) > minute &&
+                item.outcome != 'done' &&
+                item.outcome != 'skipped',
+          )
+          .toList()
+        ..sort((a, b) => a.start.compareTo(b.start));
   if (remaining.isEmpty) return null;
   final item = remaining.first;
   return (item: item, inProgress: _minutes(item.start) <= minute);

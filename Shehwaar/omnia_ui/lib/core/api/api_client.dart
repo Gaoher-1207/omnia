@@ -36,8 +36,18 @@ class ApiClient {
 
   Future<dynamic> get(String path, {Map<String, Object?>? query}) =>
       _send('GET', path, query: query);
-  Future<dynamic> post(String path, {Object? body, Duration? timeout}) =>
-      _send('POST', path, body: body, timeout: timeout);
+  Future<dynamic> post(
+    String path, {
+    Object? body,
+    Duration? timeout,
+    String? timeoutMessage,
+  }) => _send(
+    'POST',
+    path,
+    body: body,
+    timeout: timeout,
+    timeoutMessage: timeoutMessage,
+  );
   Future<dynamic> patch(String path, {Object? body}) =>
       _send('PATCH', path, body: body);
   Future<dynamic> put(String path, {Object? body}) =>
@@ -60,6 +70,7 @@ class ApiClient {
     Map<String, Object?>? query,
     Object? body,
     Duration? timeout,
+    String? timeoutMessage,
   }) async {
     final request = http.Request(method, uri(path, query))
       ..headers['Accept'] = 'application/json';
@@ -78,7 +89,9 @@ class ApiClient {
           .then(http.Response.fromStream)
           .timeout(timeout ?? this.timeout);
     } on TimeoutException {
-      throw ApiException.network('OMNIA took too long to answer. Try again.');
+      throw ApiException.network(
+        timeoutMessage ?? 'OMNIA took too long to answer. Try again.',
+      );
     } catch (_) {
       throw ApiException.network();
     }

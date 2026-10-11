@@ -22,3 +22,9 @@ const sleepDark = Color(0xFFC88AF4);
 const darkPrimary = Color(0xFF894AD7);
 const darkNavigationAccent = Color(0xFFA18AEE);
 const darkOffsetShadow = Color(0xFF30223F);
+
+// Plan check-off states. Saturated enough to read at a glance and to carry an
+// ink mark (✓ – ×) at high contrast in both themes.
+const outcomeDone = Color(0xFF46C772);
+const outcomePartial = Color(0xFFFFC83D);
+const outcomeNotDone = Color(0xFFF2645F);

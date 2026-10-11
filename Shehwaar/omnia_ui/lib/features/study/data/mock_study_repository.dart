@@ -3,6 +3,7 @@ import 'package:omnia_ui/core/data/in_memory_data_source.dart';
 import 'package:omnia_ui/core/data/mock_data.dart';
 import 'package:omnia_ui/core/data/repository_exception.dart';
 import 'package:omnia_ui/features/study/domain/exam.dart';
+import 'package:omnia_ui/features/study/domain/study_log.dart';
 import 'package:omnia_ui/features/study/domain/revision_repository.dart';
 import 'package:omnia_ui/features/study/domain/study_repository.dart';
 import 'package:omnia_ui/features/study/domain/study_session.dart';
@@ -46,6 +47,33 @@ class MockStudyRepository implements StudyRepository, RevisionRepository {
   final InMemoryDataSource<Exam> _exams;
   final InMemoryDataSource<StudySession> _sessions;
   var _ids = 0;
+
+  /// Minutes logged from finished Focus phases, kept in memory only.
+  final loggedStudyMinutes = <int>[];
+  final _log = <StudyLog>[];
+
+  @override
+  Future<void> logStudyMinutes(
+    int minutes, {
+    required DateTime startedAt,
+  }) async {
+    loggedStudyMinutes.add(minutes);
+    _log.insert(
+      0,
+      StudyLog(
+        id: 'focus-${++_ids}',
+        day: DateTime(startedAt.year, startedAt.month, startedAt.day),
+        minutes: minutes,
+        source: StudySource.focus,
+      ),
+    );
+  }
+
+  @override
+  Future<List<StudyLog>> getStudyLog(DateTime from, DateTime to) async => [
+    for (final entry in _log)
+      if (!entry.day.isBefore(from) && !entry.day.isAfter(to)) entry,
+  ];
 
   static const _notFound = ApiException(
     statusCode: 404,

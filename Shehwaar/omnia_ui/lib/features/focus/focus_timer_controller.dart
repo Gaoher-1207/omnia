@@ -5,6 +5,9 @@ import 'package:omnia_ui/features/focus/focus_preset.dart';
 
 enum FocusPhase { focus, rest }
 
+/// A Focus phase that ran to the end: how long it was and when it ended.
+typedef FocusCompletion = ({Duration length, DateTime endedAt});
+
 /// One reusable Pomodoro timer. Future Focus Mode should drive this same
 /// controller rather than adding a second countdown.
 ///
@@ -28,6 +31,11 @@ class FocusTimerController extends ChangeNotifier {
   int _completedFocusSessions = 0;
   FocusPhase? _justFinished;
   int _shownSeconds = -1;
+  final _focusCompleted = StreamController<FocusCompletion>.broadcast();
+
+  /// Each Focus phase that ran to the end, with its length. Skipped or reset
+  /// phases are not reported. The signed-in session logs these as study time.
+  Stream<FocusCompletion> get focusCompleted => _focusCompleted.stream;
 
   FocusPreset get preset => _preset;
   FocusPhase get phase => _phase;
@@ -110,6 +118,7 @@ class FocusTimerController extends ChangeNotifier {
     _justFinished = _phase;
     if (_phase == FocusPhase.focus) {
       _completedFocusSessions++;
+      _focusCompleted.add((length: _preset.focus, endedAt: _now()));
       _setPhase(FocusPhase.rest);
     } else {
       _setPhase(FocusPhase.focus);
@@ -132,6 +141,7 @@ class FocusTimerController extends ChangeNotifier {
   @override
   void dispose() {
     _ticker?.cancel();
+    _focusCompleted.close();
     super.dispose();
   }
 }

@@ -51,6 +51,16 @@ class TaskController extends ChangeNotifier {
     _tasks = [..._tasks, created];
   });
 
+  /// Like [create], but returns the stored task (null on failure).
+  Future<Task?> add(Task task) async {
+    Task? created;
+    final saved = await _run(null, () async {
+      created = await _repository.createTask(task);
+      _tasks = [..._tasks, created!];
+    });
+    return saved ? created : null;
+  }
+
   Future<bool> update(Task task) => _run(task.id, () async {
     _replace(await _repository.updateTask(task));
   });

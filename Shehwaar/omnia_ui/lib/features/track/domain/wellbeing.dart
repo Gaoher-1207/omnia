@@ -42,3 +42,24 @@ class SleepEntry {
   /// yet, so it sends them back unchanged instead of erasing them.
   final String? bedtime, wakeTime;
 }
+
+/// Activity over a date range, as stored. A day missing from [logged] was
+/// never logged, which is different from a logged day with 0 steps or no
+/// workout; nothing here is filled in or estimated.
+class ActivityHistory {
+  ActivityHistory({
+    required this.from,
+    required this.to,
+    required this.stepGoal,
+    required Iterable<ActivityDay> logged,
+  }) : _logged = {for (final day in logged) _key(day.day): day};
+
+  final DateTime from, to;
+  final int stepGoal;
+  final Map<String, ActivityDay> _logged;
+
+  /// The stored day, or null when nothing was logged for [day].
+  ActivityDay? on(DateTime day) => _logged[_key(day)];
+
+  static String _key(DateTime day) => '${day.year}-${day.month}-${day.day}';
+}

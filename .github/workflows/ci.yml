@@ -44,9 +44,9 @@ jobs:
       PG_URL: postgresql+psycopg://omnia:ci-only-password@localhost:5432/omnia_test
       SQLITE_URL: sqlite:///./ci-migrations.db
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
@@ -98,7 +98,7 @@ jobs:
         shell: bash
         working-directory: Shehwaar/omnia_ui
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: subosito/flutter-action@v2
         with:

@@ -1,6 +1,8 @@
+import 'package:flutter/material.dart' show DateUtils;
 import 'package:flutter/widgets.dart';
 import 'package:omnia_ui/core/api/api_exception.dart';
 import 'package:omnia_ui/features/plan/domain/daily_plan.dart';
+import 'package:omnia_ui/features/plan/domain/manual_plan_item.dart';
 import 'package:omnia_ui/features/plan/domain/plan_repository.dart';
 import 'package:omnia_ui/features/plan/domain/replan_proposal.dart';
 
@@ -20,6 +22,12 @@ class PlanController extends ChangeNotifier {
   Object? _replanError;
   String? _replanNotice;
   bool _creatingProposal = false, _proposalActionBusy = false;
+  final _outcomeBusy = <String>{};
+  Object? _outcomeError;
+  bool _addingItem = false;
+  Object? _addError;
+  final _removing = <String>{};
+  Object? _removeError;
   int _request = 0;
   final _editedPlans = <String>{};
   DailyPlan? get plan => _plan;
@@ -36,6 +44,154 @@ class PlanController extends ChangeNotifier {
   String? get replanNotice => _replanNotice;
   bool get creatingProposal => _creatingProposal;
   bool get proposalActionBusy => _proposalActionBusy;
+  bool outcomeBusy(String itemKey) => _outcomeBusy.contains(itemKey);
+  Object? get outcomeError => _outcomeError;
+  bool get addingItem => _addingItem;
+  bool removing(String itemKey) => _removing.contains(itemKey);
+  Object? get removeError => _removeError;
+
+  /// Remove [item] from [plan], the snapshot the user confirmed it on. The
+  /// key and that snapshot's revision go to the server, so a plan that
+  /// changed in the meantime is refused (and refreshed) rather than a
+  /// different block being removed.
+  Future<bool> removeItem(DailyPlan plan, DailyPlanItem item) async {
+    final key = item.itemKey;
+    if (_disposed || key == null || _busy || !_removing.add(key)) return false;
+    final request = _request;
+    _removeError = null;
+    notifyListeners();
+    try {
+      final updated = await _repository.removeItem(
+        plan.date,
+        key,
+        baseRevision: plan.revision,
+      );
+      if (_disposed) return false;
+      if (request == _request && _plan?.id == plan.id) _plan = updated;
+      if (_todayPlan?.id == plan.id) _todayPlan = updated;
+      return true;
+    } on ApiException catch (failure) {
+      if (_disposed) return false;
+      _removeError = failure;
+      if ((failure.code == 'plan_stale' || failure.code == 'plan_item_stale') &&
+          request == _request) {
+        await _refreshAfterStaleProposal();
+      }
+      return false;
+    } catch (failure) {
+      if (!_disposed) _removeError = failure;
+      return false;
+    } finally {
+      if (!_disposed) {
+        _removing.remove(key);
+        notifyListeners();
+      }
+    }
+  }
+
+  Object? get addError => _addError;
+
+  /// The plan this controller holds for [day], if any.
+  DailyPlan? planFor(DateTime day) {
+    for (final candidate in [_plan, _todayPlan]) {
+      if (candidate != null && DateUtils.isSameDay(candidate.date, day)) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
+  /// Add a block to [day]'s plan by hand, then show that day with it. The
+  /// revision on screen is sent so a plan changed elsewhere is refused
+  /// (`plan_stale`) rather than overwritten; nothing else ever moves.
+  Future<bool> addItem(DateTime day, ManualPlanItemDraft draft) async {
+    if (_disposed || _addingItem) return false;
+    _addingItem = true;
+    _addError = null;
+    notifyListeners();
+    try {
+      final updated = await _repository.addItem(
+        day,
+        draft,
+        baseRevision: planFor(day)?.revision,
+      );
+      if (_disposed) return false;
+      final today = _todayDate;
+      ++_request;
+      _busy = false;
+      _error = null;
+      _plan = updated;
+      _loaded = true;
+      if (today != null && DateUtils.isSameDay(updated.date, today)) {
+        _selectedDate = null;
+        _todayPlan = updated;
+        _todayLoaded = true;
+      } else {
+        _selectedDate = DateUtils.dateOnly(updated.date);
+      }
+      return true;
+    } catch (failure) {
+      if (!_disposed) _addError = failure;
+      return false;
+    } finally {
+      if (!_disposed) {
+        _addingItem = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  /// Record what happened to [item] (`done`, `partial`, `skipped`; null clears
+  /// it). Only the outcome changes, never the schedule. A block that is no
+  /// longer in the latest plan refreshes the plan instead (409
+  /// `plan_item_stale`). One write per block at a time.
+  Future<bool> recordOutcome(
+    DailyPlanItem item,
+    String? status, {
+    int? minutes,
+  }) async {
+    final plan = _plan;
+    final key = item.itemKey;
+    if (_disposed ||
+        plan == null ||
+        key == null ||
+        _busy ||
+        _outcomeBusy.contains(key)) {
+      return false;
+    }
+    final request = _request;
+    _outcomeBusy.add(key);
+    _outcomeError = null;
+    notifyListeners();
+    try {
+      final updated = await _repository.recordOutcome(
+        plan.date,
+        key,
+        status,
+        minutes: minutes,
+      );
+      if (_disposed) return false;
+      // A date change or reload since the tap owns the view; keep it.
+      if (request == _request && _plan?.id == updated.id) _plan = updated;
+      if (_todayPlan?.id == updated.id) _todayPlan = updated;
+      return true;
+    } on ApiException catch (failure) {
+      if (_disposed) return false;
+      _outcomeError = failure;
+      if (failure.code == 'plan_item_stale' && request == _request) {
+        await _refreshAfterStaleProposal();
+      }
+      return false;
+    } catch (failure) {
+      if (!_disposed) _outcomeError = failure;
+      return false;
+    } finally {
+      if (!_disposed) {
+        _outcomeBusy.remove(key);
+        notifyListeners();
+      }
+    }
+  }
 
   /// Create a backend-validated preview and reload its persisted representation.
   /// Neither call changes the active plan.

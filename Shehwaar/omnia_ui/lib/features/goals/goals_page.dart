@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:omnia_ui/core/app_dependencies.dart';
 import 'package:omnia_ui/core/models/omnia_category.dart';
 import 'package:omnia_ui/core/theme/app_colors.dart';
 import 'package:omnia_ui/core/theme/app_theme.dart';
@@ -41,10 +42,9 @@ String goalAmount(Goal goal) =>
     '${formatAmount(goal.currentValue!)} / '
     '${formatAmount(goal.targetValue!)} ${goal.unit}';
 
-/// Long-term goals have no backend yet; never imply they are saved to the
-/// account.
+/// Mock mode keeps goals in memory; never imply they are saved anywhere.
 const localOnlyNote =
-    'Goals aren’t synced to your account yet. They stay until you close OMNIA.';
+    'Sample mode: goals aren’t saved. They stay until you close OMNIA.';
 
 class GoalsPage extends StatelessWidget {
   const GoalsPage({super.key});
@@ -104,6 +104,13 @@ class GoalsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final goals = GoalScope.of(context);
     final active = goals.active, completed = goals.completed;
+    // Only a signed-in session saves goals; anything else is local.
+    final sample =
+        context
+            .dependOnInheritedWidgetOfExactType<AppDependenciesScope>()
+            ?.dependencies
+            .sampleContent ??
+        true;
     Widget card(Goal goal) => Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: _GoalCard(
@@ -132,7 +139,8 @@ class GoalsPage extends StatelessWidget {
         title: 'No goals yet',
         detail:
             'Add something you are working toward, like finishing a '
-            'syllabus or reading 12 books.\n\n$localOnlyNote',
+            'syllabus or reading 12 books.'
+            '${sample ? '\n\n$localOnlyNote' : ''}',
       );
     } else {
       body = ListView(
@@ -142,11 +150,13 @@ class GoalsPage extends StatelessWidget {
             '${active.length} active  ·  ${completed.length} completed',
             style: OmniaText.meta.copyWith(color: context.mutedForeground),
           ),
-          const SizedBox(height: 4),
-          Text(
-            localOnlyNote,
-            style: TextStyle(color: context.mutedForeground, fontSize: 12),
-          ),
+          if (sample) ...[
+            const SizedBox(height: 4),
+            Text(
+              localOnlyNote,
+              style: TextStyle(color: context.mutedForeground, fontSize: 12),
+            ),
+          ],
           const SizedBox(height: 12),
           const _Header('Active'),
           if (active.isEmpty)
