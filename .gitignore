@@ -145,3 +145,11 @@ vite.config.ts.timestamp-*
 # Python bytecode and cache directories
 __pycache__/
 *.py[cod]
+
+# Local AI assistant configuration (keep private to this checkout)
+/.agents/
+/.claude/
+/.codex/
+/.impeccable/
+/AGENTS.md
+/CLAUDE.md
